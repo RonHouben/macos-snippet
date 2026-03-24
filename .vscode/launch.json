@@ -1,0 +1,44 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:snippingTool}",
+      "name": "Debug snippingTool",
+      "target": "snippingTool",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug snippingTool"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:snippingTool}",
+      "name": "Release snippingTool",
+      "target": "snippingTool",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release snippingTool"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:snippingTool}",
+      "name": "Debug snippingToolTDD",
+      "target": "snippingToolTDD",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug snippingToolTDD"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:snippingTool}",
+      "name": "Release snippingToolTDD",
+      "target": "snippingToolTDD",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release snippingToolTDD"
+    }
+  ]
+}

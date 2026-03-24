@@ -1,0 +1,59 @@
+import Foundation
+
+public enum StatusMenuAction: Sendable, Equatable {
+    case newCapture
+    case openEditor
+    case openSettings
+    case quit
+}
+
+public struct CaptureModeMenuEntry: Sendable, Equatable {
+    public let mode: CaptureMode
+    public let isSelected: Bool
+
+    public init(mode: CaptureMode, isSelected: Bool) {
+        self.mode = mode
+        self.isSelected = isSelected
+    }
+}
+
+public enum StatusMenuEntry: Sendable, Equatable {
+    case action(title: String, action: StatusMenuAction)
+    case captureModes(title: String, items: [CaptureModeMenuEntry])
+    case separator
+    case status(String)
+}
+
+public struct StatusMenuSnapshot: Sendable, Equatable {
+    public let entries: [StatusMenuEntry]
+
+    public init(entries: [StatusMenuEntry]) {
+        self.entries = entries
+    }
+}
+
+public enum StatusMenuBuilder {
+    public static func build(preferredCaptureMode: CaptureMode, statusMessage: String?) -> StatusMenuSnapshot {
+        var entries: [StatusMenuEntry] = [
+            .action(title: "New Capture", action: .newCapture),
+            .action(title: "Open Editor", action: .openEditor),
+            .captureModes(
+                title: "Capture Mode",
+                items: CaptureMode.allCases.map { mode in
+                    CaptureModeMenuEntry(mode: mode, isSelected: mode == preferredCaptureMode)
+                }
+            )
+        ]
+
+        if let statusMessage, !statusMessage.isEmpty {
+            entries.append(.separator)
+            entries.append(.status(statusMessage))
+        }
+
+        entries.append(.separator)
+        entries.append(.action(title: "Settings", action: .openSettings))
+        entries.append(.action(title: "Quit snippingTool", action: .quit))
+
+        return StatusMenuSnapshot(entries: entries)
+    }
+}
