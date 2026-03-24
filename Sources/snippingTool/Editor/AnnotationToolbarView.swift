@@ -26,11 +26,16 @@ struct AnnotationToolbarView: View {
             .labelsHidden()
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Stroke")
+                Text(annotationStore.selectedTool.usesStrokeWidth ? "Stroke" : "Font")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                Slider(value: $annotationStore.lineWidth, in: 1...16)
-                    .frame(width: 120)
+                if annotationStore.selectedTool.usesStrokeWidth {
+                    Slider(value: $annotationStore.lineWidth, in: 1...16)
+                        .frame(width: 120)
+                } else {
+                    Slider(value: $annotationStore.textFontSize, in: 12...96)
+                        .frame(width: 120)
+                }
             }
 
             Spacer()

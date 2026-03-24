@@ -17,8 +17,8 @@ struct ExportService {
         }
     }
 
-    func renderImage(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke]) throws -> NSImage {
-        let view = ExportSnapshotView(capturedSnippet: capturedSnippet, strokes: strokes)
+    func renderImage(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke], textAnnotations: [TextAnnotation]) throws -> NSImage {
+        let view = ExportSnapshotView(capturedSnippet: capturedSnippet, strokes: strokes, textAnnotations: textAnnotations)
             .frame(width: CGFloat(capturedSnippet.cgImage.width), height: CGFloat(capturedSnippet.cgImage.height))
 
         let renderer = ImageRenderer(content: view)
@@ -31,14 +31,14 @@ struct ExportService {
         return image
     }
 
-    func copyToPasteboard(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke]) throws {
-        let image = try renderImage(capturedSnippet: capturedSnippet, strokes: strokes)
+    func copyToPasteboard(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke], textAnnotations: [TextAnnotation]) throws {
+        let image = try renderImage(capturedSnippet: capturedSnippet, strokes: strokes, textAnnotations: textAnnotations)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([image])
     }
 
-    func saveUsingPanel(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke]) throws -> URL {
-        let image = try renderImage(capturedSnippet: capturedSnippet, strokes: strokes)
+    func saveUsingPanel(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke], textAnnotations: [TextAnnotation]) throws -> URL {
+        let image = try renderImage(capturedSnippet: capturedSnippet, strokes: strokes, textAnnotations: textAnnotations)
         guard let tiffData = image.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiffData),
               let pngData = bitmap.representation(using: .png, properties: [:]) else {
@@ -61,6 +61,7 @@ struct ExportService {
 private struct ExportSnapshotView: View {
     let capturedSnippet: CapturedSnippet
     let strokes: [AnnotationStroke]
+    let textAnnotations: [TextAnnotation]
 
     var body: some View {
         ZStack {
@@ -88,7 +89,19 @@ private struct ExportSnapshotView: View {
                         context.opacity = 0.45
                         context.stroke(path, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: stroke.lineWidth * 3, lineCap: .round, lineJoin: .round))
                         context.opacity = 1
+                    case .text:
+                        break
                     }
+                }
+
+                for textAnnotation in textAnnotations {
+                    context.draw(
+                        Text(textAnnotation.text)
+                            .font(.system(size: textAnnotation.fontSize))
+                            .foregroundStyle(Color(nsColor: textAnnotation.color)),
+                        at: textAnnotation.anchor.cgPoint,
+                        anchor: .topLeading
+                    )
                 }
             }
         }

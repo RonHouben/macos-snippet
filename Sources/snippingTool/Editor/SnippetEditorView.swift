@@ -44,7 +44,12 @@ struct SnippetEditorView: View {
 
     private func copyCapture(_ capture: CapturedSnippet) {
         do {
-            try exportService.copyToPasteboard(capturedSnippet: capture, strokes: annotationStore.strokes)
+            annotationStore.commitPendingTextIfNeeded()
+            try exportService.copyToPasteboard(
+                capturedSnippet: capture,
+                strokes: annotationStore.strokes,
+                textAnnotations: annotationStore.textAnnotations
+            )
             exportMessage = "Copied capture to the clipboard."
         } catch {
             exportMessage = error.localizedDescription
@@ -53,7 +58,12 @@ struct SnippetEditorView: View {
 
     private func saveCapture(_ capture: CapturedSnippet) {
         do {
-            let url = try exportService.saveUsingPanel(capturedSnippet: capture, strokes: annotationStore.strokes)
+            annotationStore.commitPendingTextIfNeeded()
+            let url = try exportService.saveUsingPanel(
+                capturedSnippet: capture,
+                strokes: annotationStore.strokes,
+                textAnnotations: annotationStore.textAnnotations
+            )
             guard !url.path.isEmpty else {
                 exportMessage = "Save cancelled."
                 return

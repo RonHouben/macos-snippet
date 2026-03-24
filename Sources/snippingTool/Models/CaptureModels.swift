@@ -3,6 +3,14 @@ import CoreGraphics
 import Foundation
 import snippingToolCore
 
+private func archivedColorData(for color: NSColor) -> Data {
+    (try? NSKeyedArchiver.archivedData(withRootObject: color, requiringSecureCoding: false)) ?? Data()
+}
+
+private func unarchivedColor(from data: Data) -> NSColor {
+    (try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: data)) ?? .systemRed
+}
+
 struct CapturedSnippet: Identifiable, Equatable {
     let id: UUID
     let createdAt: Date
@@ -21,8 +29,18 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
     case pen
     case highlighter
     case eraser
+    case text
 
     var id: String { rawValue }
+
+    var usesStrokeWidth: Bool {
+        switch self {
+        case .pen, .highlighter, .eraser:
+            true
+        case .text:
+            false
+        }
+    }
 
     var title: String {
         switch self {
@@ -32,6 +50,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             "Highlighter"
         case .eraser:
             "Eraser"
+        case .text:
+            "Text"
         }
     }
 }
@@ -64,13 +84,39 @@ struct AnnotationStroke: Identifiable, Hashable {
     ) {
         self.id = id
         self.tool = tool
-        self.colorData = (try? NSKeyedArchiver.archivedData(withRootObject: color, requiringSecureCoding: false)) ?? Data()
+        self.colorData = archivedColorData(for: color)
         self.lineWidth = lineWidth
         self.points = points
     }
 
     var color: NSColor {
-        (try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: colorData)) ?? .systemRed
+        unarchivedColor(from: colorData)
+    }
+}
+
+struct TextAnnotation: Identifiable, Hashable {
+    let id: UUID
+    let text: String
+    let colorData: Data
+    let fontSize: CGFloat
+    let anchor: AnnotationPoint
+
+    init(
+        id: UUID = UUID(),
+        text: String,
+        color: NSColor,
+        fontSize: CGFloat,
+        anchor: AnnotationPoint
+    ) {
+        self.id = id
+        self.text = text
+        self.colorData = archivedColorData(for: color)
+        self.fontSize = fontSize
+        self.anchor = anchor
+    }
+
+    var color: NSColor {
+        unarchivedColor(from: colorData)
     }
 }
 
