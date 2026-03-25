@@ -57,11 +57,25 @@ func testOverlayCancelPolicyUsesEscape() throws {
 }
 
 func testCaptureCompletionDismissesOverlayBeforeOpeningEditor() throws {
-    let overlayActions = CaptureCompletionPolicy.actions(hasOverlay: true)
-    try expect(overlayActions == [.dismissOverlay, .notifyCaptureReady], "Overlay captures should dismiss the overlay before notifying the editor")
+    let overlayActions = CaptureCompletionPolicy.actions(hasOverlay: true, activeModifiers: [.shift])
+    try expect(overlayActions == [.dismissOverlay, .openEditor], "Overlay captures made with Shift should dismiss the overlay before opening the editor")
 
-    let fullscreenActions = CaptureCompletionPolicy.actions(hasOverlay: false)
-    try expect(fullscreenActions == [.notifyCaptureReady], "Fullscreen captures should notify the editor without overlay-dismiss work")
+    let fullscreenActions = CaptureCompletionPolicy.actions(hasOverlay: false, activeModifiers: [.shift])
+    try expect(fullscreenActions == [.openEditor], "Fullscreen captures made with Shift should open the editor without overlay-dismiss work")
+}
+
+func testCaptureCompletionCopiesToClipboardWithoutShiftModifier() throws {
+    let overlayActions = CaptureCompletionPolicy.actions(hasOverlay: true, activeModifiers: [])
+    try expect(overlayActions == [.dismissOverlay, .copyToClipboard], "Overlay captures without Shift should dismiss the overlay and copy directly to the clipboard")
+
+    let fullscreenActions = CaptureCompletionPolicy.actions(hasOverlay: false, activeModifiers: [.command])
+    try expect(fullscreenActions == [.copyToClipboard], "Fullscreen captures without Shift should copy directly to the clipboard")
+}
+
+func testCaptureCompletionRecognizesTheDefaultEditorModifier() throws {
+    try expect(CaptureCompletionPolicy.defaultEditorModifier == .shift, "Shift should be the default modifier that opens the editor")
+    try expect(CaptureCompletionPolicy.shouldOpenEditor(activeModifiers: [.shift]), "Holding Shift should open the editor")
+    try expect(!CaptureCompletionPolicy.shouldOpenEditor(activeModifiers: [.command]), "Non-Shift modifiers alone should not open the editor")
 }
 
 func testCapturePreparationDismissesOverlayBeforeRectangularCapture() throws {
@@ -130,6 +144,31 @@ func testScreenSelectionCropMapperHandlesOffsetScreens() throws {
     try expect(cropRect == CGRect(x: 256, y: 234, width: 600, height: 400), "Crop mapping should work even when a screen has a negative global origin")
 }
 
+func testEditorWindowPlacementChoosesTheScreenWithLargestCapturedArea() throws {
+    let sourceRect = CGRect(x: 1500, y: 120, width: 500, height: 300)
+    let screenFrames = [
+        CGRect(x: 0, y: 0, width: 1512, height: 982),
+        CGRect(x: 1512, y: 0, width: 1728, height: 1117)
+    ]
+
+    let chosenFrame = try XCTUnwrapLike(
+        EditorWindowPlacement.targetScreenFrame(for: sourceRect, availableScreenFrames: screenFrames),
+        "The capture source should resolve to a target screen"
+    )
+
+    try expect(chosenFrame == screenFrames[1], "The editor should open on the screen that contains most of the captured area")
+}
+
+func testEditorWindowPlacementCentersWindowInsideVisibleScreenFrame() throws {
+    let visibleFrame = CGRect(x: 1512, y: 38, width: 1728, height: 1079)
+    let centeredFrame = EditorWindowPlacement.centeredFrame(
+        for: CGSize(width: 1100, height: 760),
+        in: visibleFrame
+    )
+
+    try expect(centeredFrame == CGRect(x: 1826, y: 198, width: 1100, height: 760), "The editor should be centered inside the target screen's visible frame")
+}
+
 func testDefaultHotkeyConfigurationStartsWithNoBindings() throws {
     let configuration = CaptureModeHotkeyConfiguration.default
 
@@ -188,30 +227,57 @@ func testCapturedShortcutRequiresAtLeastOneModifier() throws {
 }
 
 func testOverlayToolbarModesShowOnlyImplementedCaptureModes() throws {
-    try expect(CaptureMode.overlayToolbarModes == [.rectangular, .fullScreen], "Overlay toolbar should only expose the implemented capture modes")
+    try expect(CaptureMode.overlayToolbarModes == [.rectangular, .fullScreen, .window], "Overlay toolbar should expose every implemented capture mode")
 }
 
 func testOverlayToolbarModesExposeExpectedIcons() throws {
     try expect(CaptureMode.rectangular.overlayToolbarSystemImage == "rectangle.dashed", "Rectangular mode should expose the dashed-rectangle icon")
     try expect(CaptureMode.fullScreen.overlayToolbarSystemImage == "macwindow", "Full Screen mode should expose the window icon")
+    try expect(CaptureMode.window.overlayToolbarSystemImage == "macwindow.on.rectangle", "Window mode should expose the window-selection icon")
 }
 
 func testOverlayToolbarAccessibilityLabelsMatchTitles() throws {
     try expect(CaptureMode.rectangular.overlayToolbarAccessibilityLabel == "Rectangular capture", "Rectangular accessibility label should describe the action")
     try expect(CaptureMode.fullScreen.overlayToolbarAccessibilityLabel == "Full Screen capture", "Full Screen accessibility label should describe the action")
+    try expect(CaptureMode.window.overlayToolbarAccessibilityLabel == "Window capture", "Window accessibility label should describe the action")
 }
 
 func testOverlayToolbarShortcutDigitsMatchVisibleModes() throws {
     try expect(CaptureMode.rectangular.overlayToolbarShortcutDigit == 1, "Rectangular mode should be bound to the 1 key")
     try expect(CaptureMode.fullScreen.overlayToolbarShortcutDigit == 2, "Full Screen mode should be bound to the 2 key")
+    try expect(CaptureMode.window.overlayToolbarShortcutDigit == 3, "Window mode should be bound to the 3 key")
     try expect(CaptureMode.rectangular.overlayToolbarShortcutLabel == "1", "Rectangular mode should expose a visible shortcut label")
     try expect(CaptureMode.fullScreen.overlayToolbarShortcutLabel == "2", "Full Screen mode should expose a visible shortcut label")
+    try expect(CaptureMode.window.overlayToolbarShortcutLabel == "3", "Window mode should expose a visible shortcut label")
 }
 
 func testOverlayToolbarCanResolveModesFromShortcutDigits() throws {
     try expect(CaptureMode.overlayToolbarMode(forShortcutDigit: 1) == .rectangular, "Shortcut 1 should resolve to rectangular capture")
     try expect(CaptureMode.overlayToolbarMode(forShortcutDigit: 2) == .fullScreen, "Shortcut 2 should resolve to full screen capture")
-    try expect(CaptureMode.overlayToolbarMode(forShortcutDigit: 3) == nil, "Hidden modes should not resolve from overlay shortcut digits")
+    try expect(CaptureMode.overlayToolbarMode(forShortcutDigit: 3) == .window, "Shortcut 3 should resolve to window capture")
+}
+
+func testOverlayToolbarShortcutKeysAllowShiftButRejectOtherModifiers() throws {
+    try expect(
+        CaptureMode.overlayToolbarMode(forShortcutKey: .two, modifiers: [.shift]) == .fullScreen,
+        "Shift+2 should resolve to full screen capture"
+    )
+    try expect(
+        CaptureMode.overlayToolbarMode(forShortcutKey: .three, modifiers: [.shift]) == .window,
+        "Shift+3 should resolve to window capture"
+    )
+    try expect(
+        CaptureMode.overlayToolbarMode(forShortcutKey: .one, modifiers: []) == .rectangular,
+        "Bare 1 should still resolve to rectangular capture"
+    )
+    try expect(
+        CaptureMode.overlayToolbarMode(forShortcutKey: .two, modifiers: [.command]) == nil,
+        "Command-modified digits should not trigger overlay capture modes"
+    )
+    try expect(
+        CaptureMode.overlayToolbarMode(forShortcutKey: .w, modifiers: [.shift]) == nil,
+        "Non-digit keys should not trigger overlay capture modes"
+    )
 }
 
 func XCTUnwrapLike<T>(_ value: T?, _ message: String) throws -> T {
@@ -226,6 +292,8 @@ do {
     try testMenuIncludesStatusWhenPresent()
     try testOverlayCancelPolicyUsesEscape()
     try testCaptureCompletionDismissesOverlayBeforeOpeningEditor()
+    try testCaptureCompletionCopiesToClipboardWithoutShiftModifier()
+    try testCaptureCompletionRecognizesTheDefaultEditorModifier()
     try testCapturePreparationDismissesOverlayBeforeRectangularCapture()
     try testSelectionOverlayStyleIsConfiguredForVisibility()
     try testAnnotationCoordinateMapperRoundTripsCanvasAndImagePoints()
@@ -233,6 +301,8 @@ do {
     try testAnnotationLineWidthScalesWithDisplayedImage()
     try testScreenSelectionCropMapperProducesTopLeftImageCrop()
     try testScreenSelectionCropMapperHandlesOffsetScreens()
+    try testEditorWindowPlacementChoosesTheScreenWithLargestCapturedArea()
+    try testEditorWindowPlacementCentersWindowInsideVisibleScreenFrame()
     try testDefaultHotkeyConfigurationStartsWithNoBindings()
     try testHotkeyConfigurationReportsDuplicateAssignments()
     try testHotkeyValidationRejectsModifierlessShortcut()
@@ -245,6 +315,7 @@ do {
     try testOverlayToolbarAccessibilityLabelsMatchTitles()
     try testOverlayToolbarShortcutDigitsMatchVisibleModes()
     try testOverlayToolbarCanResolveModesFromShortcutDigits()
+    try testOverlayToolbarShortcutKeysAllowShiftButRejectOtherModifiers()
     print("✅ TDD checks passed")
 } catch {
     fputs("❌ TDD check failed: \(error)\n", stderr)

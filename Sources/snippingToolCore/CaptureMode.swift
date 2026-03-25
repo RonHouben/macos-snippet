@@ -49,10 +49,35 @@ public enum CaptureMode: String, CaseIterable, Identifiable, Sendable {
     }
 
     public static var overlayToolbarModes: [CaptureMode] {
-        [.rectangular, .fullScreen]
+        [.rectangular, .fullScreen, .window]
     }
 
     public static func overlayToolbarMode(forShortcutDigit digit: Int) -> CaptureMode? {
         overlayToolbarModes.first(where: { $0.overlayToolbarShortcutDigit == digit })
+    }
+
+    public static func overlayToolbarMode(forShortcutKey key: HotkeyKey, modifiers: HotkeyModifiers) -> CaptureMode? {
+        let disallowedModifiers: HotkeyModifiers = [.command, .option, .control]
+        guard modifiers.intersection(disallowedModifiers).isEmpty else {
+            return nil
+        }
+
+        let digit: Int?
+        switch key {
+        case .one:
+            digit = 1
+        case .two:
+            digit = 2
+        case .three:
+            digit = 3
+        default:
+            digit = nil
+        }
+
+        guard let digit else {
+            return nil
+        }
+
+        return overlayToolbarMode(forShortcutDigit: digit)
     }
 }

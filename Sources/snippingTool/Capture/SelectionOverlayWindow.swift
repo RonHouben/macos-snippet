@@ -9,11 +9,17 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
     private let coordinator: CaptureCoordinator
     private var localKeyMonitor: Any?
     private var globalKeyMonitor: Any?
+    private var localMouseMonitor: Any?
 
     init(coordinator: CaptureCoordinator) {
         self.coordinator = coordinator
 
-        let screenFrame = NSScreen.main?.frame ?? .zero
+        let screenFrame = NSScreen.screens
+            .map(\.frame)
+            .reduce(into: CGRect.null) { partialResult, frame in
+                partialResult = partialResult.union(frame)
+            }
+            .standardized
         let contentView = SelectionOverlayView(coordinator: coordinator)
         hostingView = NSHostingView(rootView: contentView)
 
@@ -32,6 +38,7 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
         window.backgroundColor = .clear
         window.isOpaque = false
         window.ignoresMouseEvents = false
+        window.acceptsMouseMovedEvents = true
         window.hasShadow = false
         window.contentView = hostingView
         if let overlayWindow = window as? OverlayCaptureWindow {
@@ -45,11 +52,13 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(window.contentView)
         installEscapeMonitors()
+        installMouseMonitor()
         NSApp.activate(ignoringOtherApps: true)
     }
 
     func close() {
         removeEscapeMonitors()
+        removeMouseMonitor()
         window.orderOut(nil)
     }
 
@@ -72,7 +81,8 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
             }
 
             if let mode = self.overlayToolbarMode(for: event) {
-                self.coordinator.selectOverlayMode(mode)
+                let modifiers = HotkeyModifiers(eventModifierFlags: event.modifierFlags.hotkeyRelevantModifiers)
+                self.coordinator.selectOverlayMode(mode, activeModifiers: modifiers)
                 return nil
             }
 
@@ -91,15 +101,12 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
     }
 
     private func overlayToolbarMode(for event: NSEvent) -> CaptureMode? {
-        let relevantModifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
-        guard relevantModifiers.isEmpty,
-              let characters = event.charactersIgnoringModifiers,
-              let character = characters.first,
-              let digit = Int(String(character)) else {
+        let modifiers = HotkeyModifiers(eventModifierFlags: event.modifierFlags.hotkeyRelevantModifiers)
+        guard let key = HotkeyKey(keyCode: event.keyCode) else {
             return nil
         }
 
-        return CaptureMode.overlayToolbarMode(forShortcutDigit: digit)
+        return CaptureMode.overlayToolbarMode(forShortcutKey: key, modifiers: modifiers)
     }
 
     private func removeEscapeMonitors() {
@@ -111,6 +118,58 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
         if let globalKeyMonitor {
             NSEvent.removeMonitor(globalKeyMonitor)
             self.globalKeyMonitor = nil
+        }
+    }
+
+    private func installMouseMonitor() {
+        removeMouseMonitor()
+
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown]) { [weak self] event in
+            guard let self else {
+                return event
+            }
+
+            switch event.type {
+            case .mouseMoved:
+                self.handleMouseMoved(event)
+                return event
+            case .leftMouseDown:
+                guard self.coordinator.overlayCaptureMode == .window else {
+                    return event
+                }
+
+                self.handleMouseMoved(event)
+                let modifiers = HotkeyModifiers(eventModifierFlags: event.modifierFlags.hotkeyRelevantModifiers)
+                self.coordinator.captureHoveredWindow(activeModifiers: modifiers)
+                return nil
+            default:
+                return event
+            }
+        }
+    }
+
+    private func handleMouseMoved(_ event: NSEvent) {
+        guard coordinator.overlayCaptureMode == .window else {
+            coordinator.hoveredWindowTarget = nil
+            coordinator.hoveredWindowOverlayRect = nil
+            return
+        }
+
+        let screenPoint = window.convertPoint(toScreen: event.locationInWindow)
+        coordinator.updateHoveredWindow(using: screenPoint) { [weak self] screenRect in
+            guard let self else {
+                return .zero
+            }
+
+            let windowRect = self.window.convertFromScreen(screenRect)
+            return self.hostingView.convert(windowRect, from: nil)
+        }
+    }
+
+    private func removeMouseMonitor() {
+        if let localMouseMonitor {
+            NSEvent.removeMonitor(localMouseMonitor)
+            self.localMouseMonitor = nil
         }
     }
 }

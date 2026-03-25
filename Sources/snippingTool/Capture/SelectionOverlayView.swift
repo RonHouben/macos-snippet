@@ -26,7 +26,7 @@ struct SelectionOverlayView: View {
         OverlayLayoutMetrics(
             topPadding: min(max(geometry.safeAreaInsets.top + 24, 56), max(geometry.size.height * 0.14, 56)),
             horizontalPadding: max(min(geometry.size.width * 0.03, 36), 20),
-            selectionBadgeWidth: min(max(geometry.size.width * 0.12, 140), 180)
+            selectionBadgeWidth: min(max(geometry.size.width * 0.12, 140), 220)
         )
     }
 
@@ -71,14 +71,57 @@ struct SelectionOverlayView: View {
                     .allowsHitTesting(false)
                 }
 
-                Color.clear
-                    .contentShape(Rectangle())
-                    .ignoresSafeArea()
-                    .gesture(selectionGesture)
+                if coordinator.overlayCaptureMode == .window,
+                   let hoveredWindowRect = coordinator.hoveredWindowOverlayRect {
+                    RoundedRectangle(cornerRadius: overlayStyle.cornerRadius)
+                        .fill(Color.clear)
+                        .frame(width: hoveredWindowRect.width, height: hoveredWindowRect.height)
+                        .position(x: hoveredWindowRect.midX, y: hoveredWindowRect.midY)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: overlayStyle.cornerRadius)
+                                .stroke(Color.accentColor, lineWidth: overlayStyle.outerLineWidth)
+                                .shadow(color: Color.accentColor.opacity(0.55), radius: 12)
+                        }
+                        .overlay {
+                            RoundedRectangle(cornerRadius: max(overlayStyle.cornerRadius - 1, 0))
+                                .inset(by: overlayStyle.outerLineWidth)
+                                .stroke(Color.white.opacity(0.95), lineWidth: overlayStyle.innerLineWidth)
+                        }
+
+                    SelectionCornerGuides(selectionRect: hoveredWindowRect, style: overlayStyle)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(coordinator.hoveredWindowTarget?.displayName ?? "Window")
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(2)
+                        Text("Click to capture • Hold Shift to edit")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(8)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                    .frame(width: layoutMetrics.selectionBadgeWidth, alignment: .leading)
+                    .offset(
+                        x: min(hoveredWindowRect.minX, geometry.size.width - layoutMetrics.selectionBadgeWidth),
+                        y: max(hoveredWindowRect.minY - 58, 12)
+                    )
+                    .allowsHitTesting(false)
+                }
+
+                if coordinator.overlayCaptureMode == .rectangular {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .ignoresSafeArea()
+                        .gesture(selectionGesture)
+                } else {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .ignoresSafeArea()
+                }
 
                 CaptureModeToolbar(
                     activeMode: coordinator.overlayCaptureMode,
-                    onModeSelected: coordinator.selectOverlayMode,
+                    onModeSelected: { coordinator.selectOverlayMode($0) },
                     onCancel: coordinator.cancelCapture
                 )
                 .opacity(isToolbarVisible ? 1 : 0)
@@ -99,6 +142,11 @@ struct SelectionOverlayView: View {
             }
             .onDisappear {
                 isToolbarVisible = false
+            }
+            .onChange(of: coordinator.overlayCaptureMode) { _, newMode in
+                if newMode != .rectangular {
+                    clearSelection()
+                }
             }
         }
     }
@@ -133,10 +181,12 @@ struct SelectionOverlayView: View {
 
     @ViewBuilder
     private func overlayBackdrop(in size: CGSize) -> some View {
-        if let selectionRect {
+        let focusRect = coordinator.overlayCaptureMode == .window ? coordinator.hoveredWindowOverlayRect : selectionRect
+
+        if let focusRect {
             Path { path in
                 path.addRect(CGRect(origin: .zero, size: size))
-                path.addRoundedRect(in: selectionRect, cornerSize: CGSize(width: overlayStyle.cornerRadius, height: overlayStyle.cornerRadius))
+                path.addRoundedRect(in: focusRect, cornerSize: CGSize(width: overlayStyle.cornerRadius, height: overlayStyle.cornerRadius))
             }
             .fill(Color.black.opacity(overlayStyle.overlayOpacity), style: FillStyle(eoFill: true))
             .ignoresSafeArea()

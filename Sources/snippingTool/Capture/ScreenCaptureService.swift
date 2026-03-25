@@ -9,6 +9,7 @@ struct ScreenCaptureService {
         case emptySelection
         case captureFailed
         case screenUnavailable
+        case windowUnavailable
 
         var errorDescription: String? {
             switch self {
@@ -20,6 +21,8 @@ struct ScreenCaptureService {
                 "The selected screen content could not be captured."
             case .screenUnavailable:
                 "The target screen could not be resolved for the requested capture area."
+            case .windowUnavailable:
+                "The selected window could not be captured."
             }
         }
     }
@@ -62,6 +65,23 @@ struct ScreenCaptureService {
         }
 
         return CapturedSnippet(cgImage: image, sourceRect: screen.frame)
+    }
+
+    func captureWindow(windowID: CGWindowID, bounds: CGRect) throws -> CapturedSnippet {
+        guard CGPreflightScreenCaptureAccess() else {
+            throw CaptureError.permissionDenied
+        }
+
+        guard let image = CGWindowListCreateImage(
+            .null,
+            .optionIncludingWindow,
+            windowID,
+            [.bestResolution]
+        ) else {
+            throw CaptureError.windowUnavailable
+        }
+
+        return CapturedSnippet(cgImage: image, sourceRect: bounds.standardized.integral)
     }
 
     private func screen(containing rect: CGRect) -> NSScreen? {

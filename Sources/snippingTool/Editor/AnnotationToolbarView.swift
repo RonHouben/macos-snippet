@@ -3,6 +3,7 @@ import SwiftUI
 struct AnnotationToolbarView: View {
     @Bindable var annotationStore: AnnotationStore
     let onCopy: () -> Void
+    let onCopyAndClose: () -> Void
     let onSave: () -> Void
 
     var body: some View {
@@ -52,6 +53,10 @@ struct AnnotationToolbarView: View {
 
             Button(action: onCopy) {
                 Label("Copy", systemImage: "doc.on.doc")
+            }
+
+            Button(action: onCopyAndClose) {
+                Label("Copy & Close", systemImage: "doc.on.doc.fill")
             }
 
             Button(action: onSave) {

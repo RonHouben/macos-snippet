@@ -1,10 +1,12 @@
 import AppKit
 import SwiftUI
+import snippingToolCore
 
 @MainActor
 final class EditorWindowManager {
     private let services: AppServices
     private var windowController: NSWindowController?
+    private let defaultWindowSize = NSSize(width: 1100, height: 760)
 
     init(services: AppServices) {
         self.services = services
@@ -13,23 +15,51 @@ final class EditorWindowManager {
     func show() {
         let controller = windowController ?? makeWindowController()
         windowController = controller
-        controller.showWindow(nil)
-        controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        positionEditorWindowIfNeeded(controller.window)
+        controller.showWindow(nil)
+        controller.window?.deminiaturize(nil)
+        controller.window?.orderFrontRegardless()
+        controller.window?.makeKey()
+    }
+
+    func close() {
+        windowController?.close()
     }
 
     private func makeWindowController() -> NSWindowController {
-        let rootView = SnippetEditorView()
+        let rootView = SnippetEditorView(onCloseEditor: { [weak self] in
+            self?.close()
+        })
             .environment(services.captureCoordinator)
             .environment(services.recentCaptureStore)
 
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
         window.title = "Editor"
-        window.setContentSize(NSSize(width: 1100, height: 760))
+        window.setContentSize(defaultWindowSize)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.collectionBehavior.formUnion([.moveToActiveSpace, .fullScreenAuxiliary])
         window.isReleasedWhenClosed = false
         return NSWindowController(window: window)
+    }
+
+    private func positionEditorWindowIfNeeded(_ window: NSWindow?) {
+        guard let window,
+              let capture = services.captureCoordinator.currentCapture,
+              let targetFrame = EditorWindowPlacement.targetScreenFrame(
+                  for: capture.sourceRect,
+                  availableScreenFrames: NSScreen.screens.map(\.visibleFrame)
+              ) else {
+            return
+        }
+
+        let frame = EditorWindowPlacement.centeredFrame(
+            for: defaultWindowSize,
+            in: targetFrame
+        )
+
+        window.setFrame(frame, display: false)
     }
 }
 

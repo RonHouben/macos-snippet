@@ -4,6 +4,8 @@ struct SnippetEditorView: View {
     @Environment(CaptureCoordinator.self) private var captureCoordinator
     @Environment(RecentCaptureStore.self) private var recentCaptureStore
 
+    let onCloseEditor: () -> Void
+
     @State private var annotationStore = AnnotationStore()
     @State private var exportService = ExportService()
     @State private var exportMessage: String?
@@ -13,6 +15,8 @@ struct SnippetEditorView: View {
             if let capture = captureCoordinator.currentCapture {
                 AnnotationToolbarView(annotationStore: annotationStore) {
                     copyCapture(capture)
+                } onCopyAndClose: {
+                    copyAndCloseCapture(capture)
                 } onSave: {
                     saveCapture(capture)
                 }
@@ -42,7 +46,12 @@ struct SnippetEditorView: View {
         }
     }
 
-    private func copyCapture(_ capture: CapturedSnippet) {
+    init(onCloseEditor: @escaping () -> Void = {}) {
+        self.onCloseEditor = onCloseEditor
+    }
+
+    @discardableResult
+    private func copyCapture(_ capture: CapturedSnippet) -> Bool {
         do {
             annotationStore.commitPendingTextIfNeeded()
             try exportService.copyToPasteboard(
@@ -51,9 +60,19 @@ struct SnippetEditorView: View {
                 textAnnotations: annotationStore.textAnnotations
             )
             exportMessage = "Copied capture to the clipboard."
+            return true
         } catch {
             exportMessage = error.localizedDescription
+            return false
         }
+    }
+
+    private func copyAndCloseCapture(_ capture: CapturedSnippet) {
+        guard copyCapture(capture) else {
+            return
+        }
+
+        onCloseEditor()
     }
 
     private func saveCapture(_ capture: CapturedSnippet) {
