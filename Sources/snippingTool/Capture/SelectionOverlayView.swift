@@ -4,9 +4,11 @@ import snippingToolCore
 
 struct SelectionOverlayView: View {
     private let overlayStyle = SelectionOverlayStyle.default
+    private let toolbarAnimation = Animation.spring(response: 0.34, dampingFraction: 0.84)
 
     @State private var dragStart: CGPoint?
     @State private var dragCurrent: CGPoint?
+    @State private var isToolbarVisible = false
 
     let coordinator: CaptureCoordinator
 
@@ -20,20 +22,20 @@ struct SelectionOverlayView: View {
         )
     }
 
+    private func layoutMetrics(for geometry: GeometryProxy) -> OverlayLayoutMetrics {
+        OverlayLayoutMetrics(
+            topPadding: min(max(geometry.safeAreaInsets.top + 24, 56), max(geometry.size.height * 0.14, 56)),
+            horizontalPadding: max(min(geometry.size.width * 0.03, 36), 20),
+            selectionBadgeWidth: min(max(geometry.size.width * 0.12, 140), 180)
+        )
+    }
+
     var body: some View {
         GeometryReader { geometry in
+            let layoutMetrics = layoutMetrics(for: geometry)
+
             ZStack(alignment: .topLeading) {
-                if let selectionRect {
-                    Path { path in
-                        path.addRect(CGRect(origin: .zero, size: geometry.size))
-                        path.addRoundedRect(in: selectionRect, cornerSize: CGSize(width: overlayStyle.cornerRadius, height: overlayStyle.cornerRadius))
-                    }
-                    .fill(Color.black.opacity(overlayStyle.overlayOpacity), style: FillStyle(eoFill: true))
-                    .ignoresSafeArea()
-                } else {
-                    Color.black.opacity(overlayStyle.overlayOpacity)
-                        .ignoresSafeArea()
-                }
+                overlayBackdrop(in: geometry.size)
 
                 if let selectionRect {
                     RoundedRectangle(cornerRadius: overlayStyle.cornerRadius)
@@ -62,40 +64,281 @@ struct SelectionOverlayView: View {
                     }
                     .padding(8)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
-                    .offset(x: min(selectionRect.minX, geometry.size.width - 140), y: max(selectionRect.minY - 50, 12))
+                    .offset(
+                        x: min(selectionRect.minX, geometry.size.width - layoutMetrics.selectionBadgeWidth),
+                        y: max(selectionRect.minY - 50, 12)
+                    )
+                    .allowsHitTesting(false)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Drag to capture")
-                        .font(.headline)
-                    Text("Press Esc to cancel")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(12)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
-                .padding(20)
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .gesture(selectionGesture)
+
+                CaptureModeToolbar(
+                    activeMode: coordinator.overlayCaptureMode,
+                    onModeSelected: coordinator.selectOverlayMode,
+                    onCancel: coordinator.cancelCapture
+                )
+                .opacity(isToolbarVisible ? 1 : 0)
+                .scaleEffect(isToolbarVisible ? 1 : 0.96, anchor: .top)
+                .offset(y: isToolbarVisible ? 0 : -10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.top, layoutMetrics.topPadding)
+                .padding(.horizontal, layoutMetrics.horizontalPadding)
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        if dragStart == nil {
-                            dragStart = value.startLocation
-                        }
-                        dragCurrent = value.location
-                    }
-                    .onEnded { value in
-                        dragCurrent = value.location
-                        guard let selectionRect else {
-                            coordinator.cancelCapture()
-                            return
-                        }
+            .onAppear {
+                guard isToolbarVisible == false else {
+                    return
+                }
 
-                        coordinator.captureSelection(selectionRect)
-                    }
-            )
+                withAnimation(toolbarAnimation) {
+                    isToolbarVisible = true
+                }
+            }
+            .onDisappear {
+                isToolbarVisible = false
+            }
         }
+    }
+
+    private var selectionGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard coordinator.overlayCaptureMode == .rectangular else {
+                    return
+                }
+
+                if dragStart == nil {
+                    dragStart = value.startLocation
+                }
+                dragCurrent = value.location
+            }
+            .onEnded { value in
+                guard coordinator.overlayCaptureMode == .rectangular else {
+                    clearSelection()
+                    return
+                }
+
+                dragCurrent = value.location
+                guard let selectionRect else {
+                    coordinator.cancelCapture()
+                    return
+                }
+
+                coordinator.captureSelection(selectionRect)
+            }
+    }
+
+    @ViewBuilder
+    private func overlayBackdrop(in size: CGSize) -> some View {
+        if let selectionRect {
+            Path { path in
+                path.addRect(CGRect(origin: .zero, size: size))
+                path.addRoundedRect(in: selectionRect, cornerSize: CGSize(width: overlayStyle.cornerRadius, height: overlayStyle.cornerRadius))
+            }
+            .fill(Color.black.opacity(overlayStyle.overlayOpacity), style: FillStyle(eoFill: true))
+            .ignoresSafeArea()
+        } else {
+            Color.black.opacity(overlayStyle.overlayOpacity)
+                .ignoresSafeArea()
+        }
+    }
+
+    private func clearSelection() {
+        dragStart = nil
+        dragCurrent = nil
+    }
+}
+
+private struct OverlayLayoutMetrics {
+    let topPadding: CGFloat
+    let horizontalPadding: CGFloat
+    let selectionBadgeWidth: CGFloat
+}
+
+private struct CaptureModeToolbar: View {
+    let activeMode: CaptureMode
+    let onModeSelected: (CaptureMode) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ForEach(CaptureMode.overlayToolbarModes) { mode in
+                CaptureModeToolbarButton(
+                    mode: mode,
+                    isActive: mode == activeMode,
+                    action: { onModeSelected(mode) }
+                )
+            }
+
+            Rectangle()
+                .fill(.black.opacity(0.14))
+                .frame(width: 1, height: 30)
+                .padding(.leading, 2)
+                .padding(.trailing, 4)
+
+            CancelToolbarButton {
+                onCancel()
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .background {
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    Capsule()
+                        .strokeBorder(.white.opacity(0.22), lineWidth: 1)
+                }
+        }
+        .overlay(alignment: .top) {
+            Capsule()
+                .fill(.white.opacity(0.12))
+                .frame(height: 1)
+                .padding(.horizontal, 18)
+                .offset(y: 1)
+        }
+        .shadow(color: .black.opacity(0.16), radius: 18, y: 10)
+    }
+}
+
+private struct CaptureModeToolbarButton: View {
+    let mode: CaptureMode
+    let isActive: Bool
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        ToolbarIconButton(
+            systemImage: mode.overlayToolbarSystemImage,
+            accessibilityLabel: mode.overlayToolbarAccessibilityLabel,
+            helpText: mode.title,
+            shortcutLabel: mode.overlayToolbarShortcutLabel,
+            isActive: isActive,
+            isHovered: isHovered,
+            action: action
+        )
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+private struct CancelToolbarButton: View {
+    @State private var isHovered = false
+
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 21, weight: .medium))
+                .frame(width: 40, height: 40)
+                .foregroundStyle(isHovered ? Color.black.opacity(0.9) : Color.black.opacity(0.78))
+                .background {
+                    RoundedRectangle(cornerRadius: 11)
+                        .fill(isHovered ? Color.black.opacity(0.08) : Color.clear)
+                }
+                .contentShape(RoundedRectangle(cornerRadius: 11))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Cancel capture")
+        .help("Cancel")
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
+}
+
+private struct ToolbarIconButton: View {
+    let systemImage: String
+    let accessibilityLabel: String
+    let helpText: String
+    let shortcutLabel: String?
+    var isActive = false
+    var isHovered = false
+    let action: () -> Void
+
+    private var foregroundColor: Color {
+        if isActive {
+            return .white
+        }
+
+        return isHovered ? .white.opacity(0.95) : .primary
+    }
+
+    private var backgroundColor: Color {
+        if isActive {
+            return Color.accentColor
+        }
+
+        return isHovered ? Color.white.opacity(0.12) : Color.clear
+    }
+
+    private var shortcutForegroundColor: Color {
+        if isActive {
+            return Color.primary.opacity(0.88)
+        }
+
+        return .white.opacity(isHovered ? 0.94 : 0.86)
+    }
+
+    private var shortcutBackgroundStyle: AnyShapeStyle {
+        if isActive {
+            return AnyShapeStyle(.regularMaterial)
+        }
+
+        return AnyShapeStyle(Color.black.opacity(isHovered ? 0.18 : 0.14))
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 38, height: 38)
+                    .foregroundStyle(foregroundColor)
+                    .background {
+                        RoundedRectangle(cornerRadius: 11)
+                            .fill(backgroundColor)
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 11)
+                            .strokeBorder(.white.opacity(isActive ? 0.0 : (isHovered ? 0.14 : 0.08)), lineWidth: 1)
+                    }
+                    .shadow(color: isActive ? Color.accentColor.opacity(0.35) : .clear, radius: 8)
+
+                if let shortcutLabel {
+                    Text(shortcutLabel)
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(shortcutForegroundColor)
+                        .frame(minWidth: 15)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2.5)
+                        .background {
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(shortcutBackgroundStyle)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                        .strokeBorder(
+                                            isActive ? Color.black.opacity(0.08) : Color.white.opacity(0.12),
+                                            lineWidth: 0.8
+                                        )
+                                }
+                        }
+                        .shadow(color: .black.opacity(isActive ? 0.08 : 0.06), radius: 3, y: 1)
+                        .allowsHitTesting(false)
+                }
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 11))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+        .help(shortcutLabel.map { "\(helpText) (\($0))" } ?? helpText)
     }
 }
 

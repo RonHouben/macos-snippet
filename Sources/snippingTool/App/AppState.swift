@@ -3,7 +3,86 @@ import Observation
 import snippingToolCore
 
 @Observable
+@MainActor
 final class AppState {
-    var preferredCaptureMode: CaptureMode = .rectangular
+    private enum StorageKeys {
+        static let preferredCaptureMode = "preferredCaptureMode"
+        static let captureModeHotkeys = "captureModeHotkeys"
+    }
+
+    @ObservationIgnored
+    private let defaults: UserDefaults
+
+    @ObservationIgnored
+    private let encoder = JSONEncoder()
+
+    @ObservationIgnored
+    private let decoder = JSONDecoder()
+
+    @ObservationIgnored
+    var onHotkeysChanged: ((CaptureModeHotkeyConfiguration) -> Void)?
+
+    var preferredCaptureMode: CaptureMode {
+        didSet {
+            defaults.set(preferredCaptureMode.rawValue, forKey: StorageKeys.preferredCaptureMode)
+        }
+    }
+
+    var captureModeHotkeys: CaptureModeHotkeyConfiguration {
+        didSet {
+            persistCaptureModeHotkeys()
+            hotkeyValidationMessage = nil
+            onHotkeysChanged?(captureModeHotkeys)
+        }
+    }
+
+    var hotkeyValidationMessage: String?
     var launchAtLogin = false
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+
+        if let storedMode = defaults.string(forKey: StorageKeys.preferredCaptureMode),
+           let preferredMode = CaptureMode(rawValue: storedMode) {
+            preferredCaptureMode = preferredMode
+        } else {
+            preferredCaptureMode = .rectangular
+        }
+
+        if let data = defaults.data(forKey: StorageKeys.captureModeHotkeys),
+           let hotkeys = try? decoder.decode(CaptureModeHotkeyConfiguration.self, from: data) {
+            captureModeHotkeys = hotkeys
+        } else {
+            captureModeHotkeys = .default
+        }
+    }
+
+    func shortcut(for mode: CaptureMode) -> HotkeyShortcut? {
+        captureModeHotkeys[mode]
+    }
+
+    @discardableResult
+    func updateShortcut(_ shortcut: HotkeyShortcut?, for mode: CaptureMode) -> Bool {
+        if let error = captureModeHotkeys.validationError(for: mode, shortcut: shortcut) {
+            hotkeyValidationMessage = error
+            return false
+        }
+
+        var updated = captureModeHotkeys
+        updated[mode] = shortcut
+        captureModeHotkeys = updated
+        return true
+    }
+
+    func clearHotkeyValidationMessage() {
+        hotkeyValidationMessage = nil
+    }
+
+    private func persistCaptureModeHotkeys() {
+        guard let data = try? encoder.encode(captureModeHotkeys) else {
+            return
+        }
+
+        defaults.set(data, forKey: StorageKeys.captureModeHotkeys)
+    }
 }

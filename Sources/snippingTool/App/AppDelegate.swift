@@ -13,8 +13,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func configureStatusItem() {
-        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "snippingTool")
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+
+        if let button = statusItem.button {
+            button.title = "Snip"
+            button.image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "snippingTool")
+            button.imagePosition = .imageLeading
+            button.toolTip = "snippingTool"
+        }
+
         statusMenu.delegate = self
         rebuild(menu: statusMenu)
         statusItem.menu = statusMenu

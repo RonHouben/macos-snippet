@@ -16,15 +16,23 @@ final class CaptureCoordinator {
     var lastError: String?
     var statusMessage: String?
     var isCaptureInProgress = false
+    var overlayCaptureMode: CaptureMode = .rectangular
     var onCaptureReady: (() -> Void)?
 
     init() {
-        hotkeyMonitor.start { [weak self] in
+        refreshPermissions()
+    }
+
+    func configureHotkeys(_ configuration: CaptureModeHotkeyConfiguration) {
+        hotkeyMonitor.start(bindings: configuration.activeBindings) { [weak self] mode in
             Task { @MainActor in
-                self?.startCapture(mode: .rectangular)
+                guard let self, self.isCaptureInProgress == false else {
+                    return
+                }
+
+                self.startCapture(mode: mode)
             }
         }
-        refreshPermissions()
     }
 
     var permissionSummary: String {
@@ -60,11 +68,36 @@ final class CaptureCoordinator {
 
         switch mode {
         case .rectangular:
-            presentSelectionOverlay()
+            presentSelectionOverlay(mode: mode)
         case .fullScreen:
             captureFullScreen()
         case .window:
             statusMessage = "Window capture is planned next; rectangular and full-screen are ready first."
+        }
+    }
+
+    func selectOverlayMode(_ mode: CaptureMode) {
+        guard CaptureMode.overlayToolbarModes.contains(mode) else {
+            return
+        }
+
+        switch mode {
+        case .rectangular:
+            overlayCaptureMode = .rectangular
+            statusMessage = Self.rectangularCapturePrompt
+        case .fullScreen:
+            overlayCaptureMode = .fullScreen
+
+            Task { @MainActor in
+                if CapturePreparationPolicy.shouldDismissOverlayBeforeCapture(hasOverlay: overlayController != nil) {
+                    dismissOverlayIfNeeded()
+                    try? await Task.sleep(nanoseconds: CapturePreparationPolicy.overlaySettleDelayNanoseconds)
+                }
+
+                captureFullScreen()
+            }
+        case .window:
+            break
         }
     }
 
@@ -94,6 +127,7 @@ final class CaptureCoordinator {
 
     func cancelCapture() {
         isCaptureInProgress = false
+        overlayCaptureMode = .rectangular
         overlayController?.close()
         overlayController = nil
         statusMessage = "Capture cancelled."
@@ -104,17 +138,20 @@ final class CaptureCoordinator {
             currentCapture = try screenCaptureService.captureMainDisplay()
             completeCapture(status: "Captured the main display.", hasOverlay: false)
         } catch {
+            dismissOverlayIfNeeded()
+            isCaptureInProgress = false
             lastError = error.localizedDescription
             statusMessage = error.localizedDescription
         }
     }
 
-    private func presentSelectionOverlay() {
+    private func presentSelectionOverlay(mode: CaptureMode) {
         isCaptureInProgress = true
+        overlayCaptureMode = mode
         let controller = SelectionOverlayWindowController(coordinator: self)
         overlayController = controller
         controller.present()
-        statusMessage = "Drag to select an area to capture. Press Esc to cancel."
+        statusMessage = Self.rectangularCapturePrompt
     }
 
     private func completeCapture(status: String, hasOverlay: Bool) {
@@ -135,4 +172,6 @@ final class CaptureCoordinator {
         overlayController?.close()
         overlayController = nil
     }
+
+    private static let rectangularCapturePrompt = "Drag to select an area to capture. Press Esc to cancel."
 }

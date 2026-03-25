@@ -1,25 +1,35 @@
 import AppKit
 import Foundation
+import snippingToolCore
 
 final class GlobalHotkeyMonitor {
     private var globalMonitor: Any?
     private var localMonitor: Any?
 
-    func start(onShortcut: @escaping () -> Void) {
+    func start(
+        bindings: [(mode: CaptureMode, shortcut: HotkeyShortcut)],
+        onShortcut: @escaping (CaptureMode) -> Void
+    ) {
         stop()
 
+        guard bindings.isEmpty == false else {
+            return
+        }
+
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
-            guard event.modifierFlags.contains([.command, .shift]), event.charactersIgnoringModifiers == "4" else {
+            guard let mode = Self.matchedMode(for: event, bindings: bindings) else {
                 return
             }
-            onShortcut()
+
+            onShortcut(mode)
         }
 
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard event.modifierFlags.contains([.command, .shift]), event.charactersIgnoringModifiers == "4" else {
+            guard let mode = Self.matchedMode(for: event, bindings: bindings) else {
                 return event
             }
-            onShortcut()
+
+            onShortcut(mode)
             return nil
         }
     }
@@ -37,5 +47,17 @@ final class GlobalHotkeyMonitor {
 
     deinit {
         stop()
+    }
+
+    private static func matchedMode(
+        for event: NSEvent,
+        bindings: [(mode: CaptureMode, shortcut: HotkeyShortcut)]
+    ) -> CaptureMode? {
+        let normalizedModifiers = event.modifierFlags.hotkeyRelevantModifiers
+
+        return bindings.first(where: { binding in
+            binding.shortcut.key.keyCode == event.keyCode &&
+            binding.shortcut.modifiers.eventModifierFlags == normalizedModifiers
+        })?.mode
     }
 }

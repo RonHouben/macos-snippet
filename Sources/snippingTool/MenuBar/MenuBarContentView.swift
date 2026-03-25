@@ -1,66 +1,69 @@
+import AppKit
 import SwiftUI
 import snippingToolCore
 
 struct MenuBarContentView: View {
+    private let services = AppServices.shared
     @Environment(AppState.self) private var appState
     @Environment(CaptureCoordinator.self) private var captureCoordinator
     @Environment(RecentCaptureStore.self) private var recentCaptureStore
-    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("snippingTool")
-                .font(.headline)
+        Button {
+            captureCoordinator.startCapture(mode: appState.preferredCaptureMode)
+        } label: {
+            Label("New Capture", systemImage: "plus.viewfinder")
+        }
+        .keyboardShortcut("n")
 
-            Picker("Capture Mode", selection: Bindable(appState).preferredCaptureMode) {
-                ForEach(CaptureMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            Button {
-                captureCoordinator.startCapture(mode: appState.preferredCaptureMode)
-                openWindow(id: "editor")
-            } label: {
-                Label("New Capture", systemImage: "plus.viewfinder")
-            }
-            .keyboardShortcut("n")
-
-            Button {
-                openWindow(id: "editor")
-            } label: {
-                Label("Open Editor", systemImage: "pencil.and.scribble")
-            }
-
-            Divider()
-
-            if recentCaptureStore.recentCaptures.isEmpty {
-                Text("No recent captures yet")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Recent")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    ForEach(recentCaptureStore.recentCaptures.prefix(5)) { item in
-                        Text(item.fileURL.lastPathComponent)
-                            .font(.caption)
-                            .lineLimit(1)
+        Menu("Capture Mode") {
+            ForEach(CaptureMode.allCases) { mode in
+                Button {
+                    appState.preferredCaptureMode = mode
+                } label: {
+                    if mode == appState.preferredCaptureMode {
+                        Label(mode.title, systemImage: "checkmark")
+                    } else {
+                        Text(mode.title)
                     }
                 }
             }
+        }
 
-            if let message = captureCoordinator.statusMessage {
-                Divider()
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        Button {
+            services.editorWindowManager.show()
+        } label: {
+            Label("Open Editor", systemImage: "pencil.and.scribble")
+        }
+
+        Button {
+            services.settingsWindowManager.show()
+        } label: {
+            Label("Settings", systemImage: "gearshape")
+        }
+
+        if recentCaptureStore.recentCaptures.isEmpty == false {
+            Menu("Recent Captures") {
+                ForEach(recentCaptureStore.recentCaptures.prefix(5)) { item in
+                    Button(item.fileURL.lastPathComponent) {
+                        NSWorkspace.shared.activateFileViewerSelecting([item.fileURL])
+                    }
+                }
             }
         }
-        .padding(14)
-        .frame(width: 320)
+
+        if let message = captureCoordinator.statusMessage {
+            Divider()
+            Text(message)
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            NSApp.terminate(nil)
+        } label: {
+            Label("Quit", systemImage: "power")
+        }
+        .keyboardShortcut("q")
     }
 }

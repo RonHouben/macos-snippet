@@ -62,12 +62,21 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
         removeEscapeMonitors()
 
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard OverlayCancelPolicy.shouldCancelCapture(forKeyCode: event.keyCode) else {
+            guard let self else {
                 return event
             }
 
-            self?.coordinator.cancelCapture()
-            return nil
+            if OverlayCancelPolicy.shouldCancelCapture(forKeyCode: event.keyCode) {
+                self.coordinator.cancelCapture()
+                return nil
+            }
+
+            if let mode = self.overlayToolbarMode(for: event) {
+                self.coordinator.selectOverlayMode(mode)
+                return nil
+            }
+
+            return event
         }
 
         globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -79,6 +88,18 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
                 self?.coordinator.cancelCapture()
             }
         }
+    }
+
+    private func overlayToolbarMode(for event: NSEvent) -> CaptureMode? {
+        let relevantModifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard relevantModifiers.isEmpty,
+              let characters = event.charactersIgnoringModifiers,
+              let character = characters.first,
+              let digit = Int(String(character)) else {
+            return nil
+        }
+
+        return CaptureMode.overlayToolbarMode(forShortcutDigit: digit)
     }
 
     private func removeEscapeMonitors() {

@@ -130,6 +130,90 @@ func testScreenSelectionCropMapperHandlesOffsetScreens() throws {
     try expect(cropRect == CGRect(x: 256, y: 234, width: 600, height: 400), "Crop mapping should work even when a screen has a negative global origin")
 }
 
+func testDefaultHotkeyConfigurationStartsWithNoBindings() throws {
+    let configuration = CaptureModeHotkeyConfiguration.default
+
+    try expect(configuration.rectangular == nil, "Rectangular capture should start without a default shortcut")
+    try expect(configuration.fullScreen == nil, "Full Screen should start without a default shortcut")
+    try expect(configuration.window == nil, "Window capture should start without a default shortcut")
+    try expect(configuration.activeBindings.isEmpty, "No hotkeys should be active by default")
+}
+
+func testHotkeyConfigurationReportsDuplicateAssignments() throws {
+    let duplicateShortcut = HotkeyShortcut(key: .four, modifiers: [.command, .shift])
+    let configuration = CaptureModeHotkeyConfiguration(
+        rectangular: duplicateShortcut,
+        fullScreen: duplicateShortcut,
+        window: nil
+    )
+
+    try expect(configuration.conflicts.count == 1, "Duplicate shortcuts should produce one conflict")
+    try expect(configuration.conflicts.first?.shortcut == duplicateShortcut, "Conflict should point at the duplicate shortcut")
+    try expect(configuration.conflicts.first?.modes == [.rectangular, .fullScreen], "Conflict should list the modes sharing the shortcut")
+}
+
+func testHotkeyValidationRejectsModifierlessShortcut() throws {
+    let configuration = CaptureModeHotkeyConfiguration.default
+    let invalidShortcut = HotkeyShortcut(key: .k, modifiers: [])
+
+    try expect(
+        configuration.validationError(for: .fullScreen, shortcut: invalidShortcut) == "Shortcuts must include at least one modifier key.",
+        "Shortcuts without modifiers should be rejected"
+    )
+}
+
+func testHotkeyValidationRejectsDuplicateShortcutAcrossModes() throws {
+    let duplicateShortcut = HotkeyShortcut.recommended(for: .rectangular)
+    let configuration = CaptureModeHotkeyConfiguration(rectangular: duplicateShortcut)
+
+    try expect(
+        configuration.validationError(for: .fullScreen, shortcut: duplicateShortcut) == "⇧⌘4 is assigned to multiple modes: Rectangular, Full Screen.",
+        "Assigning the same shortcut to multiple modes should be rejected"
+    )
+}
+
+func testHotkeyKeyCanBeCreatedFromSupportedKeyCode() throws {
+    try expect(HotkeyKey(keyCode: 21) == .four, "Key code 21 should map to the 4 key")
+    try expect(HotkeyKey(keyCode: 13) == .w, "Key code 13 should map to the W key")
+}
+
+func testHotkeyKeyRejectsUnsupportedKeyCode() throws {
+    try expect(HotkeyKey(keyCode: 53) == nil, "Escape should not be treated as a supported recorder key")
+    try expect(HotkeyKey(keyCode: 123) == nil, "Arrow keys should not be treated as supported recorder keys")
+}
+
+func testCapturedShortcutRequiresAtLeastOneModifier() throws {
+    let shortcut = HotkeyShortcut(key: .w, modifiers: [])
+    try expect(shortcut.isValid == false, "Recorder-captured shortcuts without modifiers should be rejected")
+}
+
+func testOverlayToolbarModesShowOnlyImplementedCaptureModes() throws {
+    try expect(CaptureMode.overlayToolbarModes == [.rectangular, .fullScreen], "Overlay toolbar should only expose the implemented capture modes")
+}
+
+func testOverlayToolbarModesExposeExpectedIcons() throws {
+    try expect(CaptureMode.rectangular.overlayToolbarSystemImage == "rectangle.dashed", "Rectangular mode should expose the dashed-rectangle icon")
+    try expect(CaptureMode.fullScreen.overlayToolbarSystemImage == "macwindow", "Full Screen mode should expose the window icon")
+}
+
+func testOverlayToolbarAccessibilityLabelsMatchTitles() throws {
+    try expect(CaptureMode.rectangular.overlayToolbarAccessibilityLabel == "Rectangular capture", "Rectangular accessibility label should describe the action")
+    try expect(CaptureMode.fullScreen.overlayToolbarAccessibilityLabel == "Full Screen capture", "Full Screen accessibility label should describe the action")
+}
+
+func testOverlayToolbarShortcutDigitsMatchVisibleModes() throws {
+    try expect(CaptureMode.rectangular.overlayToolbarShortcutDigit == 1, "Rectangular mode should be bound to the 1 key")
+    try expect(CaptureMode.fullScreen.overlayToolbarShortcutDigit == 2, "Full Screen mode should be bound to the 2 key")
+    try expect(CaptureMode.rectangular.overlayToolbarShortcutLabel == "1", "Rectangular mode should expose a visible shortcut label")
+    try expect(CaptureMode.fullScreen.overlayToolbarShortcutLabel == "2", "Full Screen mode should expose a visible shortcut label")
+}
+
+func testOverlayToolbarCanResolveModesFromShortcutDigits() throws {
+    try expect(CaptureMode.overlayToolbarMode(forShortcutDigit: 1) == .rectangular, "Shortcut 1 should resolve to rectangular capture")
+    try expect(CaptureMode.overlayToolbarMode(forShortcutDigit: 2) == .fullScreen, "Shortcut 2 should resolve to full screen capture")
+    try expect(CaptureMode.overlayToolbarMode(forShortcutDigit: 3) == nil, "Hidden modes should not resolve from overlay shortcut digits")
+}
+
 func XCTUnwrapLike<T>(_ value: T?, _ message: String) throws -> T {
     guard let value else {
         throw TDDFailure(description: message)
@@ -149,6 +233,18 @@ do {
     try testAnnotationLineWidthScalesWithDisplayedImage()
     try testScreenSelectionCropMapperProducesTopLeftImageCrop()
     try testScreenSelectionCropMapperHandlesOffsetScreens()
+    try testDefaultHotkeyConfigurationStartsWithNoBindings()
+    try testHotkeyConfigurationReportsDuplicateAssignments()
+    try testHotkeyValidationRejectsModifierlessShortcut()
+    try testHotkeyValidationRejectsDuplicateShortcutAcrossModes()
+    try testHotkeyKeyCanBeCreatedFromSupportedKeyCode()
+    try testHotkeyKeyRejectsUnsupportedKeyCode()
+    try testCapturedShortcutRequiresAtLeastOneModifier()
+    try testOverlayToolbarModesShowOnlyImplementedCaptureModes()
+    try testOverlayToolbarModesExposeExpectedIcons()
+    try testOverlayToolbarAccessibilityLabelsMatchTitles()
+    try testOverlayToolbarShortcutDigitsMatchVisibleModes()
+    try testOverlayToolbarCanResolveModesFromShortcutDigits()
     print("✅ TDD checks passed")
 } catch {
     fputs("❌ TDD check failed: \(error)\n", stderr)

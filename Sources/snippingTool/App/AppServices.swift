@@ -12,6 +12,11 @@ final class AppServices {
     lazy var settingsWindowManager = SettingsWindowManager(services: self)
 
     private init() {
+        appState.onHotkeysChanged = { [weak self] configuration in
+            self?.captureCoordinator.configureHotkeys(configuration)
+        }
+        captureCoordinator.configureHotkeys(appState.captureModeHotkeys)
+
         captureCoordinator.onCaptureReady = { [weak self] in
             self?.editorWindowManager.show()
         }
