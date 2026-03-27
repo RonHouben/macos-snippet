@@ -1,0 +1,638 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		040291A6444BCAB4F56D9F75 /* HotkeyEventMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = A058F45AA666B9C2355748B7 /* HotkeyEventMapping.swift */; };
+		11FD7FC79A7B81983014B8BA /* AppServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72DF3076A5E95E802F6411F0 /* AppServices.swift */; };
+		12EBE6DBF869AA989237EF58 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A00D6AC58F02E5EC3D03C3 /* SettingsView.swift */; };
+		22AD5250CFBA55BD271A80E2 /* snippingToolCore in Frameworks */ = {isa = PBXBuildFile; productRef = 355F8C0D1D9EFD9AF0C597C1 /* snippingToolCore */; };
+		3345D00A7565D09AAD6AD7EE /* snippingToolHostUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C32DD835B08D04D693297B56 /* snippingToolHostUITests.swift */; };
+		39558C404B7B0D4A893AE5E6 /* ScreenCaptureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736A72BBFD95D9D85A0E2F78 /* ScreenCaptureService.swift */; };
+		490C7645F4B0D650C8583540 /* SelectableCaptureImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC822FBA93D0AE6F2B76FC28 /* SelectableCaptureImageView.swift */; };
+		565062C6CC078E3C5038DDBC /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E783B8F426985FC47A828A /* PermissionManager.swift */; };
+		5C0325F7CBFCCE056B3F4A9E /* SelectionOverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0BF3BA0A5532D623C5F3CA /* SelectionOverlayWindow.swift */; };
+		5E75DAB6EC2197347319D2A6 /* RecentCaptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164CBA7C01DDFF2F7C1F00D5 /* RecentCaptureStore.swift */; };
+		60E5824623FC8E982D6434FF /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB35A6903E9F6A9DA8688E76 /* AppState.swift */; };
+		64C3489D6A55ADD4A3D8BBE0 /* CaptureCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D67D790E3CFE686BBF11EAD /* CaptureCoordinator.swift */; };
+		839AFBAEFA91ED203CF34D43 /* WindowManagers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0027E39A3666E076F297294B /* WindowManagers.swift */; };
+		8C4F1200267476453D6FB4C0 /* UITestControlPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA731C83A4C2E0F4811C466D /* UITestControlPanelView.swift */; };
+		8DD090BC73B39783FE16A56C /* AutomationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */; };
+		930A076CA474959DE2D11106 /* SelectionOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 804B6FAA86DCA84687912502 /* SelectionOverlayView.swift */; };
+		9730BB71C9619DA749081A56 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387AE152230447688959BCCF /* ExportService.swift */; };
+		9768635D44FADB88A1A885B4 /* GlobalHotkeyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20213997E05DED07B646DF2E /* GlobalHotkeyMonitor.swift */; };
+		BBA106CFEC1E8A7E92C8BBD5 /* AnnotationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A5951650119B5C7C4C4CB3 /* AnnotationStore.swift */; };
+		D7CFFE4A8406FEA212AFA192 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E0AAB858489BDF030913C28 /* AppDelegate.swift */; };
+		DA7D5DE3EE0802B8EA745D18 /* snippingToolCore in Frameworks */ = {isa = PBXBuildFile; productRef = D6C1981219670D3E50C55721 /* snippingToolCore */; };
+		E0D287DCE0B7A9CE824C9C44 /* KeybindingRecorderField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 135816870D06929AB24BF0C2 /* KeybindingRecorderField.swift */; };
+		E0DB200BCCBF1A9E50E07D5C /* SnippetEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0518AAB8774416E64059E241 /* SnippetEditorView.swift */; };
+		E34907864C51D33972020EFA /* CaptureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54935EFE6D9992AA3AED0514 /* CaptureModels.swift */; };
+		EAC9C991CB9B81ED3D8C2584 /* AnnotationCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0697ADC30E1E75D1F559129B /* AnnotationCanvasView.swift */; };
+		EF457E3095A0C8DFD75A980B /* WindowSelectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522C4FDF4AEB4C541610BB94 /* WindowSelectionService.swift */; };
+		F0931B7C4A18F14531B293F7 /* SnippingToolApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FD1AC18C9BEF63591D2EA2 /* SnippingToolApp.swift */; };
+		F2E2C5A5D53FA2E4C02356E5 /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626EE4F8768D2FE6C6643502 /* MenuBarContentView.swift */; };
+		F673C87D1354C20E81AD5E1F /* AutomationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */; };
+		FC25194A5433085917F64889 /* AnnotationToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AA200511CFABFD9E840EB957 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F0D19DA138FE73493E7750C2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9BC22A0E7B8906F31D4C7B1E;
+			remoteInfo = snippingToolHost;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0027E39A3666E076F297294B /* WindowManagers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManagers.swift; sourceTree = "<group>"; };
+		04FD1AC18C9BEF63591D2EA2 /* SnippingToolApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippingToolApp.swift; sourceTree = "<group>"; };
+		0518AAB8774416E64059E241 /* SnippetEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetEditorView.swift; sourceTree = "<group>"; };
+		0697ADC30E1E75D1F559129B /* AnnotationCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCanvasView.swift; sourceTree = "<group>"; };
+		135816870D06929AB24BF0C2 /* KeybindingRecorderField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeybindingRecorderField.swift; sourceTree = "<group>"; };
+		15CFBBFBAA1128925202423A /* snippingToolHostUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = snippingToolHostUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		164CBA7C01DDFF2F7C1F00D5 /* RecentCaptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentCaptureStore.swift; sourceTree = "<group>"; };
+		20213997E05DED07B646DF2E /* GlobalHotkeyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkeyMonitor.swift; sourceTree = "<group>"; };
+		202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationSupport.swift; sourceTree = "<group>"; };
+		2E0AAB858489BDF030913C28 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		34E783B8F426985FC47A828A /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
+		387AE152230447688959BCCF /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
+		38C1F5FD365B4DABE4479192 /* snippingTool */ = {isa = PBXFileReference; lastKnownFileType = folder; name = snippingTool; path = .; sourceTree = SOURCE_ROOT; };
+		44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationToolbarView.swift; sourceTree = "<group>"; };
+		522C4FDF4AEB4C541610BB94 /* WindowSelectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSelectionService.swift; sourceTree = "<group>"; };
+		54935EFE6D9992AA3AED0514 /* CaptureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureModels.swift; sourceTree = "<group>"; };
+		626EE4F8768D2FE6C6643502 /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContentView.swift; sourceTree = "<group>"; };
+		68609BA7AFCD4A6F142F5D34 /* snippingToolHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = snippingToolHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		72DF3076A5E95E802F6411F0 /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
+		736A72BBFD95D9D85A0E2F78 /* ScreenCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureService.swift; sourceTree = "<group>"; };
+		77A00D6AC58F02E5EC3D03C3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		804B6FAA86DCA84687912502 /* SelectionOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayView.swift; sourceTree = "<group>"; };
+		9D67D790E3CFE686BBF11EAD /* CaptureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureCoordinator.swift; sourceTree = "<group>"; };
+		A058F45AA666B9C2355748B7 /* HotkeyEventMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyEventMapping.swift; sourceTree = "<group>"; };
+		C32DD835B08D04D693297B56 /* snippingToolHostUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = snippingToolHostUITests.swift; sourceTree = "<group>"; };
+		CB35A6903E9F6A9DA8688E76 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		D7A5951650119B5C7C4C4CB3 /* AnnotationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationStore.swift; sourceTree = "<group>"; };
+		DC822FBA93D0AE6F2B76FC28 /* SelectableCaptureImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableCaptureImageView.swift; sourceTree = "<group>"; };
+		FA731C83A4C2E0F4811C466D /* UITestControlPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestControlPanelView.swift; sourceTree = "<group>"; };
+		FF0BF3BA0A5532D623C5F3CA /* SelectionOverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayWindow.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0CC1C23CEF2DF773A0C73EBF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				22AD5250CFBA55BD271A80E2 /* snippingToolCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8320C64548E9235D9F7F0DA4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA7D5DE3EE0802B8EA745D18 /* snippingToolCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		13783D06BE9025876F0F1FEC = {
+			isa = PBXGroup;
+			children = (
+				A11F0B984B8AA5A1262624EA /* Packages */,
+				C800F7B7BB80E20C25B70F54 /* Sources */,
+				E254A974356EEC7871FEDBFD /* UITests */,
+				E53473F634B1111E1753B3FD /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		13DEAFC4230844335116A03A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				54935EFE6D9992AA3AED0514 /* CaptureModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		143328FE870E0B7EC51B71BF /* Editor */ = {
+			isa = PBXGroup;
+			children = (
+				0697ADC30E1E75D1F559129B /* AnnotationCanvasView.swift */,
+				D7A5951650119B5C7C4C4CB3 /* AnnotationStore.swift */,
+				44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */,
+				DC822FBA93D0AE6F2B76FC28 /* SelectableCaptureImageView.swift */,
+				0518AAB8774416E64059E241 /* SnippetEditorView.swift */,
+			);
+			path = Editor;
+			sourceTree = "<group>";
+		};
+		355FACF4FAA289E28F14873A /* Hotkeys */ = {
+			isa = PBXGroup;
+			children = (
+				20213997E05DED07B646DF2E /* GlobalHotkeyMonitor.swift */,
+				A058F45AA666B9C2355748B7 /* HotkeyEventMapping.swift */,
+			);
+			path = Hotkeys;
+			sourceTree = "<group>";
+		};
+		5952BD5B04A29E1ACB391C7F /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				135816870D06929AB24BF0C2 /* KeybindingRecorderField.swift */,
+				77A00D6AC58F02E5EC3D03C3 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		776B0C9828CAAA5540B474C7 /* Output */ = {
+			isa = PBXGroup;
+			children = (
+				387AE152230447688959BCCF /* ExportService.swift */,
+				164CBA7C01DDFF2F7C1F00D5 /* RecentCaptureStore.swift */,
+			);
+			path = Output;
+			sourceTree = "<group>";
+		};
+		8AEC9A2B3EB6CC7B903C47B1 /* Permissions */ = {
+			isa = PBXGroup;
+			children = (
+				34E783B8F426985FC47A828A /* PermissionManager.swift */,
+			);
+			path = Permissions;
+			sourceTree = "<group>";
+		};
+		A1011271675396838E5FE256 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				2E0AAB858489BDF030913C28 /* AppDelegate.swift */,
+				72DF3076A5E95E802F6411F0 /* AppServices.swift */,
+				CB35A6903E9F6A9DA8688E76 /* AppState.swift */,
+				202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */,
+				04FD1AC18C9BEF63591D2EA2 /* SnippingToolApp.swift */,
+				FA731C83A4C2E0F4811C466D /* UITestControlPanelView.swift */,
+				0027E39A3666E076F297294B /* WindowManagers.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A11F0B984B8AA5A1262624EA /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				38C1F5FD365B4DABE4479192 /* snippingTool */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		C800F7B7BB80E20C25B70F54 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				CC0F21E3688991829706EFD2 /* snippingTool */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		CC0F21E3688991829706EFD2 /* snippingTool */ = {
+			isa = PBXGroup;
+			children = (
+				A1011271675396838E5FE256 /* App */,
+				FAADE50FD8E74378E640A38D /* Capture */,
+				143328FE870E0B7EC51B71BF /* Editor */,
+				355FACF4FAA289E28F14873A /* Hotkeys */,
+				D3AC0DB3A8ED1589D04296D2 /* MenuBar */,
+				13DEAFC4230844335116A03A /* Models */,
+				776B0C9828CAAA5540B474C7 /* Output */,
+				8AEC9A2B3EB6CC7B903C47B1 /* Permissions */,
+				5952BD5B04A29E1ACB391C7F /* Settings */,
+			);
+			path = snippingTool;
+			sourceTree = "<group>";
+		};
+		D3AC0DB3A8ED1589D04296D2 /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				626EE4F8768D2FE6C6643502 /* MenuBarContentView.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
+		E254A974356EEC7871FEDBFD /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				C32DD835B08D04D693297B56 /* snippingToolHostUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
+		E53473F634B1111E1753B3FD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				68609BA7AFCD4A6F142F5D34 /* snippingToolHost.app */,
+				15CFBBFBAA1128925202423A /* snippingToolHostUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FAADE50FD8E74378E640A38D /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				9D67D790E3CFE686BBF11EAD /* CaptureCoordinator.swift */,
+				736A72BBFD95D9D85A0E2F78 /* ScreenCaptureService.swift */,
+				804B6FAA86DCA84687912502 /* SelectionOverlayView.swift */,
+				FF0BF3BA0A5532D623C5F3CA /* SelectionOverlayWindow.swift */,
+				522C4FDF4AEB4C541610BB94 /* WindowSelectionService.swift */,
+			);
+			path = Capture;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9BC22A0E7B8906F31D4C7B1E /* snippingToolHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AF7C03676C2CC0EFBD14AFEF /* Build configuration list for PBXNativeTarget "snippingToolHost" */;
+			buildPhases = (
+				0F12E220BE65E23C9299B472 /* Sources */,
+				0CC1C23CEF2DF773A0C73EBF /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = snippingToolHost;
+			packageProductDependencies = (
+				355F8C0D1D9EFD9AF0C597C1 /* snippingToolCore */,
+			);
+			productName = snippingToolHost;
+			productReference = 68609BA7AFCD4A6F142F5D34 /* snippingToolHost.app */;
+			productType = "com.apple.product-type.application";
+		};
+		9D67661C7AFA6B7489BA5505 /* snippingToolHostUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 09E63BB72DB7881431BDD125 /* Build configuration list for PBXNativeTarget "snippingToolHostUITests" */;
+			buildPhases = (
+				0BEBA5295ADF4993286D87A2 /* Sources */,
+				8320C64548E9235D9F7F0DA4 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				17A0D6ED48F6630EEA52B1A8 /* PBXTargetDependency */,
+			);
+			name = snippingToolHostUITests;
+			packageProductDependencies = (
+				D6C1981219670D3E50C55721 /* snippingToolCore */,
+			);
+			productName = snippingToolHostUITests;
+			productReference = 15CFBBFBAA1128925202423A /* snippingToolHostUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F0D19DA138FE73493E7750C2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					9D67661C7AFA6B7489BA5505 = {
+						TestTargetID = 9BC22A0E7B8906F31D4C7B1E;
+					};
+				};
+			};
+			buildConfigurationList = AC03848D1B83CDCFBAA01049 /* Build configuration list for PBXProject "snippingToolHost" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 13783D06BE9025876F0F1FEC;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CF3FFFA929E9D6A4FC21E7D5 /* XCLocalSwiftPackageReference "." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = E53473F634B1111E1753B3FD /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9BC22A0E7B8906F31D4C7B1E /* snippingToolHost */,
+				9D67661C7AFA6B7489BA5505 /* snippingToolHostUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0BEBA5295ADF4993286D87A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8DD090BC73B39783FE16A56C /* AutomationSupport.swift in Sources */,
+				3345D00A7565D09AAD6AD7EE /* snippingToolHostUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0F12E220BE65E23C9299B472 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EAC9C991CB9B81ED3D8C2584 /* AnnotationCanvasView.swift in Sources */,
+				BBA106CFEC1E8A7E92C8BBD5 /* AnnotationStore.swift in Sources */,
+				FC25194A5433085917F64889 /* AnnotationToolbarView.swift in Sources */,
+				D7CFFE4A8406FEA212AFA192 /* AppDelegate.swift in Sources */,
+				11FD7FC79A7B81983014B8BA /* AppServices.swift in Sources */,
+				60E5824623FC8E982D6434FF /* AppState.swift in Sources */,
+				F673C87D1354C20E81AD5E1F /* AutomationSupport.swift in Sources */,
+				64C3489D6A55ADD4A3D8BBE0 /* CaptureCoordinator.swift in Sources */,
+				E34907864C51D33972020EFA /* CaptureModels.swift in Sources */,
+				9730BB71C9619DA749081A56 /* ExportService.swift in Sources */,
+				9768635D44FADB88A1A885B4 /* GlobalHotkeyMonitor.swift in Sources */,
+				040291A6444BCAB4F56D9F75 /* HotkeyEventMapping.swift in Sources */,
+				E0D287DCE0B7A9CE824C9C44 /* KeybindingRecorderField.swift in Sources */,
+				F2E2C5A5D53FA2E4C02356E5 /* MenuBarContentView.swift in Sources */,
+				565062C6CC078E3C5038DDBC /* PermissionManager.swift in Sources */,
+				5E75DAB6EC2197347319D2A6 /* RecentCaptureStore.swift in Sources */,
+				39558C404B7B0D4A893AE5E6 /* ScreenCaptureService.swift in Sources */,
+				490C7645F4B0D650C8583540 /* SelectableCaptureImageView.swift in Sources */,
+				930A076CA474959DE2D11106 /* SelectionOverlayView.swift in Sources */,
+				5C0325F7CBFCCE056B3F4A9E /* SelectionOverlayWindow.swift in Sources */,
+				12EBE6DBF869AA989237EF58 /* SettingsView.swift in Sources */,
+				E0DB200BCCBF1A9E50E07D5C /* SnippetEditorView.swift in Sources */,
+				F0931B7C4A18F14531B293F7 /* SnippingToolApp.swift in Sources */,
+				8C4F1200267476453D6FB4C0 /* UITestControlPanelView.swift in Sources */,
+				839AFBAEFA91ED203CF34D43 /* WindowManagers.swift in Sources */,
+				EF457E3095A0C8DFD75A980B /* WindowSelectionService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		17A0D6ED48F6630EEA52B1A8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9BC22A0E7B8906F31D4C7B1E /* snippingToolHost */;
+			targetProxy = AA200511CFABFD9E840EB957 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		6715FA32032EFB780F16CAD9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		7FE2662EB96032E99F1E55C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		B35157CDD22B3993A60408DF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.ronhouben.snippingtool.host-uitests";
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				TEST_TARGET_NAME = snippingToolHost;
+			};
+			name = Debug;
+		};
+		C7E472E9B6BFECA857C97C98 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.ronhouben.snippingtool.host-uitests";
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				TEST_TARGET_NAME = snippingToolHost;
+			};
+			name = Release;
+		};
+		D4FE4A5BF1D1537521743255 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = snippingTool;
+				INFOPLIST_KEY_CFBundleName = snippingTool;
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ronhouben.snippingtool.host;
+				PRODUCT_NAME = snippingTool;
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+			};
+			name = Release;
+		};
+		D8894C632A8824A527F867DA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = snippingTool;
+				INFOPLIST_KEY_CFBundleName = snippingTool;
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ronhouben.snippingtool.host;
+				PRODUCT_NAME = snippingTool;
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		09E63BB72DB7881431BDD125 /* Build configuration list for PBXNativeTarget "snippingToolHostUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B35157CDD22B3993A60408DF /* Debug */,
+				C7E472E9B6BFECA857C97C98 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AC03848D1B83CDCFBAA01049 /* Build configuration list for PBXProject "snippingToolHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7FE2662EB96032E99F1E55C4 /* Debug */,
+				6715FA32032EFB780F16CAD9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AF7C03676C2CC0EFBD14AFEF /* Build configuration list for PBXNativeTarget "snippingToolHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D8894C632A8824A527F867DA /* Debug */,
+				D4FE4A5BF1D1537521743255 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		CF3FFFA929E9D6A4FC21E7D5 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		355F8C0D1D9EFD9AF0C597C1 /* snippingToolCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = snippingToolCore;
+		};
+		D6C1981219670D3E50C55721 /* snippingToolCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = snippingToolCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = F0D19DA138FE73493E7750C2 /* Project object */;
+}

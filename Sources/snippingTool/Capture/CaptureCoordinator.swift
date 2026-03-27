@@ -10,6 +10,7 @@ final class CaptureCoordinator {
     private let screenCaptureService = ScreenCaptureService()
     private let hotkeyMonitor = GlobalHotkeyMonitor()
     private let windowSelectionService = WindowSelectionService()
+    private let isGlobalHotkeyMonitoringEnabled: Bool
 
     private var overlayController: SelectionOverlayWindowController?
 
@@ -22,11 +23,17 @@ final class CaptureCoordinator {
     var overlayCaptureMode: CaptureMode = .rectangular
     var onCaptureCompleted: ((CaptureCompletionAction) -> Void)?
 
-    init() {
+    init(isGlobalHotkeyMonitoringEnabled: Bool = true) {
+        self.isGlobalHotkeyMonitoringEnabled = isGlobalHotkeyMonitoringEnabled
         refreshPermissions()
     }
 
     func configureHotkeys(_ configuration: CaptureModeHotkeyConfiguration) {
+        guard isGlobalHotkeyMonitoringEnabled else {
+            hotkeyMonitor.stop()
+            return
+        }
+
         hotkeyMonitor.start(bindings: configuration.activeBindings) { [weak self] mode in
             Task { @MainActor in
                 guard let self, self.isCaptureInProgress == false else {

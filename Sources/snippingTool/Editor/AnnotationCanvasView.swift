@@ -28,7 +28,7 @@ struct AnnotationCanvasView: View {
             ZStack {
                 Color(nsColor: .windowBackgroundColor)
 
-                annotationLayer(displayedImageSize: displayedImageSize, localImageFrame: localImageFrame, imageSize: imageSize)
+                canvasContent(displayedImageSize: displayedImageSize, localImageFrame: localImageFrame, imageSize: imageSize)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
@@ -45,7 +45,7 @@ struct AnnotationCanvasView: View {
             .onChange(of: annotationStore.selectedTool) { _, _ in
                 currentPoints.removeAll()
                 textDragState = nil
-                if annotationStore.selectedTool != .text {
+                if annotationStore.selectedTool.isTextAnnotationTool == false {
                     hoveredTextAnnotationID = nil
                     selectedTextAnnotationID = nil
                 }
@@ -76,125 +76,16 @@ struct AnnotationCanvasView: View {
     }
 
     @ViewBuilder
-    private func annotationLayer(displayedImageSize: CGSize, localImageFrame: CGRect, imageSize: CGSize) -> some View {
+    private func canvasContent(displayedImageSize: CGSize, localImageFrame: CGRect, imageSize: CGSize) -> some View {
         ZStack {
-            Image(decorative: capturedSnippet.cgImage, scale: 1)
-                .resizable()
-                .frame(width: displayedImageSize.width, height: displayedImageSize.height)
-
-            Canvas { context, _ in
-                for stroke in annotationStore.strokes {
-                    render(stroke: stroke, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
-                }
-
-                if !currentPoints.isEmpty {
-                    let draft = AnnotationStroke(
-                        tool: annotationStore.selectedTool,
-                        color: annotationStore.selectedColor,
-                        lineWidth: annotationStore.lineWidth,
-                        points: currentPoints
-                    )
-                    render(stroke: draft, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
-                }
-
-                for textAnnotation in annotationStore.textAnnotations {
-                    render(textAnnotation: textAnnotation, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
-
-                    if hoveredTextAnnotationID == textAnnotation.id || textDragState?.annotationID == textAnnotation.id || selectedTextAnnotationID == textAnnotation.id {
-                        let bounds = canvasTextBounds(for: textAnnotation, imageFrame: localImageFrame, imageSize: imageSize)
-                        let outline = Path(roundedRect: bounds, cornerRadius: 8)
-                        context.stroke(
-                            outline,
-                            with: .color(outlineColor(for: textAnnotation.id)),
-                            style: StrokeStyle(lineWidth: outlineLineWidth(for: textAnnotation.id), dash: outlineDash(for: textAnnotation.id))
-                        )
-                    }
-                }
-            }
-            .frame(width: displayedImageSize.width, height: displayedImageSize.height)
-            .contentShape(Rectangle())
-            .onContinuousHover(coordinateSpace: .local) { phase in
-                guard annotationStore.selectedTool == .text,
-                      annotationStore.pendingTextAnchor == nil,
-                      textDragState == nil else {
-                    hoveredTextAnnotationID = nil
-                    return
-                }
-
-                switch phase {
-                case .active(let location):
-                    guard let imagePoint = AnnotationCoordinateMapper.imagePoint(
-                        fromCanvasPoint: location,
-                        imageFrame: localImageFrame,
-                        imageSize: imageSize
-                    ) else {
-                        hoveredTextAnnotationID = nil
-                        return
-                    }
-
-                    hoveredTextAnnotationID = hitTextAnnotation(at: imagePoint)?.id
-                case .ended:
-                    hoveredTextAnnotationID = nil
-                }
-            }
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        if handleTextDragChanged(value, imageFrame: localImageFrame, imageSize: imageSize) {
-                            return
-                        }
-
-                        guard annotationStore.selectedTool.usesStrokeWidth else {
-                            return
-                        }
-
-                        guard let imagePoint = AnnotationCoordinateMapper.imagePoint(
-                            fromCanvasPoint: value.location,
-                            imageFrame: localImageFrame,
-                            imageSize: imageSize
-                        ) else {
-                            return
-                        }
-
-                        currentPoints.append(AnnotationPoint(imagePoint))
-                    }
-                    .onEnded { value in
-                        if handleTextDragEnded(value, imageFrame: localImageFrame, imageSize: imageSize) {
-                            return
-                        }
-
-                        guard annotationStore.selectedTool.usesStrokeWidth else {
-                            currentPoints.removeAll()
-                            selectedTextAnnotationID = nil
-                            guard let imagePoint = AnnotationCoordinateMapper.imagePoint(
-                                fromCanvasPoint: value.location,
-                                imageFrame: localImageFrame,
-                                imageSize: imageSize
-                            ) else {
-                                return
-                            }
-
-                            annotationStore.startTextEditing(at: AnnotationPoint(imagePoint))
-                            return
-                        }
-
-                        guard currentPoints.count > 1 else {
-                            currentPoints.removeAll()
-                            return
-                        }
-
-                        annotationStore.beginMutation()
-                        annotationStore.addStroke(
-                            AnnotationStroke(
-                                tool: annotationStore.selectedTool,
-                                color: annotationStore.selectedColor,
-                                lineWidth: annotationStore.lineWidth,
-                                points: currentPoints
-                            )
-                        )
-                        currentPoints.removeAll()
-                    }
+            SelectableCaptureImageView(
+                capturedSnippet: capturedSnippet,
+                isTextSelectionEnabled: annotationStore.selectedTool.isSelectionTool
             )
+                .frame(width: displayedImageSize.width, height: displayedImageSize.height)
+                .clipped()
+
+            annotationOverlay(displayedImageSize: displayedImageSize, localImageFrame: localImageFrame, imageSize: imageSize)
 
             if let pendingTextAnchor = annotationStore.pendingTextAnchor {
                 let canvasPoint = AnnotationCoordinateMapper.canvasPoint(
@@ -232,6 +123,125 @@ struct AnnotationCanvasView: View {
             }
         }
         .frame(width: displayedImageSize.width, height: displayedImageSize.height)
+        .clipped()
+    }
+
+    private func annotationOverlay(displayedImageSize: CGSize, localImageFrame: CGRect, imageSize: CGSize) -> some View {
+        Canvas { context, _ in
+            for stroke in annotationStore.strokes {
+                render(stroke: stroke, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
+            }
+
+            if !currentPoints.isEmpty {
+                let draft = AnnotationStroke(
+                    tool: annotationStore.selectedTool,
+                    color: annotationStore.selectedColor,
+                    lineWidth: annotationStore.lineWidth,
+                    points: currentPoints
+                )
+                render(stroke: draft, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
+            }
+
+            for textAnnotation in annotationStore.textAnnotations {
+                render(textAnnotation: textAnnotation, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
+
+                if hoveredTextAnnotationID == textAnnotation.id || textDragState?.annotationID == textAnnotation.id || selectedTextAnnotationID == textAnnotation.id {
+                    let bounds = canvasTextBounds(for: textAnnotation, imageFrame: localImageFrame, imageSize: imageSize)
+                    let outline = Path(roundedRect: bounds, cornerRadius: 8)
+                    context.stroke(
+                        outline,
+                        with: .color(outlineColor(for: textAnnotation.id)),
+                        style: StrokeStyle(lineWidth: outlineLineWidth(for: textAnnotation.id), dash: outlineDash(for: textAnnotation.id))
+                    )
+                }
+            }
+        }
+        .frame(width: displayedImageSize.width, height: displayedImageSize.height)
+        .contentShape(Rectangle())
+        .allowsHitTesting(annotationStore.selectedTool.isSelectionTool == false)
+        .onContinuousHover(coordinateSpace: .local) { phase in
+            guard annotationStore.selectedTool.isTextAnnotationTool,
+                  annotationStore.pendingTextAnchor == nil,
+                  textDragState == nil else {
+                hoveredTextAnnotationID = nil
+                return
+            }
+
+            switch phase {
+            case .active(let location):
+                guard let imagePoint = AnnotationCoordinateMapper.imagePoint(
+                    fromCanvasPoint: location,
+                    imageFrame: localImageFrame,
+                    imageSize: imageSize
+                ) else {
+                    hoveredTextAnnotationID = nil
+                    return
+                }
+
+                hoveredTextAnnotationID = hitTextAnnotation(at: imagePoint)?.id
+            case .ended:
+                hoveredTextAnnotationID = nil
+            }
+        }
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if handleTextDragChanged(value, imageFrame: localImageFrame, imageSize: imageSize) {
+                        return
+                    }
+
+                    guard annotationStore.selectedTool.usesStrokeWidth else {
+                        return
+                    }
+
+                    guard let imagePoint = AnnotationCoordinateMapper.imagePoint(
+                        fromCanvasPoint: value.location,
+                        imageFrame: localImageFrame,
+                        imageSize: imageSize
+                    ) else {
+                        return
+                    }
+
+                    currentPoints.append(AnnotationPoint(imagePoint))
+                }
+                .onEnded { value in
+                    if handleTextDragEnded(value, imageFrame: localImageFrame, imageSize: imageSize) {
+                        return
+                    }
+
+                    if annotationStore.selectedTool.isTextAnnotationTool {
+                        currentPoints.removeAll()
+                        selectedTextAnnotationID = nil
+                        guard let imagePoint = AnnotationCoordinateMapper.imagePoint(
+                            fromCanvasPoint: value.location,
+                            imageFrame: localImageFrame,
+                            imageSize: imageSize
+                        ) else {
+                            return
+                        }
+
+                        annotationStore.startTextEditing(at: AnnotationPoint(imagePoint))
+                        return
+                    }
+
+                    guard annotationStore.selectedTool.usesStrokeWidth,
+                          currentPoints.count > 1 else {
+                        currentPoints.removeAll()
+                        return
+                    }
+
+                    annotationStore.beginMutation()
+                    annotationStore.addStroke(
+                        AnnotationStroke(
+                            tool: annotationStore.selectedTool,
+                            color: annotationStore.selectedColor,
+                            lineWidth: annotationStore.lineWidth,
+                            points: currentPoints
+                        )
+                    )
+                    currentPoints.removeAll()
+                }
+        )
     }
 
     private func render(stroke: AnnotationStroke, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
@@ -247,6 +257,8 @@ struct AnnotationCanvasView: View {
         let renderedLineWidth = AnnotationCoordinateMapper.canvasLineWidth(fromImageLineWidth: stroke.lineWidth, imageFrame: imageFrame, imageSize: imageSize)
 
         switch stroke.tool {
+        case .select:
+            break
         case .eraser:
             context.blendMode = .clear
             context.stroke(path, with: .color(.clear), style: StrokeStyle(lineWidth: renderedLineWidth, lineCap: .round, lineJoin: .round))
@@ -289,7 +301,7 @@ struct AnnotationCanvasView: View {
     }
 
     private func handleTextDragChanged(_ value: DragGesture.Value, imageFrame: CGRect, imageSize: CGSize) -> Bool {
-        guard annotationStore.selectedTool == .text,
+                guard annotationStore.selectedTool.isTextAnnotationTool,
               annotationStore.pendingTextAnchor == nil,
               let currentImagePoint = AnnotationCoordinateMapper.imagePoint(
                 fromCanvasPoint: value.location,
@@ -332,7 +344,7 @@ struct AnnotationCanvasView: View {
     private func handleTextDragEnded(_ value: DragGesture.Value, imageFrame: CGRect, imageSize: CGSize) -> Bool {
         defer { textDragState = nil }
 
-        guard annotationStore.selectedTool == .text else {
+        guard annotationStore.selectedTool.isTextAnnotationTool else {
             textDragState = nil
             return false
         }
@@ -342,20 +354,20 @@ struct AnnotationCanvasView: View {
             return true
         }
 
-                guard annotationStore.pendingTextAnchor == nil,
-                            let startImagePoint = AnnotationCoordinateMapper.imagePoint(
-                                fromCanvasPoint: value.startLocation,
-                                imageFrame: imageFrame,
-                                imageSize: imageSize
-                            ) else {
+        guard annotationStore.pendingTextAnchor == nil,
+              let startImagePoint = AnnotationCoordinateMapper.imagePoint(
+                fromCanvasPoint: value.startLocation,
+                imageFrame: imageFrame,
+                imageSize: imageSize
+              ) else {
             return false
         }
 
-                if let hitAnnotation = hitTextAnnotation(at: startImagePoint) {
-                        hoveredTextAnnotationID = hitAnnotation.id
-                    selectedTextAnnotationID = hitAnnotation.id
-                        return true
-                }
+        if let hitAnnotation = hitTextAnnotation(at: startImagePoint) {
+            hoveredTextAnnotationID = hitAnnotation.id
+            selectedTextAnnotationID = hitAnnotation.id
+            return true
+        }
 
         return false
     }
@@ -414,7 +426,9 @@ struct AnnotationCanvasView: View {
     private func updateCursor() {
         if textDragState != nil {
             NSCursor.closedHand.set()
-        } else if annotationStore.selectedTool == .text,
+        } else if annotationStore.selectedTool.isSelectionTool {
+            NSCursor.iBeam.set()
+        } else if annotationStore.selectedTool.isTextAnnotationTool,
                   annotationStore.pendingTextAnchor == nil,
                   hoveredTextAnnotationID != nil {
             NSCursor.openHand.set()

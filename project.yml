@@ -1,0 +1,62 @@
+name: snippingToolHost
+options:
+  createIntermediateGroups: true
+settings:
+  base:
+    MACOSX_DEPLOYMENT_TARGET: '14.0'
+    SWIFT_VERSION: '6.0'
+packages:
+  snippingToolPackage:
+    path: .
+targets:
+  snippingToolHost:
+    type: application
+    platform: macOS
+    deploymentTarget: '14.0'
+    sources:
+      - path: Sources/snippingTool
+    dependencies:
+      - package: snippingToolPackage
+        product: snippingToolCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ronhouben.snippingtool.host
+        PRODUCT_NAME: snippingTool
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: snippingTool
+        INFOPLIST_KEY_CFBundleName: snippingTool
+        INFOPLIST_KEY_LSUIElement: YES
+        ENABLE_HARDENED_RUNTIME: NO
+        SWIFT_EMIT_LOC_STRINGS: NO
+
+  snippingToolHostUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    deploymentTarget: '14.0'
+    sources:
+      - path: UITests
+      - path: Sources/snippingTool/App/AutomationSupport.swift
+    dependencies:
+      - target: snippingToolHost
+      - package: snippingToolPackage
+        product: snippingToolCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ronhouben.snippingtool.host-uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_STRICT_CONCURRENCY: minimal
+
+schemes:
+  snippingToolHost:
+    build:
+      targets:
+        snippingToolHost: all
+        snippingToolHostUITests:
+          - test
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - name: snippingToolHostUITests

@@ -26,6 +26,7 @@ struct CapturedSnippet: Identifiable, Equatable {
 }
 
 enum AnnotationTool: String, CaseIterable, Identifiable {
+    case select
     case pen
     case highlighter
     case eraser
@@ -37,17 +38,70 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         switch self {
         case .pen, .highlighter, .eraser:
             true
-        case .text:
+        case .select, .text:
             false
+        }
+    }
+
+    var isSelectionTool: Bool {
+        self == .select
+    }
+
+    var isTextAnnotationTool: Bool {
+        self == .text
+    }
+
+    var usesColor: Bool {
+        switch self {
+        case .select, .eraser:
+            false
+        case .pen, .highlighter, .text:
+            true
+        }
+    }
+
+    var showsSizeControl: Bool {
+        usesStrokeWidth || isTextAnnotationTool
+    }
+
+    var inspectorTitle: String? {
+        if usesStrokeWidth {
+            return "Stroke"
+        }
+
+        if isTextAnnotationTool {
+            return "Font"
+        }
+
+        switch self {
+        case .select:
+            return "Live Text"
+        case .eraser:
+            return "Eraser"
+        case .pen, .highlighter, .text:
+            return nil
+        }
+    }
+
+    var inspectorMessage: String? {
+        switch self {
+        case .select:
+            return "Drag to select text • switch tools to annotate"
+        case .eraser:
+            return "Remove annotations"
+        case .pen, .highlighter, .text:
+            return nil
         }
     }
 
     var title: String {
         switch self {
+        case .select:
+            "Select"
         case .pen:
             "Pen"
         case .highlighter:
-            "Highlighter"
+            "Highlight"
         case .eraser:
             "Eraser"
         case .text:

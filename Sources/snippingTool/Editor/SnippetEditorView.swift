@@ -13,23 +13,29 @@ struct SnippetEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             if let capture = captureCoordinator.currentCapture {
-                AnnotationToolbarView(annotationStore: annotationStore) {
-                    copyCapture(capture)
-                } onCopyAndClose: {
-                    copyAndCloseCapture(capture)
-                } onSave: {
-                    saveCapture(capture)
-                }
+                AnnotationToolbarView(
+                    annotationStore: annotationStore,
+                    onCopy: {
+                        copyCapture(capture)
+                    },
+                    onCopyAndClose: {
+                        copyAndCloseCapture(capture)
+                    },
+                    onSave: {
+                        saveCapture(capture)
+                    }
+                )
 
                 AnnotationCanvasView(annotationStore: annotationStore, capturedSnippet: capture)
 
-                if let exportMessage {
-                    Text(exportMessage)
+                if let footerMessage {
+                    Text(footerMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(.bar)
+                        .accessibilityIdentifier(AppAutomationIdentifiers.editorFooterMessage)
                 }
             } else {
                 ContentUnavailableView(
@@ -39,7 +45,11 @@ struct SnippetEditorView: View {
                 )
             }
         }
+        .accessibilityIdentifier(AppAutomationIdentifiers.editorRoot)
         .navigationTitle("Editor")
+        .onAppear {
+            exportMessage = nil
+        }
         .onChange(of: captureCoordinator.currentCapture?.id) { _, _ in
             annotationStore = AnnotationStore()
             exportMessage = nil
@@ -92,5 +102,13 @@ struct SnippetEditorView: View {
         } catch {
             exportMessage = error.localizedDescription
         }
+    }
+
+    private var footerMessage: String? {
+        exportMessage ?? (annotationStore.selectedTool.isSelectionTool ? selectionHintMessage : nil)
+    }
+
+    private var selectionHintMessage: String {
+        "Live Text is ready — drag across text in the screenshot, then press ⌘C to copy it."
     }
 }

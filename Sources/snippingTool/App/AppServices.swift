@@ -1,19 +1,28 @@
 import Foundation
+import AppKit
 import snippingToolCore
 
 @MainActor
 final class AppServices {
     static let shared = AppServices()
 
-    let appState = AppState()
-    let captureCoordinator = CaptureCoordinator()
+    let launchConfiguration: AppLaunchConfiguration
+    let appState: AppState
+    let captureCoordinator: CaptureCoordinator
     let recentCaptureStore = RecentCaptureStore()
     private let exportService = ExportService()
 
     lazy var editorWindowManager = EditorWindowManager(services: self)
     lazy var settingsWindowManager = SettingsWindowManager(services: self)
+    lazy var uiTestControlWindowManager = UITestControlWindowManager(services: self)
 
-    private init() {
+    private init(configuration: AppLaunchConfiguration = .current) {
+        launchConfiguration = configuration
+        appState = AppState(defaults: configuration.makeUserDefaults())
+        captureCoordinator = CaptureCoordinator(
+            isGlobalHotkeyMonitoringEnabled: configuration.disablesGlobalHotkeys == false
+        )
+
         appState.onHotkeysChanged = { [weak self] configuration in
             self?.captureCoordinator.configureHotkeys(configuration)
         }
@@ -23,13 +32,45 @@ final class AppServices {
             self?.handleCompletedCapture(action)
         }
     }
+    func startPreferredCapture() {
+        captureCoordinator.startCapture(mode: appState.preferredCaptureMode)
+    }
+
+    func openEditor() {
+        editorWindowManager.show()
+    }
+
+    func openSettings() {
+        settingsWindowManager.show()
+    }
+
+    func quit() {
+        NSApp.terminate(nil)
+    }
+
+    func setPreferredCaptureMode(_ mode: CaptureMode) {
+        appState.preferredCaptureMode = mode
+    }
+
+    func performStatusMenuAction(_ action: StatusMenuAction) {
+        switch action {
+        case .newCapture:
+            startPreferredCapture()
+        case .openEditor:
+            openEditor()
+        case .openSettings:
+            openSettings()
+        case .quit:
+            quit()
+        }
+    }
 
     private func handleCompletedCapture(_ action: CaptureCompletionAction) {
         switch action {
         case .dismissOverlay:
             return
         case .openEditor:
-            editorWindowManager.show()
+            openEditor()
         case .copyToClipboard:
             editorWindowManager.close()
 

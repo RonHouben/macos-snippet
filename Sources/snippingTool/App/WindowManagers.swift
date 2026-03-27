@@ -35,7 +35,9 @@ final class EditorWindowManager {
             .environment(services.recentCaptureStore)
 
         let hostingController = NSHostingController(rootView: rootView)
+        hostingController.view.setAccessibilityIdentifier(AppAutomationIdentifiers.editorRoot)
         let window = NSWindow(contentViewController: hostingController)
+        window.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.editorWindow)
         window.title = "Editor"
         window.setContentSize(defaultWindowSize)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
@@ -86,9 +88,43 @@ final class SettingsWindowManager {
             .environment(services.captureCoordinator)
 
         let hostingController = NSHostingController(rootView: rootView)
+        hostingController.view.setAccessibilityIdentifier(AppAutomationIdentifiers.settingsRoot)
         let window = NSWindow(contentViewController: hostingController)
+        window.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.settingsWindow)
         window.title = "Settings"
         window.setContentSize(NSSize(width: 680, height: 440))
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.isReleasedWhenClosed = false
+        return NSWindowController(window: window)
+    }
+}
+
+@MainActor
+final class UITestControlWindowManager {
+    private let services: AppServices
+    private var windowController: NSWindowController?
+
+    init(services: AppServices) {
+        self.services = services
+    }
+
+    func show() {
+        let controller = windowController ?? makeWindowController()
+        windowController = controller
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func makeWindowController() -> NSWindowController {
+        let rootView = UITestControlPanelView(services: services)
+
+        let hostingController = NSHostingController(rootView: rootView)
+        hostingController.view.setAccessibilityIdentifier(AppAutomationIdentifiers.uiTestControlRoot)
+
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "UI Test Control"
+        window.setContentSize(NSSize(width: 420, height: 320))
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
         return NSWindowController(window: window)

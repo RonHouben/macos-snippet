@@ -8,8 +8,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusMenu = NSMenu()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        NSApp.setActivationPolicy(services.launchConfiguration.isUITesting ? .regular : .accessory)
         configureStatusItem()
+        if services.launchConfiguration.isUITesting {
+            services.uiTestControlWindowManager.show()
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 
     private func configureStatusItem() {
@@ -20,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "snippingTool")
             button.imagePosition = .imageLeading
             button.toolTip = "snippingTool"
+            button.setAccessibilityIdentifier(AppAutomationIdentifiers.statusItemButton)
         }
 
         statusMenu.delegate = self
@@ -41,10 +46,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case let .action(title, action):
                 let item = NSMenuItem(title: title, action: selector(for: action), keyEquivalent: keyEquivalent(for: action))
                 item.target = self
+                item.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.statusMenuAction(action))
                 menu.addItem(item)
 
             case let .captureModes(title, items):
                 let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+                item.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.statusMenuCaptureModes)
                 item.submenu = makeCaptureModeMenu(items: items)
                 menu.addItem(item)
 
@@ -99,22 +106,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc
     private func startCapture() {
-        services.captureCoordinator.startCapture(mode: services.appState.preferredCaptureMode)
+        services.performStatusMenuAction(.newCapture)
     }
 
     @objc
     private func openEditor() {
-        services.editorWindowManager.show()
+        services.performStatusMenuAction(.openEditor)
     }
 
     @objc
     private func openSettings() {
-        services.settingsWindowManager.show()
+        services.performStatusMenuAction(.openSettings)
     }
 
     @objc
     private func quitApp() {
-        NSApp.terminate(nil)
+        services.performStatusMenuAction(.quit)
     }
 
     @objc
@@ -124,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        services.appState.preferredCaptureMode = mode
+        services.setPreferredCaptureMode(mode)
     }
 }
 

@@ -18,6 +18,7 @@ struct SettingsView: View {
                         Text(mode.title).tag(mode)
                     }
                 }
+                .accessibilityIdentifier(AppAutomationIdentifiers.settingsCaptureModePicker)
 
                 Text("Current permissions: \(captureCoordinator.permissionSummary)")
                     .foregroundStyle(.secondary)
@@ -26,9 +27,12 @@ struct SettingsView: View {
                     Button("Request Screen Recording") {
                         captureCoordinator.requestScreenRecording()
                     }
+                    .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestScreenRecordingButton)
+
                     Button("Request Accessibility") {
                         captureCoordinator.requestAccessibility()
                     }
+                    .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestAccessibilityButton)
                 }
             }
 
@@ -51,6 +55,7 @@ struct SettingsView: View {
                 }
             }
         }
+        .accessibilityIdentifier(AppAutomationIdentifiers.settingsRoot)
         .padding(Layout.formPadding)
         .frame(width: Layout.settingsWidth)
     }
@@ -86,6 +91,7 @@ private struct CaptureModeHotkeyRow: View {
                     .toggleStyle(.switch)
                     .labelsHidden()
                     .frame(width: Layout.toggleWidth, alignment: .center)
+                    .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyToggle(for: mode))
 
                 KeybindingRecorderField(
                     shortcut: appState.shortcut(for: mode),
@@ -103,6 +109,7 @@ private struct CaptureModeHotkeyRow: View {
                 )
                 .frame(width: Layout.recorderWidth, height: 36)
                 .disabled(isShortcutEnabled == false)
+                .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyRecorder(for: mode))
 
                 Button("Clear") {
                     recorderMessage = nil
@@ -114,6 +121,7 @@ private struct CaptureModeHotkeyRow: View {
                 .frame(width: Layout.clearButtonWidth)
                 .controlSize(.regular)
                 .disabled(appState.shortcut(for: mode) == nil)
+                .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyClearButton(for: mode))
 
                 Spacer(minLength: 0)
             }

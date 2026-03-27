@@ -40,7 +40,9 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
         window.ignoresMouseEvents = false
         window.acceptsMouseMovedEvents = true
         window.hasShadow = false
+        window.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.overlayRoot)
         window.contentView = hostingView
+        hostingView.setAccessibilityIdentifier(AppAutomationIdentifiers.overlayRoot)
         if let overlayWindow = window as? OverlayCaptureWindow {
             overlayWindow.onEscape = { [weak coordinator] in
                 coordinator?.cancelCapture()

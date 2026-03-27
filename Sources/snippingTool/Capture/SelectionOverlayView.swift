@@ -131,6 +131,7 @@ struct SelectionOverlayView: View {
                 .padding(.top, layoutMetrics.topPadding)
                 .padding(.horizontal, layoutMetrics.horizontalPadding)
             }
+            .accessibilityIdentifier(AppAutomationIdentifiers.overlayRoot)
             .onAppear {
                 guard isToolbarVisible == false else {
                     return
@@ -235,6 +236,7 @@ private struct CaptureModeToolbar: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 13)
+        .accessibilityIdentifier(AppAutomationIdentifiers.overlayToolbar)
         .background {
             Capsule()
                 .fill(.ultraThinMaterial)
@@ -265,6 +267,7 @@ private struct CaptureModeToolbarButton: View {
         ToolbarIconButton(
             systemImage: mode.overlayToolbarSystemImage,
             accessibilityLabel: mode.overlayToolbarAccessibilityLabel,
+            automationIdentifier: AppAutomationIdentifiers.overlayModeButton(for: mode),
             helpText: mode.title,
             shortcutLabel: mode.overlayToolbarShortcutLabel,
             isActive: isActive,
@@ -296,6 +299,7 @@ private struct CancelToolbarButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Cancel capture")
+        .accessibilityIdentifier(AppAutomationIdentifiers.overlayCancelButton)
         .help("Cancel")
         .onHover { hovering in
             isHovered = hovering
@@ -306,6 +310,7 @@ private struct CancelToolbarButton: View {
 private struct ToolbarIconButton: View {
     let systemImage: String
     let accessibilityLabel: String
+    let automationIdentifier: String
     let helpText: String
     let shortcutLabel: String?
     var isActive = false
@@ -388,6 +393,7 @@ private struct ToolbarIconButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityIdentifier(automationIdentifier)
         .help(shortcutLabel.map { "\(helpText) (\($0))" } ?? helpText)
     }
 }

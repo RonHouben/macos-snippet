@@ -9,9 +9,9 @@ private struct AnnotationSnapshot {
 
 @Observable
 final class AnnotationStore {
-    var selectedTool: AnnotationTool = .pen {
+    var selectedTool: AnnotationTool = .select {
         didSet {
-            guard oldValue != selectedTool, selectedTool != .text else { return }
+            guard oldValue != selectedTool, selectedTool.isTextAnnotationTool == false else { return }
             finalizePendingTextIfNeeded()
         }
     }
