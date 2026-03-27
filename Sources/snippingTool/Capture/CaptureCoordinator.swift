@@ -206,6 +206,15 @@ final class CaptureCoordinator {
         statusMessage = "Capture cancelled."
     }
 
+    func loadCaptureForTesting(_ capture: CapturedSnippet) {
+        dismissOverlayIfNeeded()
+        clearHoveredWindow()
+        isCaptureInProgress = false
+        currentCapture = capture
+        statusMessage = "Loaded UI test sample capture."
+        lastError = nil
+    }
+
     private func captureFullScreen(activeModifiers: HotkeyModifiers) {
         do {
             currentCapture = try screenCaptureService.captureMainDisplay()

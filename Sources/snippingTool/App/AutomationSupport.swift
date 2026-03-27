@@ -77,6 +77,7 @@ enum AppAutomationIdentifiers {
     static let uiTestOpenEditorButton = "ui-test.open-editor"
     static let uiTestOpenSettingsButton = "ui-test.open-settings"
     static let uiTestNewCaptureButton = "ui-test.new-capture"
+    static let uiTestLoadSampleCaptureButton = "ui-test.load-sample-capture"
     static let uiTestQuitButton = "ui-test.quit"
     static let uiTestStatusMessage = "ui-test.status-message"
 
@@ -96,6 +97,7 @@ enum AppAutomationIdentifiers {
     static let editorCopyAndCloseButton = "editor.copy-and-close"
     static let editorSaveButton = "editor.save"
     static let editorFooterMessage = "editor.footer-message"
+    static let editorRecognizedTextSelectionRoot = "editor.live-text-root"
 
     static let overlayRoot = "overlay.root"
     static let overlayToolbar = "overlay.toolbar"
@@ -131,5 +133,9 @@ enum AppAutomationIdentifiers {
     }
     static func uiTestCaptureModeButton(for mode: CaptureMode) -> String {
         "ui-test.capture-mode.\(mode.rawValue)"
+    }
+
+    static func editorRecognizedTextLine(_ index: Int) -> String {
+        "editor.live-text-line.\(index)"
     }
 }

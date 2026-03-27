@@ -1,7 +1,12 @@
+import AppKit
 import XCTest
 
 @MainActor
 final class SnippingToolHostUITests: XCTestCase {
+    private enum SampleCaptureText {
+        static let primaryLine = "Alpha Beta Gamma Delta"
+    }
+
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -50,6 +55,46 @@ final class SnippingToolHostUITests: XCTestCase {
         XCTAssertTrue(
             app.descendants(matching: .any)[AppAutomationIdentifiers.editorRoot].waitForExistence(timeout: 5),
             "Expected the Editor root view to exist."
+        )
+    }
+
+    func testLoadSampleCaptureOpensEditorAndShowsRecognizedLine() throws {
+        uiTestButton(identifier: AppAutomationIdentifiers.uiTestLoadSampleCaptureButton, fallbackLabel: "Load Sample Capture").click()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)[AppAutomationIdentifiers.editorRoot].waitForExistence(timeout: 5),
+            "Expected the Editor root view to exist after loading the sample capture."
+        )
+
+        let firstRecognizedLine = app.descendants(matching: .any)[AppAutomationIdentifiers.editorRecognizedTextLine(0)]
+        XCTAssertTrue(
+            firstRecognizedLine.waitForExistence(timeout: 5),
+            "Expected the first recognized text line overlay to exist for the sample capture."
+        )
+    }
+
+    func testCanSelectAndCopyRecognizedLineTextFromSampleCapture() throws {
+        NSPasteboard.general.clearContents()
+
+        uiTestButton(identifier: AppAutomationIdentifiers.uiTestLoadSampleCaptureButton, fallbackLabel: "Load Sample Capture").click()
+
+        let firstRecognizedLine = app.descendants(matching: .any)[AppAutomationIdentifiers.editorRecognizedTextLine(0)]
+        XCTAssertTrue(
+            firstRecognizedLine.waitForExistence(timeout: 5),
+            "Expected the first recognized text line overlay to exist for the sample capture."
+        )
+
+        let start = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.5))
+        let end = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5))
+        start.press(forDuration: 0.1, thenDragTo: end)
+
+        app.typeKey("c", modifierFlags: .command)
+
+        let copiedText = NSPasteboard.general.string(forType: .string)
+        XCTAssertEqual(
+            copiedText?.trimmingCharacters(in: .whitespacesAndNewlines),
+            SampleCaptureText.primaryLine,
+            "Expected dragging across the recognized line to allow copying its text."
         )
     }
 

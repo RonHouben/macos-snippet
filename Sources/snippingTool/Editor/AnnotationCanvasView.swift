@@ -84,6 +84,7 @@ struct AnnotationCanvasView: View {
             )
                 .frame(width: displayedImageSize.width, height: displayedImageSize.height)
                 .clipped()
+                .accessibilityIdentifier(AppAutomationIdentifiers.editorRecognizedTextSelectionRoot)
 
             annotationOverlay(displayedImageSize: displayedImageSize, localImageFrame: localImageFrame, imageSize: imageSize)
 

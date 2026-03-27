@@ -18,6 +18,21 @@ struct SelectableCaptureImageView: NSViewRepresentable {
 
 @MainActor
 final class SelectableCapturePlatformView: NSView {
+    private final class RecognizedLineTextView: NSTextView {
+        override var isOpaque: Bool {
+            false
+        }
+
+        override func resetCursorRects() {
+            discardCursorRects()
+            addCursorRect(bounds, cursor: .iBeam)
+        }
+
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            bounds.contains(point) ? self : nil
+        }
+    }
+
     private struct RecognizedLine {
         let text: String
         let boundingBox: CGRect
@@ -129,8 +144,8 @@ final class SelectableCapturePlatformView: NSView {
 
     private func rebuildRecognizedTextViews() {
         lineTextViews.forEach { $0.removeFromSuperview() }
-        lineTextViews = recognizedLines.map { line in
-            let textView = NSTextView(frame: .zero)
+        lineTextViews = recognizedLines.enumerated().map { index, line in
+            let textView = RecognizedLineTextView(frame: .zero)
             textView.drawsBackground = false
             textView.isEditable = false
             textView.isSelectable = true
@@ -152,6 +167,8 @@ final class SelectableCapturePlatformView: NSView {
                 .backgroundColor: NSColor.selectedTextBackgroundColor.withAlphaComponent(0.45),
                 .foregroundColor: NSColor.clear
             ]
+            textView.setAccessibilityIdentifier(AppAutomationIdentifiers.editorRecognizedTextLine(index))
+            textView.setAccessibilityLabel(line.text)
             textView.isHidden = isTextSelectionEnabled == false
             addSubview(textView)
             return textView

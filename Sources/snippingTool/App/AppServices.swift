@@ -44,6 +44,15 @@ final class AppServices {
         settingsWindowManager.show()
     }
 
+    func loadUITestSampleCapture() {
+        guard launchConfiguration.isUITesting else {
+            return
+        }
+
+        captureCoordinator.loadCaptureForTesting(UITestSampleCaptureFactory.makeCapture())
+        openEditor()
+    }
+
     func quit() {
         NSApp.terminate(nil)
     }

@@ -37,6 +37,12 @@ struct UITestControlPanelView: View {
                 .buttonStyle(.borderedProminent)
                 .accessibilityIdentifier(AppAutomationIdentifiers.uiTestNewCaptureButton)
 
+                Button("Load Sample Capture") {
+                    services.loadUITestSampleCapture()
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier(AppAutomationIdentifiers.uiTestLoadSampleCaptureButton)
+
                 Button("Open Editor") {
                     services.openEditor()
                 }
