@@ -131,11 +131,19 @@ struct SnippetEditorView: View {
             "shapeCount=\(annotationStore.shapeAnnotations.count)",
             "strokeCount=\(annotationStore.strokes.count)",
             "textCount=\(annotationStore.textAnnotations.count)",
+            "pendingTextActive=\(annotationStore.pendingTextAnchor == nil ? "0" : "1")",
             "currentColor=\(formattedColor(annotationStore.selectedColor))",
             "currentLineWidth=\(formatted(annotationStore.lineWidth))",
             "currentTextFontSize=\(formatted(annotationStore.textFontSize))",
             "currentRectangleFillMode=\(annotationStore.rectangleFillMode.rawValue)"
         ]
+
+        if let pendingTextAnchor = annotationStore.pendingTextAnchor {
+            entries.append(contentsOf: [
+                "pendingTextX=\(formatted(pendingTextAnchor.x))",
+                "pendingTextY=\(formatted(pendingTextAnchor.y))"
+            ])
+        }
 
         if let lastStroke = annotationStore.strokes.last {
             entries.append(contentsOf: [

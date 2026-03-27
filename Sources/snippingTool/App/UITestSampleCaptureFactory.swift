@@ -8,10 +8,27 @@ enum UITestSampleCaptureFactory {
 
     static func makeCapture() -> CapturedSnippet {
         let size = NSSize(width: 1200, height: 720)
-        let image = NSImage(size: size)
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(size.width),
+            pixelsHigh: Int(size.height),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bitmapFormat: [],
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            fatalError("Failed to allocate bitmap for UI test sample capture image.")
+        }
 
-        image.lockFocusFlipped(true)
-        defer { image.unlockFocus() }
+        let previousContext = NSGraphicsContext.current
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+        defer {
+            NSGraphicsContext.current = previousContext
+        }
 
         NSColor(calibratedWhite: 0.08, alpha: 1).setFill()
         NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
@@ -35,7 +52,7 @@ enum UITestSampleCaptureFactory {
 
         NSString(string: "let ownerName = \"Copilot\"").draw(at: NSPoint(x: 86, y: 370), withAttributes: codeAttributes)
 
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+        guard let cgImage = bitmap.cgImage else {
             fatalError("Failed to build UI test sample capture image.")
         }
 

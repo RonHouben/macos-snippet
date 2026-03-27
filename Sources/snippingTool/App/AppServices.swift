@@ -91,7 +91,8 @@ final class AppServices {
                 try exportService.copyToPasteboard(
                     capturedSnippet: capture,
                     strokes: [],
-                    textAnnotations: []
+                    textAnnotations: [],
+                    shapeAnnotations: []
                 )
 
                 let baseStatus = captureCoordinator.statusMessage ?? "Capture ready."

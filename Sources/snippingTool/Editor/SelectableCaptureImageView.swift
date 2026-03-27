@@ -19,6 +19,17 @@ struct SelectableCaptureImageView: NSViewRepresentable {
 @MainActor
 final class SelectableCapturePlatformView: NSView {
     private final class RecognizedLineTextView: NSTextView {
+        private var dragStartPoint: NSPoint?
+        fileprivate var hasDragSelection = false
+
+        override var acceptsFirstResponder: Bool {
+            true
+        }
+
+        override var canBecomeKeyView: Bool {
+            true
+        }
+
         override var isOpaque: Bool {
             false
         }
@@ -31,6 +42,83 @@ final class SelectableCapturePlatformView: NSView {
         override func hitTest(_ point: NSPoint) -> NSView? {
             bounds.contains(point) ? self : nil
         }
+
+        override func mouseDown(with event: NSEvent) {
+            window?.makeFirstResponder(self)
+            dragStartPoint = convert(event.locationInWindow, from: nil)
+            hasDragSelection = false
+            super.mouseDown(with: event)
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            if window?.firstResponder !== self {
+                window?.makeFirstResponder(self)
+            }
+            super.mouseDragged(with: event)
+            ensureLineSelectionIfNeeded(with: event)
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            if window?.firstResponder !== self {
+                window?.makeFirstResponder(self)
+            }
+            super.mouseUp(with: event)
+            ensureLineSelectionIfNeeded(with: event)
+            dragStartPoint = nil
+        }
+
+        override func copy(_ sender: Any?) {
+            let copiedText: String
+            if selectedRange.length > 0 {
+                copiedText = (string as NSString).substring(with: selectedRange)
+            } else if hasDragSelection {
+                copiedText = string
+            } else {
+                return
+            }
+
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(copiedText, forType: .string)
+        }
+
+        override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            let relevantModifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if relevantModifiers.contains(.command),
+               event.keyCode == 8 || event.charactersIgnoringModifiers?.lowercased() == "c",
+               selectedRange.length > 0 || hasDragSelection {
+                copy(nil)
+                return true
+            }
+
+            return super.performKeyEquivalent(with: event)
+        }
+
+        override func keyDown(with event: NSEvent) {
+            let relevantModifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if relevantModifiers.contains(.command),
+               event.keyCode == 8 || event.charactersIgnoringModifiers?.lowercased() == "c",
+               selectedRange.length > 0 || hasDragSelection {
+                copy(nil)
+                return
+            }
+
+            super.keyDown(with: event)
+        }
+
+        private func ensureLineSelectionIfNeeded(with event: NSEvent) {
+            guard selectedRange.length == 0,
+                  let dragStartPoint else {
+                return
+            }
+
+            let currentPoint = convert(event.locationInWindow, from: nil)
+            guard abs(currentPoint.x - dragStartPoint.x) >= 6 else {
+                return
+            }
+
+            hasDragSelection = true
+            setSelectedRange(NSRange(location: 0, length: (string as NSString).length))
+        }
     }
 
     private struct RecognizedLine {
@@ -41,9 +129,10 @@ final class SelectableCapturePlatformView: NSView {
     private let imageView = NSImageView()
     private var analysisTask: Task<Void, Never>?
     private var activeCaptureID: UUID?
+    private var localKeyMonitor: Any?
     private var isTextSelectionEnabled = false
     private var recognizedLines: [RecognizedLine] = []
-    private var lineTextViews: [NSTextView] = []
+    private var lineTextViews: [RecognizedLineTextView] = []
 
     override var isFlipped: Bool {
         true
@@ -60,7 +149,12 @@ final class SelectableCapturePlatformView: NSView {
     }
 
     deinit {
-        analysisTask?.cancel()
+        MainActor.assumeIsolated {
+            analysisTask?.cancel()
+            if let localKeyMonitor {
+                NSEvent.removeMonitor(localKeyMonitor)
+            }
+        }
     }
 
     override func layout() {
@@ -69,6 +163,19 @@ final class SelectableCapturePlatformView: NSView {
         let fittedBounds = bounds.integral
         imageView.frame = fittedBounds
         layoutRecognizedTextViews(in: fittedBounds)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let relevantModifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+          if relevantModifiers.contains(.command),
+              event.keyCode == 8 || event.charactersIgnoringModifiers?.lowercased() == "c",
+              let textView = selectedLineTextView {
+            window?.makeFirstResponder(textView)
+            textView.copy(nil)
+            return true
+        }
+
+        return super.performKeyEquivalent(with: event)
     }
 
     func update(capturedSnippet: CapturedSnippet, isTextSelectionEnabled: Bool) {
@@ -91,6 +198,8 @@ final class SelectableCapturePlatformView: NSView {
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
         layer?.masksToBounds = true
+        setAccessibilityIdentifier(AppAutomationIdentifiers.editorCanvas)
+        setAccessibilityLabel("Canvas")
 
         imageView.translatesAutoresizingMaskIntoConstraints = true
         imageView.autoresizingMask = [.width, .height]
@@ -98,10 +207,33 @@ final class SelectableCapturePlatformView: NSView {
         imageView.imageScaling = .scaleAxesIndependently
         imageView.imageFrameStyle = .none
         imageView.alphaValue = 1
+        imageView.setAccessibilityIdentifier(AppAutomationIdentifiers.editorCanvas)
+        imageView.setAccessibilityLabel("Canvas")
 
         addSubview(imageView)
 
+        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else {
+                return event
+            }
+
+            let relevantModifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard relevantModifiers.contains(.command),
+                  event.keyCode == 8 || event.charactersIgnoringModifiers?.lowercased() == "c",
+                  let textView = self.selectedLineTextView else {
+                return event
+            }
+
+            self.window?.makeFirstResponder(textView)
+            textView.copy(nil)
+            return nil
+        }
+
         layoutSubtreeIfNeeded()
+    }
+
+    private var selectedLineTextView: RecognizedLineTextView? {
+        lineTextViews.first(where: { $0.selectedRange.length > 0 || $0.hasDragSelection })
     }
 
     private func analyze(cgImage: CGImage, captureID: UUID) {

@@ -91,6 +91,12 @@ enum AppAutomationIdentifiers {
     static let editorRoot = "editor.root"
     static let editorToolbar = "editor.toolbar"
     static let editorToolPicker = "editor.tool-picker"
+    static let editorCanvas = "editor.canvas"
+    static let editorShapeSummary = "editor.shape-summary"
+    static let editorInspectorColorPicker = "editor.inspector.color-picker"
+    static let editorInspectorSizeSlider = "editor.inspector.size-slider"
+    static let editorInspectorFillPicker = "editor.inspector.fill-picker"
+    static let editorPendingTextField = "editor.pending-text"
     static let editorUndoButton = "editor.undo"
     static let editorRedoButton = "editor.redo"
     static let editorCopyButton = "editor.copy"
@@ -137,5 +143,9 @@ enum AppAutomationIdentifiers {
 
     static func editorRecognizedTextLine(_ index: Int) -> String {
         "editor.live-text-line.\(index)"
+    }
+
+    static func editorToolButton(named rawValue: String) -> String {
+        "editor.tool.\(rawValue)"
     }
 }

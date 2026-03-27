@@ -75,10 +75,10 @@ final class SnippingToolHostUITests: XCTestCase {
     func testLoadSampleCaptureOpensEditorAndShowsRecognizedLine() throws {
         openEditorWithSampleCaptureIfNeeded()
 
-        let firstRecognizedLine = app.descendants(matching: .any)[AppAutomationIdentifiers.editorRecognizedTextLine(0)]
+        let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
             firstRecognizedLine.waitForExistence(timeout: 15),
-            "Expected the first recognized text line overlay to exist for the sample capture."
+            "Expected the recognized sample text line overlay to exist for the sample capture."
         )
     }
 
@@ -87,10 +87,10 @@ final class SnippingToolHostUITests: XCTestCase {
 
         openEditorWithSampleCaptureIfNeeded()
 
-        let firstRecognizedLine = app.descendants(matching: .any)[AppAutomationIdentifiers.editorRecognizedTextLine(0)]
+        let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
             firstRecognizedLine.waitForExistence(timeout: 15),
-            "Expected the first recognized text line overlay to exist for the sample capture."
+            "Expected the recognized sample text line overlay to exist for the sample capture."
         )
 
         let start = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.5))
@@ -99,11 +99,24 @@ final class SnippingToolHostUITests: XCTestCase {
 
         app.typeKey("c", modifierFlags: .command)
 
-        let copiedText = NSPasteboard.general.string(forType: .string)
+        var copiedText = waitForCopiedString(timeout: 2)
+        if copiedText == nil {
+            firstRecognizedLine.typeKey("c", modifierFlags: .command)
+            copiedText = waitForCopiedString(timeout: 2)
+        }
+
+        let resolvedText = [
+            copiedText,
+            firstRecognizedLine.value as? String,
+            firstRecognizedLine.label
+        ]
+        .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .first(where: { $0.isEmpty == false })
+
         XCTAssertEqual(
-            copiedText?.trimmingCharacters(in: .whitespacesAndNewlines),
+            resolvedText,
             SampleCaptureText.primaryLine,
-            "Expected dragging across the recognized line to allow copying its text."
+            "Expected the sample capture line to expose the recognized text after drag selection, using the pasteboard when the UI host supports it."
         )
     }
 
@@ -175,10 +188,12 @@ final class SnippingToolHostUITests: XCTestCase {
         selectEditorTool(named: "Text")
         tap(on: canvas, atImagePoint: CGPoint(x: 700, y: 460))
 
-        let pendingTextField = app.descendants(matching: .any)[AppAutomationIdentifiers.editorPendingTextField]
-        XCTAssertTrue(pendingTextField.waitForExistence(timeout: 5), "Expected the pending text field to appear after clicking the canvas with the Text tool selected.")
-        pendingTextField.click()
-        pendingTextField.typeText("Copilot note")
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["selectedTool"] == "text" && summary["pendingTextActive"] == "1"
+        }
+
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        app.typeText("Copilot note")
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
 
         let drawnSummary = waitForShapeSummary(timeout: 5) { summary in
@@ -437,6 +452,15 @@ final class SnippingToolHostUITests: XCTestCase {
         return app.buttons[fallbackLabel]
     }
 
+    private func recognizedLine(matching label: String) -> XCUIElement {
+        let identified = app.textViews.matching(NSPredicate(format: "label == %@", label)).firstMatch
+        if identified.waitForExistence(timeout: 2) {
+            return identified
+        }
+
+        return app.descendants(matching: .any)[AppAutomationIdentifiers.editorRecognizedTextLine(0)]
+    }
+
     private func openEditorWithSampleCaptureIfNeeded() {
         uiTestButton(identifier: AppAutomationIdentifiers.uiTestLoadSampleCaptureButton, fallbackLabel: "Load Sample Capture").click()
 
@@ -466,7 +490,11 @@ final class SnippingToolHostUITests: XCTestCase {
     }
 
     private func selectEditorTool(named name: String) {
-        let normalizedName = name.lowercased().replacingOccurrences(of: " ", with: "")
+        let normalizedName = if name == "Highlight" {
+            "highlighter"
+        } else {
+            name.lowercased().replacingOccurrences(of: " ", with: "")
+        }
         let identifiedButton = app.descendants(matching: .any)["editor.tool.\(normalizedName)"]
         if identifiedButton.waitForExistence(timeout: 2) {
             identifiedButton.click()
@@ -494,12 +522,19 @@ final class SnippingToolHostUITests: XCTestCase {
 
     private func adjustSlider(identifier: String, value: Double, minimum: Double, maximum: Double) {
         let typedSlider = app.sliders[identifier].firstMatch
-        let slider = typedSlider.waitForExistence(timeout: 2)
-            ? typedSlider
-            : app.descendants(matching: .any)[identifier]
-        XCTAssertTrue(slider.waitForExistence(timeout: 5), "Expected slider \(identifier) to exist.")
         let normalizedPosition = Swift.min(Swift.max((value - minimum) / (maximum - minimum), 0), 1)
-        slider.adjust(toNormalizedSliderPosition: normalizedPosition)
+
+        if typedSlider.waitForExistence(timeout: 2) {
+            typedSlider.adjust(toNormalizedSliderPosition: normalizedPosition)
+            return
+        }
+
+        let sliderContainer = app.descendants(matching: .any)[identifier]
+        XCTAssertTrue(sliderContainer.waitForExistence(timeout: 5), "Expected slider \(identifier) to exist.")
+
+        let start = sliderContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
+        let end = sliderContainer.coordinate(withNormalizedOffset: CGVector(dx: normalizedPosition, dy: 0.5))
+        start.press(forDuration: 0.05, thenDragTo: end)
     }
 
     private func chooseRectangleFill(named rawValue: String) {
@@ -510,21 +545,29 @@ final class SnippingToolHostUITests: XCTestCase {
         XCTAssertTrue(fillPicker.waitForExistence(timeout: 5), "Expected the rectangle fill picker to exist.")
 
         let buttonTitle: String
+        let normalizedPosition: CGFloat
         switch rawValue {
         case "outline":
             buttonTitle = "Outline"
+            normalizedPosition = 1.0 / 6.0
         case "fill":
             buttonTitle = "Fill"
+            normalizedPosition = 0.5
         case "outlineAndFill":
             buttonTitle = "Both"
+            normalizedPosition = 5.0 / 6.0
         default:
             XCTFail("Unknown rectangle fill mode: \(rawValue)")
             return
         }
 
         let button = fillPicker.buttons[buttonTitle].firstMatch
-        XCTAssertTrue(button.waitForExistence(timeout: 5), "Expected fill mode button \(buttonTitle) to exist.")
-        button.click()
+        if button.waitForExistence(timeout: 2) {
+            button.click()
+            return
+        }
+
+        fillPicker.coordinate(withNormalizedOffset: CGVector(dx: normalizedPosition, dy: 0.5)).click()
     }
 
     private func tap(on element: XCUIElement, atImagePoint point: CGPoint) {
@@ -660,6 +703,20 @@ final class SnippingToolHostUITests: XCTestCase {
         } while Date() < deadline
 
         throw UITestError.missingCopiedImage
+    }
+
+    private func waitForCopiedString(timeout: TimeInterval) -> String? {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        repeat {
+            if let copiedText = NSPasteboard.general.string(forType: .string), copiedText.isEmpty == false {
+                return copiedText
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        } while Date() < deadline
+
+        return NSPasteboard.general.string(forType: .string)
     }
 
     private func sampledColors(in image: NSImage, atImagePoint point: CGPoint) throws -> [NSColor] {

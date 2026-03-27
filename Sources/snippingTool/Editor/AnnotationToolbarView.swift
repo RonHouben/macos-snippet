@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct AnnotationToolbarView: View {
@@ -81,13 +82,19 @@ struct AnnotationToolbarView: View {
 
                 if annotationStore.selectedTool.showsSizeControl {
                     if annotationStore.selectedTool.usesStrokeWidth {
-                        Slider(value: $annotationStore.lineWidth, in: 1...16)
+                        AccessibleInspectorSlider(
+                            value: $annotationStore.lineWidth,
+                            range: 1...16,
+                            accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
+                        )
                             .frame(width: 120)
-                            .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorSizeSlider)
                     } else {
-                        Slider(value: $annotationStore.textFontSize, in: 12...96)
+                        AccessibleInspectorSlider(
+                            value: $annotationStore.textFontSize,
+                            range: 12...96,
+                            accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
+                        )
                             .frame(width: 120)
-                            .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorSizeSlider)
                     }
                 } else if let inspectorMessage = annotationStore.selectedTool.inspectorMessage {
                     Text(inspectorMessage)
@@ -98,17 +105,205 @@ struct AnnotationToolbarView: View {
                 }
 
                 if annotationStore.selectedTool.shapeKind == .rectangle {
-                    Picker("Fill", selection: $annotationStore.rectangleFillMode) {
-                        ForEach(RectangleFillMode.allCases) { fillMode in
-                            Text(fillMode.title).tag(fillMode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+                    AccessibleRectangleFillPicker(
+                        selection: $annotationStore.rectangleFillMode,
+                        accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorFillPicker
+                    )
                     .frame(width: 180)
-                    .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorFillPicker)
                 }
             }
         }
         .frame(minWidth: 150, alignment: .leading)
+    }
+}
+
+@MainActor
+private struct AccessibleInspectorSlider: NSViewRepresentable {
+    @Binding var value: CGFloat
+    let range: ClosedRange<CGFloat>
+    let accessibilityIdentifier: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> InspectorSliderContainerView {
+        let container = InspectorSliderContainerView()
+        container.updateAccessibility(identifier: accessibilityIdentifier, label: "Size")
+        let slider = container.slider
+        slider.target = context.coordinator
+        slider.action = #selector(Coordinator.valueChanged(_:))
+        slider.doubleValue = Double(value)
+        slider.minValue = Double(range.lowerBound)
+        slider.maxValue = Double(range.upperBound)
+        return container
+    }
+
+    func updateNSView(_ nsView: InspectorSliderContainerView, context: Context) {
+        context.coordinator.parent = self
+        let slider = nsView.slider
+        slider.minValue = Double(range.lowerBound)
+        slider.maxValue = Double(range.upperBound)
+        if abs(slider.doubleValue - Double(value)) > 0.001 {
+            slider.doubleValue = Double(value)
+        }
+        nsView.updateAccessibility(identifier: accessibilityIdentifier, label: "Size")
+        slider.setAccessibilityIdentifier(accessibilityIdentifier)
+        slider.identifier = NSUserInterfaceItemIdentifier(accessibilityIdentifier)
+    }
+
+    final class Coordinator: NSObject {
+        var parent: AccessibleInspectorSlider
+
+        init(_ parent: AccessibleInspectorSlider) {
+            self.parent = parent
+        }
+
+        @MainActor @objc func valueChanged(_ sender: NSSlider) {
+            parent.value = CGFloat(sender.doubleValue)
+        }
+    }
+}
+
+@MainActor
+private struct AccessibleRectangleFillPicker: NSViewRepresentable {
+    @Binding var selection: RectangleFillMode
+    let accessibilityIdentifier: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> SegmentedControlContainerView {
+        let labels = RectangleFillMode.allCases.map(\.title)
+        let container = SegmentedControlContainerView()
+        container.updateAccessibility(identifier: accessibilityIdentifier, label: "Fill")
+        let control = container.control
+        control.segmentCount = labels.count
+        for (index, label) in labels.enumerated() {
+            control.setLabel(label, forSegment: index)
+        }
+        control.target = context.coordinator
+        control.action = #selector(Coordinator.selectionChanged(_:))
+        control.setAccessibilityIdentifier(accessibilityIdentifier)
+        control.identifier = NSUserInterfaceItemIdentifier(accessibilityIdentifier)
+        control.setAccessibilityLabel("Fill")
+        updateSelection(on: control)
+        return container
+    }
+
+    func updateNSView(_ nsView: SegmentedControlContainerView, context: Context) {
+        context.coordinator.parent = self
+        updateSelection(on: nsView.control)
+        nsView.updateAccessibility(identifier: accessibilityIdentifier, label: "Fill")
+        nsView.control.setAccessibilityIdentifier(accessibilityIdentifier)
+        nsView.control.identifier = NSUserInterfaceItemIdentifier(accessibilityIdentifier)
+    }
+
+    private func updateSelection(on control: NSSegmentedControl) {
+        if let selectedIndex = RectangleFillMode.allCases.firstIndex(of: selection) {
+            control.selectedSegment = selectedIndex
+        }
+    }
+
+    final class Coordinator: NSObject {
+        var parent: AccessibleRectangleFillPicker
+
+        init(_ parent: AccessibleRectangleFillPicker) {
+            self.parent = parent
+        }
+
+        @MainActor @objc func selectionChanged(_ sender: NSSegmentedControl) {
+            guard RectangleFillMode.allCases.indices.contains(sender.selectedSegment) else {
+                return
+            }
+
+            parent.selection = RectangleFillMode.allCases[sender.selectedSegment]
+        }
+    }
+}
+
+@MainActor
+private final class InspectorSliderContainerView: NSView {
+    let slider = NSSlider(value: 0, minValue: 0, maxValue: 1, target: nil, action: nil)
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+
+        configureViewHierarchy()
+    }
+
+    private func configureViewHierarchy() {
+        guard slider.superview == nil else {
+            return
+        }
+
+        translatesAutoresizingMaskIntoConstraints = false
+        slider.translatesAutoresizingMaskIntoConstraints = false
+        slider.sliderType = .linear
+        slider.controlSize = .small
+        slider.isContinuous = true
+
+        addSubview(slider)
+
+        NSLayoutConstraint.activate([
+            slider.leadingAnchor.constraint(equalTo: leadingAnchor),
+            slider.trailingAnchor.constraint(equalTo: trailingAnchor),
+            slider.topAnchor.constraint(equalTo: topAnchor),
+            slider.bottomAnchor.constraint(equalTo: bottomAnchor),
+            heightAnchor.constraint(equalToConstant: 24)
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func updateAccessibility(identifier: String, label: String) {
+        self.identifier = NSUserInterfaceItemIdentifier(identifier)
+        setAccessibilityIdentifier(identifier)
+        setAccessibilityLabel(label)
+    }
+}
+
+@MainActor
+private final class SegmentedControlContainerView: NSView {
+    let control = NSSegmentedControl()
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+
+        configureViewHierarchy()
+    }
+
+    private func configureViewHierarchy() {
+        guard control.superview == nil else {
+            return
+        }
+
+        translatesAutoresizingMaskIntoConstraints = false
+        control.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(control)
+
+        NSLayoutConstraint.activate([
+            control.leadingAnchor.constraint(equalTo: leadingAnchor),
+            control.trailingAnchor.constraint(equalTo: trailingAnchor),
+            control.topAnchor.constraint(equalTo: topAnchor),
+            control.bottomAnchor.constraint(equalTo: bottomAnchor),
+            heightAnchor.constraint(equalToConstant: 24)
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func updateAccessibility(identifier: String, label: String) {
+        self.identifier = NSUserInterfaceItemIdentifier(identifier)
+        setAccessibilityIdentifier(identifier)
+        setAccessibilityLabel(label)
     }
 }
