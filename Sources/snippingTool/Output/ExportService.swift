@@ -17,8 +17,8 @@ struct ExportService {
         }
     }
 
-    func renderImage(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke], textAnnotations: [TextAnnotation]) throws -> NSImage {
-        let view = ExportSnapshotView(capturedSnippet: capturedSnippet, strokes: strokes, textAnnotations: textAnnotations)
+    func renderImage(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke], textAnnotations: [TextAnnotation], shapeAnnotations: [ShapeAnnotation]) throws -> NSImage {
+        let view = ExportSnapshotView(capturedSnippet: capturedSnippet, strokes: strokes, textAnnotations: textAnnotations, shapeAnnotations: shapeAnnotations)
             .frame(width: CGFloat(capturedSnippet.cgImage.width), height: CGFloat(capturedSnippet.cgImage.height))
 
         let renderer = ImageRenderer(content: view)
@@ -31,14 +31,14 @@ struct ExportService {
         return image
     }
 
-    func copyToPasteboard(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke], textAnnotations: [TextAnnotation]) throws {
-        let image = try renderImage(capturedSnippet: capturedSnippet, strokes: strokes, textAnnotations: textAnnotations)
+    func copyToPasteboard(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke], textAnnotations: [TextAnnotation], shapeAnnotations: [ShapeAnnotation]) throws {
+        let image = try renderImage(capturedSnippet: capturedSnippet, strokes: strokes, textAnnotations: textAnnotations, shapeAnnotations: shapeAnnotations)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([image])
     }
 
-    func saveUsingPanel(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke], textAnnotations: [TextAnnotation]) throws -> URL {
-        let image = try renderImage(capturedSnippet: capturedSnippet, strokes: strokes, textAnnotations: textAnnotations)
+    func saveUsingPanel(capturedSnippet: CapturedSnippet, strokes: [AnnotationStroke], textAnnotations: [TextAnnotation], shapeAnnotations: [ShapeAnnotation]) throws -> URL {
+        let image = try renderImage(capturedSnippet: capturedSnippet, strokes: strokes, textAnnotations: textAnnotations, shapeAnnotations: shapeAnnotations)
         guard let tiffData = image.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiffData),
               let pngData = bitmap.representation(using: .png, properties: [:]) else {
@@ -62,6 +62,7 @@ private struct ExportSnapshotView: View {
     let capturedSnippet: CapturedSnippet
     let strokes: [AnnotationStroke]
     let textAnnotations: [TextAnnotation]
+    let shapeAnnotations: [ShapeAnnotation]
 
     var body: some View {
         ZStack {
@@ -91,8 +92,25 @@ private struct ExportSnapshotView: View {
                         context.opacity = 0.45
                         context.stroke(path, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: stroke.lineWidth * 3, lineCap: .round, lineJoin: .round))
                         context.opacity = 1
-                    case .text:
+                    case .text, .rectangle, .arrow:
                         break
+                    }
+                }
+
+                for shapeAnnotation in shapeAnnotations {
+                    let path = ShapeAnnotationRenderer.path(for: shapeAnnotation) { $0 }
+                    let color = Color(nsColor: shapeAnnotation.color)
+
+                    switch shapeAnnotation.kind {
+                    case .rectangle:
+                        if shapeAnnotation.fillMode.includesFill {
+                            context.fill(path, with: .color(color))
+                        }
+                        if shapeAnnotation.fillMode.includesStroke {
+                            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: shapeAnnotation.lineWidth, lineJoin: .round))
+                        }
+                    case .arrow:
+                        context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: shapeAnnotation.lineWidth, lineCap: .round, lineJoin: .round))
                     }
                 }
 

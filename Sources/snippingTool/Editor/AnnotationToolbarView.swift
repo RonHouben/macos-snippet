@@ -10,11 +10,13 @@ struct AnnotationToolbarView: View {
         HStack(spacing: 14) {
             Picker("Tool", selection: $annotationStore.selectedTool) {
                 ForEach(AnnotationTool.allCases) { tool in
-                    Text(tool.title).tag(tool)
+                    Text(tool.title)
+                        .tag(tool)
+                        .accessibilityIdentifier(AppAutomationIdentifiers.editorToolButton(named: tool.rawValue))
                 }
             }
             .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
+            .frame(maxWidth: 520)
             .accessibilityIdentifier(AppAutomationIdentifiers.editorToolPicker)
 
             inspectorPanel
@@ -67,6 +69,7 @@ struct AnnotationToolbarView: View {
                     supportsOpacity: true
                 )
                 .labelsHidden()
+                .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorColorPicker)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -80,9 +83,11 @@ struct AnnotationToolbarView: View {
                     if annotationStore.selectedTool.usesStrokeWidth {
                         Slider(value: $annotationStore.lineWidth, in: 1...16)
                             .frame(width: 120)
+                            .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorSizeSlider)
                     } else {
                         Slider(value: $annotationStore.textFontSize, in: 12...96)
                             .frame(width: 120)
+                            .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorSizeSlider)
                     }
                 } else if let inspectorMessage = annotationStore.selectedTool.inspectorMessage {
                     Text(inspectorMessage)
@@ -90,6 +95,17 @@ struct AnnotationToolbarView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .frame(width: 140, alignment: .leading)
+                }
+
+                if annotationStore.selectedTool.shapeKind == .rectangle {
+                    Picker("Fill", selection: $annotationStore.rectangleFillMode) {
+                        ForEach(RectangleFillMode.allCases) { fillMode in
+                            Text(fillMode.title).tag(fillMode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
+                    .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorFillPicker)
                 }
             }
         }

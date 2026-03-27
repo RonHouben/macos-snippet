@@ -19,6 +19,7 @@
 		5E75DAB6EC2197347319D2A6 /* RecentCaptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 164CBA7C01DDFF2F7C1F00D5 /* RecentCaptureStore.swift */; };
 		60E5824623FC8E982D6434FF /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB35A6903E9F6A9DA8688E76 /* AppState.swift */; };
 		64C3489D6A55ADD4A3D8BBE0 /* CaptureCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D67D790E3CFE686BBF11EAD /* CaptureCoordinator.swift */; };
+		6D346DDBC8A5CD8172122968 /* ShapeAnnotationRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD2B78AA767B41CFEA2F735 /* ShapeAnnotationRenderer.swift */; };
 		839AFBAEFA91ED203CF34D43 /* WindowManagers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0027E39A3666E076F297294B /* WindowManagers.swift */; };
 		8C4F1200267476453D6FB4C0 /* UITestControlPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA731C83A4C2E0F4811C466D /* UITestControlPanelView.swift */; };
 		8DD090BC73B39783FE16A56C /* AutomationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */; };
@@ -33,6 +34,7 @@
 		E34907864C51D33972020EFA /* CaptureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54935EFE6D9992AA3AED0514 /* CaptureModels.swift */; };
 		EAC9C991CB9B81ED3D8C2584 /* AnnotationCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0697ADC30E1E75D1F559129B /* AnnotationCanvasView.swift */; };
 		EF457E3095A0C8DFD75A980B /* WindowSelectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522C4FDF4AEB4C541610BB94 /* WindowSelectionService.swift */; };
+		EF88084EEC5779E20C73C9E3 /* UITestSampleCaptureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC1E1850293C7581F75C99C /* UITestSampleCaptureFactory.swift */; };
 		F0931B7C4A18F14531B293F7 /* SnippingToolApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FD1AC18C9BEF63591D2EA2 /* SnippingToolApp.swift */; };
 		F2E2C5A5D53FA2E4C02356E5 /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626EE4F8768D2FE6C6643502 /* MenuBarContentView.swift */; };
 		F673C87D1354C20E81AD5E1F /* AutomationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */; };
@@ -59,6 +61,7 @@
 		164CBA7C01DDFF2F7C1F00D5 /* RecentCaptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentCaptureStore.swift; sourceTree = "<group>"; };
 		20213997E05DED07B646DF2E /* GlobalHotkeyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkeyMonitor.swift; sourceTree = "<group>"; };
 		202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationSupport.swift; sourceTree = "<group>"; };
+		2CC1E1850293C7581F75C99C /* UITestSampleCaptureFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestSampleCaptureFactory.swift; sourceTree = "<group>"; };
 		2E0AAB858489BDF030913C28 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		34E783B8F426985FC47A828A /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		387AE152230447688959BCCF /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
@@ -71,6 +74,7 @@
 		72DF3076A5E95E802F6411F0 /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
 		736A72BBFD95D9D85A0E2F78 /* ScreenCaptureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureService.swift; sourceTree = "<group>"; };
 		77A00D6AC58F02E5EC3D03C3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7DD2B78AA767B41CFEA2F735 /* ShapeAnnotationRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeAnnotationRenderer.swift; sourceTree = "<group>"; };
 		804B6FAA86DCA84687912502 /* SelectionOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayView.swift; sourceTree = "<group>"; };
 		9D67D790E3CFE686BBF11EAD /* CaptureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureCoordinator.swift; sourceTree = "<group>"; };
 		A058F45AA666B9C2355748B7 /* HotkeyEventMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyEventMapping.swift; sourceTree = "<group>"; };
@@ -127,6 +131,7 @@
 				D7A5951650119B5C7C4C4CB3 /* AnnotationStore.swift */,
 				44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */,
 				DC822FBA93D0AE6F2B76FC28 /* SelectableCaptureImageView.swift */,
+				7DD2B78AA767B41CFEA2F735 /* ShapeAnnotationRenderer.swift */,
 				0518AAB8774416E64059E241 /* SnippetEditorView.swift */,
 			);
 			path = Editor;
@@ -176,6 +181,7 @@
 				202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */,
 				04FD1AC18C9BEF63591D2EA2 /* SnippingToolApp.swift */,
 				FA731C83A4C2E0F4811C466D /* UITestControlPanelView.swift */,
+				2CC1E1850293C7581F75C99C /* UITestSampleCaptureFactory.swift */,
 				0027E39A3666E076F297294B /* WindowManagers.swift */,
 			);
 			path = App;
@@ -364,9 +370,11 @@
 				930A076CA474959DE2D11106 /* SelectionOverlayView.swift in Sources */,
 				5C0325F7CBFCCE056B3F4A9E /* SelectionOverlayWindow.swift in Sources */,
 				12EBE6DBF869AA989237EF58 /* SettingsView.swift in Sources */,
+				6D346DDBC8A5CD8172122968 /* ShapeAnnotationRenderer.swift in Sources */,
 				E0DB200BCCBF1A9E50E07D5C /* SnippetEditorView.swift in Sources */,
 				F0931B7C4A18F14531B293F7 /* SnippingToolApp.swift in Sources */,
 				8C4F1200267476453D6FB4C0 /* UITestControlPanelView.swift in Sources */,
+				EF88084EEC5779E20C73C9E3 /* UITestSampleCaptureFactory.swift in Sources */,
 				839AFBAEFA91ED203CF34D43 /* WindowManagers.swift in Sources */,
 				EF457E3095A0C8DFD75A980B /* WindowSelectionService.swift in Sources */,
 			);

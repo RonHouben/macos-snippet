@@ -287,6 +287,169 @@ func XCTUnwrapLike<T>(_ value: T?, _ message: String) throws -> T {
     return value
 }
 
+func expectClose(_ actual: CGFloat, _ expected: CGFloat, tolerance: CGFloat = 0.0001, message: String) throws {
+    try expect(abs(actual - expected) <= tolerance, message)
+}
+
+func testShapeAnnotationGeometryBuildsNormalizedRectangle() throws {
+    let rect = ShapeAnnotationGeometry.rect(from: CGPoint(x: 30, y: 70), to: CGPoint(x: 10, y: 20))
+    let center = ShapeAnnotationGeometry.center(for: rect)
+
+    try expect(rect == CGRect(x: 10, y: 20, width: 20, height: 50), "Shape geometry should normalize dragged rectangle bounds")
+    try expect(center == CGPoint(x: 20, y: 45), "Normalized rectangle center should be derived from the standardized bounds")
+}
+
+func testShapeAnnotationGeometryEnforcesMinimumArrowSize() throws {
+    let size = ShapeAnnotationGeometry.arrowSize(
+        fromTail: CGPoint(x: 0, y: 0),
+        tip: CGPoint(x: 3, y: 4),
+        lineWidth: 2
+    )
+
+    try expect(size == CGSize(width: 18, height: 12), "Short arrows should still enforce the minimum selectable footprint")
+}
+
+func testShapeAnnotationGeometryReturnsExpectedHandlePoints() throws {
+    let center = CGPoint(x: 50, y: 50)
+    let size = CGSize(width: 40, height: 20)
+
+    let topLeft = ShapeAnnotationGeometry.handlePoint(for: .topLeft, center: center, size: size, rotation: 0)
+    let tail = ShapeAnnotationGeometry.handlePoint(for: .tail, center: center, size: size, rotation: 0)
+    let bottom = ShapeAnnotationGeometry.handlePoint(for: .bottom, center: center, size: size, rotation: 0)
+    let rotationHandle = ShapeAnnotationGeometry.handlePoint(for: .rotation, center: center, size: size, rotation: 0)
+
+    try expect(topLeft == CGPoint(x: 30, y: 40), "Top-left handle should sit on the unrotated rectangle corner")
+    try expect(tail == CGPoint(x: 30, y: 50), "Tail handle should sit on the arrow tail midpoint")
+    try expect(bottom == CGPoint(x: 50, y: 60), "Bottom handle should sit on the lower midpoint")
+    try expect(rotationHandle == CGPoint(x: 50, y: 12), "Rotation handle should be offset above the top edge")
+}
+
+func testShapeAnnotationGeometryResizesRectangleFromOppositeCorner() throws {
+    let result = ShapeAnnotationGeometry.resize(
+        fromCenter: CGPoint(x: 50, y: 50),
+        size: CGSize(width: 40, height: 20),
+        rotation: 0,
+        handle: .topLeft,
+        currentPoint: CGPoint(x: 20, y: 30),
+        minimumSize: CGSize(width: 12, height: 12),
+        keepsAspectRatio: false
+    )
+
+    try expect(result.size == CGSize(width: 50, height: 30), "Rectangle resize should let width and height change independently")
+    try expect(result.center == CGPoint(x: 45, y: 45), "Resizing from the top-left should keep the opposite corner anchored")
+    try expectClose(result.scaleFactor, 1.5, message: "Non-uniform resize should still report the dominant scale factor")
+}
+
+func testShapeAnnotationGeometryUniformResizePreservesAspectRatio() throws {
+    let result = ShapeAnnotationGeometry.resize(
+        fromCenter: CGPoint(x: 50, y: 50),
+        size: CGSize(width: 40, height: 20),
+        rotation: 0,
+        handle: .topLeft,
+        currentPoint: CGPoint(x: 10, y: 35),
+        minimumSize: CGSize(width: 18, height: 18),
+        keepsAspectRatio: true
+    )
+
+    try expect(result.size == CGSize(width: 60, height: 30), "Uniform resize should preserve the original aspect ratio")
+    try expectClose(result.center.x, 40, message: "Uniform resize should keep the opposite corner fixed horizontally")
+    try expectClose(result.center.y, 45, message: "Uniform resize should keep the opposite corner fixed vertically")
+    try expectClose(result.scaleFactor, 1.5, message: "Uniform resize should report the applied scale factor")
+}
+
+func testShapeAnnotationGeometryResizesArrowTipWhileKeepingTailFixed() throws {
+    let initialCenter = CGPoint(x: 50, y: 50)
+    let initialSize = CGSize(width: 40, height: 20)
+    let initialEndpoints = ShapeAnnotationGeometry.arrowPoints(center: initialCenter, size: initialSize, rotation: 0)
+
+    let result = ShapeAnnotationGeometry.resizeArrowEndpoint(
+        fromCenter: initialCenter,
+        size: initialSize,
+        rotation: 0,
+        handle: .tip,
+        currentPoint: CGPoint(x: 90, y: 80),
+        minimumLength: 18
+    )
+
+    let updatedEndpoints = ShapeAnnotationGeometry.arrowPoints(center: result.center, size: result.size, rotation: 0)
+
+    try expect(updatedEndpoints.tail == initialEndpoints.tail, "Dragging the arrow tip should keep the tail anchored")
+    try expect(updatedEndpoints.tip == CGPoint(x: 90, y: 50), "Arrow tip resize should only change length along the arrow axis")
+    try expect(result.size.height == initialSize.height, "Arrow endpoint resize should keep the arrow height constant")
+}
+
+func testShapeAnnotationGeometryResizesArrowTailWhileKeepingTipFixed() throws {
+    let initialCenter = CGPoint(x: 50, y: 50)
+    let initialSize = CGSize(width: 40, height: 20)
+    let initialEndpoints = ShapeAnnotationGeometry.arrowPoints(center: initialCenter, size: initialSize, rotation: 0)
+
+    let result = ShapeAnnotationGeometry.resizeArrowEndpoint(
+        fromCenter: initialCenter,
+        size: initialSize,
+        rotation: 0,
+        handle: .tail,
+        currentPoint: CGPoint(x: 0, y: 10),
+        minimumLength: 18
+    )
+
+    let updatedEndpoints = ShapeAnnotationGeometry.arrowPoints(center: result.center, size: result.size, rotation: 0)
+
+    try expect(updatedEndpoints.tip == initialEndpoints.tip, "Dragging the arrow tail should keep the tip anchored")
+    try expect(updatedEndpoints.tail == CGPoint(x: 0, y: 50), "Arrow tail resize should only change length along the arrow axis")
+    try expect(result.size.height == initialSize.height, "Arrow endpoint resize should preserve the original arrowhead height")
+}
+
+func testShapeAnnotationGeometryResizesArrowHeightWhileKeepingWidthFixed() throws {
+    let initialCenter = CGPoint(x: 50, y: 50)
+    let initialSize = CGSize(width: 40, height: 20)
+
+    let result = ShapeAnnotationGeometry.resizeArrowHeight(
+        fromCenter: initialCenter,
+        size: initialSize,
+        rotation: 0,
+        handle: .top,
+        currentPoint: CGPoint(x: 120, y: 20),
+        minimumHeight: 18
+    )
+
+    try expect(result.size.width == initialSize.width, "Arrow height resize should keep arrow length unchanged")
+    try expect(result.size.height == 40, "Dragging the top handle should change only the arrow height")
+    try expect(result.center == CGPoint(x: 50, y: 40), "Top-handle height resize should keep the opposite side anchored")
+}
+
+func testShapeAnnotationGeometryUniformlyScalesArrowFromCorner() throws {
+    let initialCenter = CGPoint(x: 50, y: 50)
+    let initialSize = CGSize(width: 40, height: 20)
+    let initialTopLeft = ShapeAnnotationGeometry.handlePoint(for: .topLeft, center: initialCenter, size: initialSize, rotation: 0)
+
+    let result = ShapeAnnotationGeometry.resize(
+        fromCenter: initialCenter,
+        size: initialSize,
+        rotation: 0,
+        handle: .bottomRight,
+        currentPoint: CGPoint(x: 90, y: 70),
+        minimumSize: CGSize(width: 18, height: 18),
+        keepsAspectRatio: true
+    )
+
+    let scaledTopLeft = ShapeAnnotationGeometry.handlePoint(for: .topLeft, center: result.center, size: result.size, rotation: 0)
+
+    try expect(result.size == CGSize(width: 60, height: 30), "Corner scale should resize the full arrow proportionally")
+    try expectClose(result.scaleFactor, 1.5, message: "Arrow corner scale should report the applied uniform scale factor")
+    try expect(scaledTopLeft == initialTopLeft, "Scaling from the bottom-right corner should keep the opposite corner anchored")
+}
+
+func testShapeAnnotationGeometryRotationTracksDragDelta() throws {
+    let rotatedAngle = ShapeAnnotationGeometry.rotation(
+        around: CGPoint(x: 50, y: 50),
+        initialRotation: 0,
+        startPoint: CGPoint(x: 50, y: 30),
+        currentPoint: CGPoint(x: 70, y: 50)
+    )
+
+    try expectClose(rotatedAngle, .pi / 2, tolerance: 0.0001, message: "Rotation should be derived from the drag delta around the shape center")
+}
+
 do {
     try testMenuIncludesCoreActions()
     try testMenuIncludesStatusWhenPresent()
@@ -316,6 +479,16 @@ do {
     try testOverlayToolbarShortcutDigitsMatchVisibleModes()
     try testOverlayToolbarCanResolveModesFromShortcutDigits()
     try testOverlayToolbarShortcutKeysAllowShiftButRejectOtherModifiers()
+    try testShapeAnnotationGeometryBuildsNormalizedRectangle()
+    try testShapeAnnotationGeometryEnforcesMinimumArrowSize()
+    try testShapeAnnotationGeometryReturnsExpectedHandlePoints()
+    try testShapeAnnotationGeometryResizesRectangleFromOppositeCorner()
+    try testShapeAnnotationGeometryUniformResizePreservesAspectRatio()
+    try testShapeAnnotationGeometryResizesArrowTipWhileKeepingTailFixed()
+    try testShapeAnnotationGeometryResizesArrowTailWhileKeepingTipFixed()
+    try testShapeAnnotationGeometryResizesArrowHeightWhileKeepingWidthFixed()
+    try testShapeAnnotationGeometryUniformlyScalesArrowFromCorner()
+    try testShapeAnnotationGeometryRotationTracksDragDelta()
     print("✅ TDD checks passed")
 } catch {
     fputs("❌ TDD check failed: \(error)\n", stderr)

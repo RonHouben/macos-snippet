@@ -31,12 +31,14 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
     case highlighter
     case eraser
     case text
+    case rectangle
+    case arrow
 
     var id: String { rawValue }
 
     var usesStrokeWidth: Bool {
         switch self {
-        case .pen, .highlighter, .eraser:
+        case .pen, .highlighter, .eraser, .rectangle, .arrow:
             true
         case .select, .text:
             false
@@ -51,11 +53,26 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         self == .text
     }
 
+    var isShapeTool: Bool {
+        shapeKind != nil
+    }
+
+    var shapeKind: AnnotationShapeKind? {
+        switch self {
+        case .rectangle:
+            .rectangle
+        case .arrow:
+            .arrow
+        case .select, .pen, .highlighter, .eraser, .text:
+            nil
+        }
+    }
+
     var usesColor: Bool {
         switch self {
         case .select, .eraser:
             false
-        case .pen, .highlighter, .text:
+        case .pen, .highlighter, .text, .rectangle, .arrow:
             true
         }
     }
@@ -78,6 +95,10 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             return "Live Text"
         case .eraser:
             return "Eraser"
+        case .rectangle:
+            return "Rectangle"
+        case .arrow:
+            return "Arrow"
         case .pen, .highlighter, .text:
             return nil
         }
@@ -89,6 +110,10 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             return "Drag to select text • switch tools to annotate"
         case .eraser:
             return "Remove annotations"
+        case .rectangle:
+            return "Drag to draw • drag handles to resize or rotate"
+        case .arrow:
+            return "Drag tail/tip, top/bottom, or corners to edit • rotate with the top handle"
         case .pen, .highlighter, .text:
             return nil
         }
@@ -106,6 +131,52 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             "Eraser"
         case .text:
             "Text"
+        case .rectangle:
+            "Rectangle"
+        case .arrow:
+            "Arrow"
+        }
+    }
+}
+
+enum AnnotationShapeKind: String, Hashable {
+    case rectangle
+    case arrow
+}
+
+enum RectangleFillMode: String, CaseIterable, Identifiable, Hashable {
+    case outline
+    case fill
+    case outlineAndFill
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .outline:
+            "Outline"
+        case .fill:
+            "Fill"
+        case .outlineAndFill:
+            "Both"
+        }
+    }
+
+    var includesFill: Bool {
+        switch self {
+        case .fill, .outlineAndFill:
+            true
+        case .outline:
+            false
+        }
+    }
+
+    var includesStroke: Bool {
+        switch self {
+        case .outline, .outlineAndFill:
+            true
+        case .fill:
+            false
         }
     }
 }
@@ -171,6 +242,50 @@ struct TextAnnotation: Identifiable, Hashable {
 
     var color: NSColor {
         unarchivedColor(from: colorData)
+    }
+}
+
+struct ShapeAnnotation: Identifiable, Hashable {
+    let id: UUID
+    let kind: AnnotationShapeKind
+    let colorData: Data
+    let lineWidth: CGFloat
+    let fillMode: RectangleFillMode
+    let center: AnnotationPoint
+    let size: CGSize
+    let rotation: CGFloat
+
+    init(
+        id: UUID = UUID(),
+        kind: AnnotationShapeKind,
+        color: NSColor,
+        lineWidth: CGFloat,
+        fillMode: RectangleFillMode = .outline,
+        center: AnnotationPoint,
+        size: CGSize,
+        rotation: CGFloat = 0
+    ) {
+        self.id = id
+        self.kind = kind
+        self.colorData = archivedColorData(for: color)
+        self.lineWidth = lineWidth
+        self.fillMode = fillMode
+        self.center = center
+        self.size = size
+        self.rotation = rotation
+    }
+
+    var color: NSColor {
+        unarchivedColor(from: colorData)
+    }
+
+    var minimumSize: CGSize {
+        switch kind {
+        case .rectangle:
+            CGSize(width: ShapeAnnotationGeometry.minimumDimension, height: ShapeAnnotationGeometry.minimumDimension)
+        case .arrow:
+            CGSize(width: ShapeAnnotationGeometry.minimumArrowDimension, height: ShapeAnnotationGeometry.minimumArrowDimension)
+        }
     }
 }
 

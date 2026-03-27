@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct SnippetEditorView: View {
@@ -46,6 +47,15 @@ struct SnippetEditorView: View {
             }
         }
         .accessibilityIdentifier(AppAutomationIdentifiers.editorRoot)
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier(AppAutomationIdentifiers.editorShapeSummary)
+                .accessibilityLabel(uiTestShapeSummary)
+                .accessibilityValue(uiTestShapeSummary)
+                .allowsHitTesting(false)
+        }
         .navigationTitle("Editor")
         .onAppear {
             exportMessage = nil
@@ -67,7 +77,8 @@ struct SnippetEditorView: View {
             try exportService.copyToPasteboard(
                 capturedSnippet: capture,
                 strokes: annotationStore.strokes,
-                textAnnotations: annotationStore.textAnnotations
+                textAnnotations: annotationStore.textAnnotations,
+                shapeAnnotations: annotationStore.shapeAnnotations
             )
             exportMessage = "Copied capture to the clipboard."
             return true
@@ -91,7 +102,8 @@ struct SnippetEditorView: View {
             let url = try exportService.saveUsingPanel(
                 capturedSnippet: capture,
                 strokes: annotationStore.strokes,
-                textAnnotations: annotationStore.textAnnotations
+                textAnnotations: annotationStore.textAnnotations,
+                shapeAnnotations: annotationStore.shapeAnnotations
             )
             guard !url.path.isEmpty else {
                 exportMessage = "Save cancelled."
@@ -110,5 +122,75 @@ struct SnippetEditorView: View {
 
     private var selectionHintMessage: String {
         "Live Text is ready — drag across text in the screenshot, then press ⌘C to copy it."
+    }
+
+    private var uiTestShapeSummary: String {
+        var entries = [
+            "selectedTool=\(annotationStore.selectedTool.rawValue)",
+            "count=\(annotationStore.shapeAnnotations.count)",
+            "shapeCount=\(annotationStore.shapeAnnotations.count)",
+            "strokeCount=\(annotationStore.strokes.count)",
+            "textCount=\(annotationStore.textAnnotations.count)",
+            "currentColor=\(formattedColor(annotationStore.selectedColor))",
+            "currentLineWidth=\(formatted(annotationStore.lineWidth))",
+            "currentTextFontSize=\(formatted(annotationStore.textFontSize))",
+            "currentRectangleFillMode=\(annotationStore.rectangleFillMode.rawValue)"
+        ]
+
+        if let lastStroke = annotationStore.strokes.last {
+            entries.append(contentsOf: [
+                "lastStrokeTool=\(lastStroke.tool.rawValue)",
+                "lastStrokeColor=\(formattedColor(lastStroke.color))",
+                "lastStrokeLineWidth=\(formatted(lastStroke.lineWidth))"
+            ])
+        }
+
+        if let lastText = annotationStore.textAnnotations.last {
+            entries.append(contentsOf: [
+                "lastTextValue=\(sanitized(lastText.text))",
+                "lastTextX=\(formatted(lastText.anchor.x))",
+                "lastTextY=\(formatted(lastText.anchor.y))",
+                "lastTextFontSize=\(formatted(lastText.fontSize))",
+                "lastTextColor=\(formattedColor(lastText.color))"
+            ])
+        }
+
+        if let selectedShape = annotationStore.selectedShape {
+            entries.append(contentsOf: [
+                "selectedKind=\(selectedShape.kind.rawValue)",
+                "width=\(formatted(selectedShape.size.width))",
+                "height=\(formatted(selectedShape.size.height))",
+                "lineWidth=\(formatted(selectedShape.lineWidth))",
+                "rotation=\(formatted(selectedShape.rotation))",
+                "centerX=\(formatted(selectedShape.center.x))",
+                "centerY=\(formatted(selectedShape.center.y))",
+                "selectedShapeColor=\(formattedColor(selectedShape.color))",
+                "selectedFillMode=\(selectedShape.fillMode.rawValue)"
+            ])
+        } else {
+            entries.append("selectedKind=none")
+        }
+
+        return entries.joined(separator: ";")
+    }
+
+    private func formatted(_ value: CGFloat) -> String {
+        String(format: "%.2f", value)
+    }
+
+    private func formattedColor(_ color: NSColor) -> String {
+        let resolvedColor = color.usingColorSpace(.deviceRGB) ?? color
+        let red = Int((resolvedColor.redComponent * 255).rounded())
+        let green = Int((resolvedColor.greenComponent * 255).rounded())
+        let blue = Int((resolvedColor.blueComponent * 255).rounded())
+        let alpha = Int((resolvedColor.alphaComponent * 255).rounded())
+        return String(format: "#%02X%02X%02X%02X", red, green, blue, alpha)
+    }
+
+    private func sanitized(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: ";", with: ",")
+            .replacingOccurrences(of: "=", with: ":")
+            .replacingOccurrences(of: "\n", with: " ")
     }
 }
