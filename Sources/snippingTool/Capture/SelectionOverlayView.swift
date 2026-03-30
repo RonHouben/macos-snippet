@@ -94,7 +94,7 @@ struct SelectionOverlayView: View {
                         Text(coordinator.hoveredWindowTarget?.displayName ?? "Window")
                             .font(.caption.weight(.semibold))
                             .lineLimit(2)
-                        Text("Click to capture • Hold Shift to edit")
+                        Text(coordinator.windowCaptureHint)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -119,11 +119,22 @@ struct SelectionOverlayView: View {
                         .ignoresSafeArea()
                 }
 
-                CaptureModeToolbar(
-                    activeMode: coordinator.overlayCaptureMode,
-                    onModeSelected: { coordinator.selectOverlayMode($0) },
-                    onCancel: coordinator.cancelCapture
-                )
+                VStack(spacing: 12) {
+                    CaptureModeToolbar(
+                        activeMode: coordinator.overlayCaptureMode,
+                        onModeSelected: { coordinator.selectOverlayMode($0) },
+                        onCancel: coordinator.cancelCapture
+                    )
+
+                    OverlayEditorHintBadge {
+                        InlineHintText(
+                            prefix: "Hold ",
+                            emphasis: coordinator.editorCompletionModifiers.isEmpty ? nil : coordinator.editorCompletionModifiers.title,
+                            suffix: " to edit after capture",
+                            fallback: coordinator.overlayEditorHint
+                        )
+                    }
+                }
                 .opacity(isToolbarVisible ? 1 : 0)
                 .scaleEffect(isToolbarVisible ? 1 : 0.96, anchor: .top)
                 .offset(y: isToolbarVisible ? 0 : -10)
@@ -200,6 +211,45 @@ struct SelectionOverlayView: View {
     private func clearSelection() {
         dragStart = nil
         dragCurrent = nil
+    }
+}
+
+private struct OverlayEditorHintBadge<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay {
+                Capsule()
+                    .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.14), radius: 10, y: 6)
+            .allowsHitTesting(false)
+    }
+}
+
+private struct InlineHintText: View {
+    let prefix: String
+    let emphasis: String?
+    let suffix: String
+    let fallback: String?
+
+    var body: some View {
+        if let emphasis, emphasis.isEmpty == false {
+            Text(prefix)
+                .font(.caption)
+            + Text(emphasis)
+                .font(.caption.weight(.bold))
+            + Text(suffix)
+                .font(.caption)
+        } else {
+            Text(fallback ?? prefix + suffix)
+                .font(.caption)
+        }
     }
 }
 

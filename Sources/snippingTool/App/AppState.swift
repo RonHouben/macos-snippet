@@ -8,6 +8,7 @@ final class AppState {
     private enum StorageKeys {
         static let preferredCaptureMode = "preferredCaptureMode"
         static let captureModeHotkeys = "captureModeHotkeys"
+        static let editorCompletionModifier = "editorCompletionModifier"
     }
 
     @ObservationIgnored
@@ -22,6 +23,9 @@ final class AppState {
     @ObservationIgnored
     var onHotkeysChanged: ((CaptureModeHotkeyConfiguration) -> Void)?
 
+    @ObservationIgnored
+    var onEditorCompletionModifiersChanged: ((HotkeyModifiers) -> Void)?
+
     var preferredCaptureMode: CaptureMode {
         didSet {
             defaults.set(preferredCaptureMode.rawValue, forKey: StorageKeys.preferredCaptureMode)
@@ -33,6 +37,13 @@ final class AppState {
             persistCaptureModeHotkeys()
             hotkeyValidationMessage = nil
             onHotkeysChanged?(captureModeHotkeys)
+        }
+    }
+
+    var editorCompletionModifiers: HotkeyModifiers {
+        didSet {
+            defaults.set(Int(editorCompletionModifiers.rawValue), forKey: StorageKeys.editorCompletionModifier)
+            onEditorCompletionModifiersChanged?(editorCompletionModifiers)
         }
     }
 
@@ -54,6 +65,12 @@ final class AppState {
             captureModeHotkeys = hotkeys
         } else {
             captureModeHotkeys = .default
+        }
+
+        if let storedEditorCompletionModifiers = Self.restoreEditorCompletionModifiers(from: defaults) {
+            editorCompletionModifiers = storedEditorCompletionModifiers
+        } else {
+            editorCompletionModifiers = CaptureCompletionPolicy.defaultEditorModifier
         }
     }
 
@@ -84,5 +101,28 @@ final class AppState {
         }
 
         defaults.set(data, forKey: StorageKeys.captureModeHotkeys)
+    }
+
+    private static func restoreEditorCompletionModifiers(from defaults: UserDefaults) -> HotkeyModifiers? {
+        if let storedValue = defaults.object(forKey: StorageKeys.editorCompletionModifier) as? NSNumber {
+            return HotkeyModifiers(rawValue: storedValue.uint8Value)
+        }
+
+        guard let legacyValue = defaults.string(forKey: StorageKeys.editorCompletionModifier) else {
+            return nil
+        }
+
+        switch legacyValue {
+        case "shift":
+            return .shift
+        case "command":
+            return .command
+        case "option":
+            return .option
+        case "control":
+            return .control
+        default:
+            return nil
+        }
     }
 }

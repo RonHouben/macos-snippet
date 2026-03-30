@@ -21,6 +21,15 @@ final class CaptureCoordinator {
     var statusMessage: String?
     var isCaptureInProgress = false
     var overlayCaptureMode: CaptureMode = .rectangular
+    var editorCompletionModifiers: HotkeyModifiers = .shift {
+        didSet {
+            guard oldValue != editorCompletionModifiers, isCaptureInProgress else {
+                return
+            }
+
+            statusMessage = prompt(for: overlayCaptureMode)
+        }
+    }
     var onCaptureCompleted: ((CaptureCompletionAction) -> Void)?
 
     init(isGlobalHotkeyMonitoringEnabled: Bool = true) {
@@ -97,7 +106,7 @@ final class CaptureCoordinator {
         case .rectangular:
             clearHoveredWindow()
             overlayCaptureMode = .rectangular
-            statusMessage = Self.rectangularCapturePrompt
+            statusMessage = prompt(for: .rectangular)
         case .fullScreen:
             clearHoveredWindow()
             overlayCaptureMode = .fullScreen
@@ -112,7 +121,7 @@ final class CaptureCoordinator {
             }
         case .window:
             overlayCaptureMode = .window
-            statusMessage = Self.windowCapturePrompt
+            statusMessage = prompt(for: .window)
         }
     }
 
@@ -238,14 +247,18 @@ final class CaptureCoordinator {
         let controller = SelectionOverlayWindowController(coordinator: self)
         overlayController = controller
         controller.present()
-        statusMessage = Self.prompt(for: mode)
+        statusMessage = prompt(for: mode)
     }
 
     private func completeCapture(status: String, hasOverlay: Bool, activeModifiers: HotkeyModifiers) {
         isCaptureInProgress = false
         statusMessage = status
 
-        for action in CaptureCompletionPolicy.actions(hasOverlay: hasOverlay, activeModifiers: activeModifiers) {
+        for action in CaptureCompletionPolicy.actions(
+            hasOverlay: hasOverlay,
+            activeModifiers: activeModifiers,
+            editorRequiredModifier: editorCompletionModifiers
+        ) {
             switch action {
             case .dismissOverlay:
                 dismissOverlayIfNeeded()
@@ -264,17 +277,42 @@ final class CaptureCoordinator {
         overlayController = nil
     }
 
-    private static let rectangularCapturePrompt = "Drag to select an area to capture. Press Esc to cancel."
-    private static let windowCapturePrompt = "Move the pointer over a window and click to capture it. Hold Shift to open the editor. Press Esc to cancel."
+    var rectangularCaptureHint: String {
+        if editorCompletionModifiers.isEmpty {
+            "Opens editor after capture"
+        } else {
+            "Hold \(editorCompletionModifiers.title) to edit"
+        }
+    }
 
-    private static func prompt(for mode: CaptureMode) -> String {
+    var overlayEditorHint: String {
+        if editorCompletionModifiers.isEmpty {
+            "Editor opens after capture"
+        } else {
+            "Hold \(editorCompletionModifiers.title) to edit after capture"
+        }
+    }
+
+    var windowCaptureHint: String {
+        "Click to capture"
+    }
+
+    private func prompt(for mode: CaptureMode) -> String {
         switch mode {
         case .rectangular:
-            rectangularCapturePrompt
+            if editorCompletionModifiers.isEmpty {
+                "Drag to select an area to capture. The editor will open after capture. Press Esc to cancel."
+            } else {
+                "Drag to select an area to capture. Hold \(editorCompletionModifiers.title) to edit. Press Esc to cancel."
+            }
         case .fullScreen:
             "Preparing full-screen capture."
         case .window:
-            windowCapturePrompt
+            if editorCompletionModifiers.isEmpty {
+                "Move the pointer over a window and click to capture it. The editor will open after capture. Press Esc to cancel."
+            } else {
+                "Move the pointer over a window and click to capture it. Hold \(editorCompletionModifiers.title) to open the editor. Press Esc to cancel."
+            }
         }
     }
 

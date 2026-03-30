@@ -17,14 +17,26 @@ struct KeybindingRecorderField: NSViewRepresentable {
     func makeNSView(context: Context) -> RecorderTextField {
         let textField = RecorderTextField()
         textField.recorderDelegate = context.coordinator
-        textField.update(shortcut: shortcut, isEnabled: isEnabled, isRecording: isRecording)
+        textField.update(
+            shortcut: shortcut,
+            modifiers: [],
+            mode: .shortcut,
+            isEnabled: isEnabled,
+            isRecording: isRecording
+        )
         return textField
     }
 
     func updateNSView(_ nsView: RecorderTextField, context: Context) {
         context.coordinator.parent = self
         nsView.recorderDelegate = context.coordinator
-        nsView.update(shortcut: shortcut, isEnabled: isEnabled, isRecording: isRecording)
+        nsView.update(
+            shortcut: shortcut,
+            modifiers: [],
+            mode: .shortcut,
+            isEnabled: isEnabled,
+            isRecording: isRecording
+        )
     }
 
     @MainActor
@@ -47,8 +59,79 @@ struct KeybindingRecorderField: NSViewRepresentable {
             parent.onShortcutRecorded(shortcut)
         }
 
-        func recorderDidReceiveUnsupportedKey() {
-            parent.onUnsupportedKey("Only letters A-Z and digits 0-9 are supported right now.")
+        func recorderDidCaptureModifiers(_ modifiers: HotkeyModifiers) -> Bool {
+            false
+        }
+
+        func recorderDidReceiveUnsupportedInput(_ message: String) {
+            parent.onUnsupportedKey(message)
+        }
+    }
+}
+
+@MainActor
+struct ModifierKeyRecorderField: NSViewRepresentable {
+    var modifiers: HotkeyModifiers
+    var isEnabled: Bool
+    @Binding var isRecording: Bool
+    var onModifiersRecorded: (HotkeyModifiers) -> Bool
+    var onUnsupportedKey: (String) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> RecorderTextField {
+        let textField = RecorderTextField()
+        textField.recorderDelegate = context.coordinator
+        textField.update(
+            shortcut: nil,
+            modifiers: modifiers,
+            mode: .modifiersOnly,
+            isEnabled: isEnabled,
+            isRecording: isRecording
+        )
+        return textField
+    }
+
+    func updateNSView(_ nsView: RecorderTextField, context: Context) {
+        context.coordinator.parent = self
+        nsView.recorderDelegate = context.coordinator
+        nsView.update(
+            shortcut: nil,
+            modifiers: modifiers,
+            mode: .modifiersOnly,
+            isEnabled: isEnabled,
+            isRecording: isRecording
+        )
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, RecorderTextFieldDelegate {
+        var parent: ModifierKeyRecorderField
+
+        init(_ parent: ModifierKeyRecorderField) {
+            self.parent = parent
+        }
+
+        func recorderDidBeginRecording() {
+            parent.isRecording = true
+        }
+
+        func recorderDidEndRecording() {
+            parent.isRecording = false
+        }
+
+        func recorderDidCaptureShortcut(_ shortcut: HotkeyShortcut) -> Bool {
+            false
+        }
+
+        func recorderDidCaptureModifiers(_ modifiers: HotkeyModifiers) -> Bool {
+            parent.onModifiersRecorded(modifiers)
+        }
+
+        func recorderDidReceiveUnsupportedInput(_ message: String) {
+            parent.onUnsupportedKey(message)
         }
     }
 }
@@ -58,10 +141,16 @@ protocol RecorderTextFieldDelegate: AnyObject {
     func recorderDidBeginRecording()
     func recorderDidEndRecording()
     func recorderDidCaptureShortcut(_ shortcut: HotkeyShortcut) -> Bool
-    func recorderDidReceiveUnsupportedKey()
+    func recorderDidCaptureModifiers(_ modifiers: HotkeyModifiers) -> Bool
+    func recorderDidReceiveUnsupportedInput(_ message: String)
 }
 
 final class RecorderTextField: NSTextField {
+    enum RecordingMode {
+        case shortcut
+        case modifiersOnly
+    }
+
     private enum Appearance {
         static let cornerRadius: CGFloat = 10
         static let borderWidth: CGFloat = 1
@@ -72,10 +161,13 @@ final class RecorderTextField: NSTextField {
     weak var recorderDelegate: RecorderTextFieldDelegate?
 
     private var currentShortcut: HotkeyShortcut?
+    private var currentModifiers: HotkeyModifiers = []
+    private var recordingMode: RecordingMode = .shortcut
     private var isRecorderEnabled = true
     private var isRecordingActive = false
     private var previewModifiers: HotkeyModifiers = []
     private var previewShortcut: HotkeyShortcut?
+    private var recordedModifiersCandidate: HotkeyModifiers = []
 
     override var acceptsFirstResponder: Bool { isRecorderEnabled }
     override var canBecomeKeyView: Bool { isRecorderEnabled }
@@ -109,8 +201,16 @@ final class RecorderTextField: NSTextField {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func update(shortcut: HotkeyShortcut?, isEnabled: Bool, isRecording: Bool) {
+    func update(
+        shortcut: HotkeyShortcut?,
+        modifiers: HotkeyModifiers,
+        mode: RecordingMode,
+        isEnabled: Bool,
+        isRecording: Bool
+    ) {
         currentShortcut = shortcut
+        currentModifiers = modifiers
+        recordingMode = mode
         isRecorderEnabled = isEnabled
 
         if isEnabled == false, window?.firstResponder === self {
@@ -125,6 +225,7 @@ final class RecorderTextField: NSTextField {
             isRecordingActive = false
             previewModifiers = []
             previewShortcut = nil
+            recordedModifiersCandidate = []
         }
 
         applyAppearance()
@@ -149,6 +250,7 @@ final class RecorderTextField: NSTextField {
         isRecordingActive = true
         previewModifiers = []
         previewShortcut = nil
+        recordedModifiersCandidate = []
         recorderDelegate?.recorderDidBeginRecording()
         updateDisplay()
         return true
@@ -163,6 +265,7 @@ final class RecorderTextField: NSTextField {
         isRecordingActive = false
         previewModifiers = []
         previewShortcut = nil
+        recordedModifiersCandidate = []
         recorderDelegate?.recorderDidEndRecording()
         updateDisplay()
         return true
@@ -179,12 +282,20 @@ final class RecorderTextField: NSTextField {
             return
         }
 
+        guard recordingMode == .shortcut else {
+            NSSound.beep()
+            previewShortcut = nil
+            recorderDelegate?.recorderDidReceiveUnsupportedInput("Only modifier keys (⌘, ⇧, ⌥, and ⌃) can be used here.")
+            updateDisplay()
+            return
+        }
+
         let modifiers = HotkeyModifiers(eventModifierFlags: event.modifierFlags.hotkeyRelevantModifiers)
 
         guard let key = HotkeyKey(keyCode: event.keyCode) else {
             NSSound.beep()
             previewShortcut = nil
-            recorderDelegate?.recorderDidReceiveUnsupportedKey()
+            recorderDelegate?.recorderDidReceiveUnsupportedInput("Only letters A-Z and digits 0-9 are supported right now.")
             updateDisplay()
             return
         }
@@ -207,9 +318,40 @@ final class RecorderTextField: NSTextField {
             return
         }
 
-        previewModifiers = HotkeyModifiers(eventModifierFlags: event.modifierFlags.hotkeyRelevantModifiers)
-        previewShortcut = nil
-        updateDisplay()
+        let modifiers = HotkeyModifiers(eventModifierFlags: event.modifierFlags.hotkeyRelevantModifiers)
+
+        switch recordingMode {
+        case .shortcut:
+            previewModifiers = modifiers
+            previewShortcut = nil
+            updateDisplay()
+        case .modifiersOnly:
+            previewModifiers = modifiers
+            previewShortcut = nil
+
+            if modifiers.isEmpty == false {
+                if modifiers.modifierCount >= recordedModifiersCandidate.modifierCount {
+                    recordedModifiersCandidate = modifiers
+                }
+                updateDisplay()
+                return
+            }
+
+            guard recordedModifiersCandidate.isEmpty == false else {
+                updateDisplay()
+                return
+            }
+
+            let capturedModifiers = recordedModifiersCandidate
+            if recorderDelegate?.recorderDidCaptureModifiers(capturedModifiers) == true {
+                currentModifiers = capturedModifiers
+                window?.makeFirstResponder(nil)
+            } else {
+                NSSound.beep()
+                recordedModifiersCandidate = []
+                updateDisplay()
+            }
+        }
     }
 
     private func updateDisplay() {
@@ -221,18 +363,29 @@ final class RecorderTextField: NSTextField {
         }
 
         if isRecordingActive {
-            if let previewShortcut {
-                stringValue = previewShortcut.displayText
-            } else {
-                stringValue = previewModifiers.isEmpty ? "Type shortcut" : "\(previewModifiers.displayText)…"
+            switch recordingMode {
+            case .shortcut:
+                if let previewShortcut {
+                    stringValue = previewShortcut.displayText
+                } else {
+                    stringValue = previewModifiers.isEmpty ? "Type shortcut" : "\(previewModifiers.displayText)…"
+                }
+            case .modifiersOnly:
+                stringValue = previewModifiers.isEmpty ? "Hold modifiers" : "\(previewModifiers.displayText)…"
             }
             textColor = .labelColor
             placeholderString = nil
             return
         }
 
-        stringValue = currentShortcut?.displayText ?? "Click to record"
-        textColor = currentShortcut == nil ? .secondaryLabelColor : .labelColor
+        switch recordingMode {
+        case .shortcut:
+            stringValue = currentShortcut?.displayText ?? "Click to record"
+            textColor = currentShortcut == nil ? .secondaryLabelColor : .labelColor
+        case .modifiersOnly:
+            stringValue = currentModifiers.isEmpty ? "Always open editor" : currentModifiers.displayText
+            textColor = currentModifiers.isEmpty ? .secondaryLabelColor : .labelColor
+        }
         placeholderString = nil
     }
 

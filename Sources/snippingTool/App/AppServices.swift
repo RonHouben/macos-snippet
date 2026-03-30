@@ -23,8 +23,13 @@ final class AppServices {
             isGlobalHotkeyMonitoringEnabled: configuration.disablesGlobalHotkeys == false
         )
 
+        captureCoordinator.editorCompletionModifiers = appState.editorCompletionModifiers
+
         appState.onHotkeysChanged = { [weak self] configuration in
             self?.captureCoordinator.configureHotkeys(configuration)
+        }
+        appState.onEditorCompletionModifiersChanged = { [weak self] modifiers in
+            self?.captureCoordinator.editorCompletionModifiers = modifiers
         }
         captureCoordinator.configureHotkeys(appState.captureModeHotkeys)
 

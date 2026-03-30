@@ -84,6 +84,8 @@ enum AppAutomationIdentifiers {
     static let settingsWindow = "window.settings"
     static let settingsRoot = "settings.root"
     static let settingsCaptureModePicker = "settings.capture-mode"
+    static let settingsEditorCompletionModifierRecorder = "settings.editor-completion-modifier"
+    static let settingsEditorCompletionModifierClearButton = "settings.editor-completion-modifier.clear"
     static let settingsRequestScreenRecordingButton = "settings.request-screen-recording"
     static let settingsRequestAccessibilityButton = "settings.request-accessibility"
 

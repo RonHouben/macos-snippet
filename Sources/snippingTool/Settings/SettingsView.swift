@@ -37,6 +37,14 @@ struct SettingsView: View {
             }
 
             Section("Keybindings") {
+                EditorCompletionModifierRow()
+
+                Text("Click the editor modifier field, hold one or more modifier keys, and release them to save. Clear it to always open captures in the editor.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 2)
+
                 Text("Click a shortcut field and press the combination you want to use. Duplicate shortcuts are not allowed.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -58,6 +66,85 @@ struct SettingsView: View {
         .accessibilityIdentifier(AppAutomationIdentifiers.settingsRoot)
         .padding(Layout.formPadding)
         .frame(width: Layout.settingsWidth)
+    }
+}
+
+private struct EditorCompletionModifierRow: View {
+    private enum Layout {
+        static let labelWidth: CGFloat = 150
+        static let recorderWidth: CGFloat = 206
+        static let clearButtonWidth: CGFloat = 66
+        static let interItemSpacing: CGFloat = 12
+
+        static var messageLeadingPadding: CGFloat {
+            labelWidth + interItemSpacing
+        }
+    }
+
+    @Environment(AppState.self) private var appState
+    @State private var isRecording = false
+    @State private var recorderMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: Layout.interItemSpacing) {
+                Text("Open editor modifier")
+                    .frame(width: Layout.labelWidth, alignment: .trailing)
+
+                ModifierKeyRecorderField(
+                    modifiers: appState.editorCompletionModifiers,
+                    isEnabled: true,
+                    isRecording: $isRecording,
+                    onModifiersRecorded: { modifiers in
+                        recorderMessage = nil
+                        appState.editorCompletionModifiers = modifiers
+                        return true
+                    },
+                    onUnsupportedKey: { message in
+                        recorderMessage = message
+                    }
+                )
+                .frame(width: Layout.recorderWidth, height: 36)
+                .accessibilityIdentifier(AppAutomationIdentifiers.settingsEditorCompletionModifierRecorder)
+
+                Button("Clear") {
+                    recorderMessage = nil
+                    appState.editorCompletionModifiers = []
+                    isRecording = false
+                }
+                .frame(width: Layout.clearButtonWidth)
+                .controlSize(.regular)
+                .disabled(appState.editorCompletionModifiers.isEmpty)
+                .accessibilityIdentifier(AppAutomationIdentifiers.settingsEditorCompletionModifierClearButton)
+
+                Spacer(minLength: 0)
+            }
+
+            if isRecording {
+                Text("Hold one or more modifier keys, then release to save. Press Escape to cancel.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, Layout.messageLeadingPadding)
+            } else if appState.editorCompletionModifiers.isEmpty {
+                Text("No modifier is set, so completed captures open directly in the editor.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, Layout.messageLeadingPadding)
+            }
+
+            if let recorderMessage {
+                Text(recorderMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, Layout.messageLeadingPadding)
+            }
+        }
+        .padding(.vertical, 6)
+        .onChange(of: isRecording) { _, newValue in
+            if newValue {
+                recorderMessage = nil
+            }
+        }
     }
 }
 

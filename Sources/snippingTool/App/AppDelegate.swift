@@ -17,12 +17,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func configureStatusItem() {
-        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem.button {
-            button.title = "Snip"
             button.image = NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: "snippingTool")
-            button.imagePosition = .imageLeading
+            button.imagePosition = .imageOnly
             button.toolTip = "snippingTool"
             button.setAccessibilityIdentifier(AppAutomationIdentifiers.statusItemButton)
         }

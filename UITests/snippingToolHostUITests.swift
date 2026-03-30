@@ -8,6 +8,39 @@ final class SnippingToolHostUITests: XCTestCase {
         case missingCGImage
     }
 
+    private enum ModifierKey {
+        case command
+        case shift
+        case option
+        case control
+
+        var keyCode: CGKeyCode {
+            switch self {
+            case .command:
+                55
+            case .shift:
+                56
+            case .option:
+                58
+            case .control:
+                59
+            }
+        }
+
+        var eventFlag: CGEventFlags {
+            switch self {
+            case .command:
+                .maskCommand
+            case .shift:
+                .maskShift
+            case .option:
+                .maskAlternate
+            case .control:
+                .maskControl
+            }
+        }
+    }
+
     private enum SampleCaptureText {
         static let primaryLine = "Alpha Beta Gamma Delta"
     }
@@ -60,6 +93,46 @@ final class SnippingToolHostUITests: XCTestCase {
         XCTAssertTrue(
             app.descendants(matching: .any)[AppAutomationIdentifiers.settingsRoot].waitForExistence(timeout: 5),
             "Expected the Settings root view to exist."
+        )
+    }
+
+    func testSettingsShowOpenEditorModifierRecorder() throws {
+        uiTestButton(identifier: AppAutomationIdentifiers.uiTestOpenSettingsButton, fallbackLabel: "Open Settings").click()
+
+        let modifierSetting = app.descendants(matching: .any)[AppAutomationIdentifiers.settingsEditorCompletionModifierRecorder]
+        let modifierLabel = app.staticTexts["Open editor modifier"]
+
+        XCTAssertTrue(
+            modifierSetting.waitForExistence(timeout: 2) || modifierLabel.waitForExistence(timeout: 5),
+            "Expected the Open editor modifier setting to exist in Settings."
+        )
+    }
+
+    func testSettingsCanRecordOpenEditorModifierCombination() throws {
+        uiTestButton(identifier: AppAutomationIdentifiers.uiTestOpenSettingsButton, fallbackLabel: "Open Settings").click()
+
+        let modifierRecorder = app.descendants(matching: .any)[AppAutomationIdentifiers.settingsEditorCompletionModifierRecorder]
+        XCTAssertTrue(
+            modifierRecorder.waitForExistence(timeout: 5),
+            "Expected the Open editor modifier recorder to exist in Settings."
+        )
+
+        let clearButton = app.descendants(matching: .button)[AppAutomationIdentifiers.settingsEditorCompletionModifierClearButton]
+        XCTAssertTrue(
+            clearButton.waitForExistence(timeout: 5),
+            "Expected the Open editor modifier Clear button to exist in Settings."
+        )
+
+        if clearButton.isEnabled {
+            clearButton.click()
+        }
+
+        modifierRecorder.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+        try recordModifierSequence([.option, .command])
+
+        XCTAssertTrue(
+            waitForElementText(modifierRecorder, toContain: "⌥⌘", timeout: 5),
+            "Expected the Open editor modifier recorder to update to the captured modifier combination."
         )
     }
 
@@ -450,6 +523,59 @@ final class SnippingToolHostUITests: XCTestCase {
         }
 
         return app.buttons[fallbackLabel]
+    }
+
+    private func recordModifierSequence(_ modifiers: [ModifierKey]) throws {
+        guard let source = CGEventSource(stateID: .hidSystemState) else {
+            XCTFail("Expected to create a keyboard event source for the modifier recorder test.")
+            return
+        }
+
+        var activeFlags: CGEventFlags = []
+
+        for modifier in modifiers {
+            activeFlags.formUnion(modifier.eventFlag)
+
+            guard let keyDownEvent = CGEvent(keyboardEventSource: source, virtualKey: modifier.keyCode, keyDown: true) else {
+                XCTFail("Expected to create a key-down event for modifier \(modifier).")
+                return
+            }
+
+            keyDownEvent.flags = activeFlags
+            keyDownEvent.post(tap: .cghidEventTap)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.08))
+        }
+
+        for modifier in modifiers.reversed() {
+            activeFlags.remove(modifier.eventFlag)
+
+            guard let keyUpEvent = CGEvent(keyboardEventSource: source, virtualKey: modifier.keyCode, keyDown: false) else {
+                XCTFail("Expected to create a key-up event for modifier \(modifier).")
+                return
+            }
+
+            keyUpEvent.flags = activeFlags
+            keyUpEvent.post(tap: .cghidEventTap)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.08))
+        }
+    }
+
+    private func waitForElementText(_ element: XCUIElement, toContain expectedText: String, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        repeat {
+            let candidateText = [element.value as? String, element.label]
+                .compactMap { $0 }
+                .first(where: { $0.isEmpty == false })
+
+            if let candidateText, candidateText.contains(expectedText) {
+                return true
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        } while Date() < deadline
+
+        return false
     }
 
     private func recognizedLine(matching label: String) -> XCUIElement {

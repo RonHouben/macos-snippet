@@ -78,6 +78,40 @@ func testCaptureCompletionRecognizesTheDefaultEditorModifier() throws {
     try expect(!CaptureCompletionPolicy.shouldOpenEditor(activeModifiers: [.command]), "Non-Shift modifiers alone should not open the editor")
 }
 
+func testCaptureCompletionSupportsConfiguredEditorModifier() throws {
+    let overlayActions = CaptureCompletionPolicy.actions(
+        hasOverlay: true,
+        activeModifiers: [.option, .command],
+        editorRequiredModifier: [.option, .command]
+    )
+    try expect(overlayActions == [.dismissOverlay, .openEditor], "Overlay captures should open the editor when the configured modifier is held")
+
+    let fullscreenActions = CaptureCompletionPolicy.actions(
+        hasOverlay: false,
+        activeModifiers: [.shift],
+        editorRequiredModifier: [.option, .command]
+    )
+    try expect(fullscreenActions == [.copyToClipboard], "Captures should continue copying when the configured modifier is not held")
+}
+
+func testCaptureCompletionOpensEditorAutomaticallyWhenModifierIsCleared() throws {
+    let actions = CaptureCompletionPolicy.actions(
+        hasOverlay: true,
+        activeModifiers: [],
+        editorRequiredModifier: []
+    )
+
+    try expect(actions == [.dismissOverlay, .openEditor], "Clearing the editor modifier should make captures open in the editor automatically")
+}
+
+func testHotkeyModifiersExposeReadableTitlesAndSymbols() throws {
+    try expect(HotkeyModifiers.shift.title == "Shift", "Shift should expose a readable title")
+    try expect(HotkeyModifiers.command.title == "Command", "Command should expose a readable title")
+    try expect(HotkeyModifiers([.command, .option]).title == "Option + Command", "Combined modifiers should expose a readable joined title")
+    try expect(HotkeyModifiers.control.displayText == "⌃", "Control should expose the expected modifier symbol")
+    try expect(HotkeyModifiers().title == "No modifier", "An empty modifier set should expose a sensible fallback title")
+}
+
 func testCapturePreparationDismissesOverlayBeforeRectangularCapture() throws {
     try expect(CapturePreparationPolicy.shouldDismissOverlayBeforeCapture(hasOverlay: true), "Overlay-based captures should dismiss the overlay before capturing")
     try expect(!CapturePreparationPolicy.shouldDismissOverlayBeforeCapture(hasOverlay: false), "Fullscreen captures should not need overlay dismissal")
@@ -457,6 +491,9 @@ do {
     try testCaptureCompletionDismissesOverlayBeforeOpeningEditor()
     try testCaptureCompletionCopiesToClipboardWithoutShiftModifier()
     try testCaptureCompletionRecognizesTheDefaultEditorModifier()
+    try testCaptureCompletionSupportsConfiguredEditorModifier()
+    try testCaptureCompletionOpensEditorAutomaticallyWhenModifierIsCleared()
+    try testHotkeyModifiersExposeReadableTitlesAndSymbols()
     try testCapturePreparationDismissesOverlayBeforeRectangularCapture()
     try testSelectionOverlayStyleIsConfiguredForVisibility()
     try testAnnotationCoordinateMapperRoundTripsCanvasAndImagePoints()

@@ -30,6 +30,29 @@ public struct HotkeyModifiers: OptionSet, Codable, Hashable, Sendable {
 
         return pieces.joined()
     }
+
+    public var title: String {
+        var pieces: [String] = []
+
+        if contains(.control) {
+            pieces.append("Control")
+        }
+        if contains(.option) {
+            pieces.append("Option")
+        }
+        if contains(.shift) {
+            pieces.append("Shift")
+        }
+        if contains(.command) {
+            pieces.append("Command")
+        }
+
+        return pieces.isEmpty ? "No modifier" : pieces.joined(separator: " + ")
+    }
+
+    public var modifierCount: Int {
+        rawValue.nonzeroBitCount
+    }
 }
 
 public enum HotkeyKey: String, CaseIterable, Codable, Identifiable, Sendable {
