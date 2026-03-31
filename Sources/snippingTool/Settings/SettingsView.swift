@@ -1,57 +1,103 @@
 import SwiftUI
 import snippingToolCore
 
-struct SettingsView: View {
-    private enum Layout {
-        static let settingsWidth: CGFloat = 680
-        static let formPadding: CGFloat = 20
-    }
+private enum SettingsLayout {
+    static let settingsWidth: CGFloat = 760
+    static let formPadding: CGFloat = 24
+    static let sectionSpacing: CGFloat = 18
+    static let groupContentSpacing: CGFloat = 14
+    static let rowSpacing: CGFloat = 10
+    static let helpTextSpacing: CGFloat = 6
+    static let columnSpacing: CGFloat = 12
+    static let buttonSpacing: CGFloat = 10
+    static let labelColumnWidth: CGFloat = 160
+    static let toggleColumnWidth: CGFloat = 52
+    static let fieldColumnWidth: CGFloat = 240
+    static let actionColumnWidth: CGFloat = 72
+    static let controlHeight: CGFloat = 36
 
+    static var recorderMessageLeadingPadding: CGFloat {
+        labelColumnWidth + toggleColumnWidth + (columnSpacing * 2)
+    }
+}
+
+struct SettingsView: View {
     @Environment(AppState.self) private var appState
     @Environment(CaptureCoordinator.self) private var captureCoordinator
 
     var body: some View {
         Form {
             Section("Capture") {
-                Picker("Default capture mode", selection: Bindable(appState).preferredCaptureMode) {
-                    ForEach(CaptureMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
+                Text("Capture defaults")
+                    .font(.headline)
+
+                SettingsHelpText("Choose how a new capture starts when you begin from the menu bar or test control panel.")
+
+                HStack(alignment: .center, spacing: SettingsLayout.columnSpacing) {
+                    SettingsFieldLabel("Default capture mode")
+
+                    Picker("", selection: Bindable(appState).preferredCaptureMode) {
+                        ForEach(CaptureMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel("Default capture mode")
+                    .accessibilityIdentifier(AppAutomationIdentifiers.settingsCaptureModePicker)
+                }
+
+                Divider()
+                    .padding(.vertical, 4)
+
+                Text("Permissions")
+                    .font(.headline)
+
+                SettingsHelpText("Screen Recording and Accessibility access are used for capture selection and global shortcut support.")
+
+                VStack(alignment: .leading, spacing: SettingsLayout.groupContentSpacing) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Current status")
+                            .font(.subheadline.weight(.medium))
+
+                        Text(captureCoordinator.permissionSummary)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    HStack(spacing: SettingsLayout.buttonSpacing) {
+                        Button("Request Screen Recording") {
+                            captureCoordinator.requestScreenRecording()
+                        }
+                        .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestScreenRecordingButton)
+
+                        Button("Request Accessibility") {
+                            captureCoordinator.requestAccessibility()
+                        }
+                        .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestAccessibilityButton)
                     }
                 }
-                .accessibilityIdentifier(AppAutomationIdentifiers.settingsCaptureModePicker)
-
-                Text("Current permissions: \(captureCoordinator.permissionSummary)")
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 12) {
-                    Button("Request Screen Recording") {
-                        captureCoordinator.requestScreenRecording()
-                    }
-                    .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestScreenRecordingButton)
-
-                    Button("Request Accessibility") {
-                        captureCoordinator.requestAccessibility()
-                    }
-                    .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestAccessibilityButton)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Section("Keybindings") {
+                Text("Open editor")
+                    .font(.headline)
+
+                SettingsHelpText("Set modifier keys to always open completed captures in the editor instead of copying them immediately.")
+
                 EditorCompletionModifierRow()
 
-                Text("Click the editor modifier field, hold one or more modifier keys, and release them to save. Clear it to always open captures in the editor.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 2)
+                Divider()
+                    .padding(.vertical, 4)
 
-                Text("Click a shortcut field and press the combination you want to use. Duplicate shortcuts are not allowed.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 2)
+                Text("Capture shortcuts")
+                    .font(.headline)
 
-                VStack(alignment: .leading, spacing: 10) {
+                SettingsHelpText("Enable shortcuts for the capture modes you use most. Duplicate shortcuts are not allowed.")
+
+                VStack(alignment: .leading, spacing: SettingsLayout.rowSpacing + 2) {
                     ForEach(CaptureMode.allCases) { mode in
                         CaptureModeHotkeyRow(mode: mode)
                     }
@@ -59,60 +105,160 @@ struct SettingsView: View {
 
                 if let validationMessage = appState.hotkeyValidationMessage {
                     Label(validationMessage, systemImage: "exclamationmark.triangle.fill")
+                        .font(.subheadline)
                         .foregroundStyle(.orange)
                 }
             }
         }
         .accessibilityIdentifier(AppAutomationIdentifiers.settingsRoot)
-        .padding(Layout.formPadding)
-        .frame(width: Layout.settingsWidth)
+        .padding(SettingsLayout.formPadding)
+        .frame(width: SettingsLayout.settingsWidth)
+    }
+}
+
+private struct SettingsFieldLabel: View {
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title)
+            .font(.body.weight(.medium))
+            .frame(width: SettingsLayout.labelColumnWidth, alignment: .trailing)
+            .foregroundStyle(.primary)
+    }
+}
+
+private struct SettingsHelpText: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct SettingsRecorderFieldContainer<Recorder: View>: View {
+    let label: String
+    let value: String
+    let identifier: String
+    let isEnabled: Bool
+    @Binding var isRecording: Bool
+
+    private let recorder: Recorder
+
+    init(
+        label: String,
+        value: String,
+        identifier: String,
+        isEnabled: Bool,
+        isRecording: Binding<Bool>,
+        @ViewBuilder recorder: () -> Recorder
+    ) {
+        self.label = label
+        self.value = value
+        self.identifier = identifier
+        self.isEnabled = isEnabled
+        _isRecording = isRecording
+        self.recorder = recorder()
+    }
+
+    var body: some View {
+        ZStack {
+            recorder
+                .allowsHitTesting(false)
+
+            SettingsRecorderActivationOverlay(
+                label: label,
+                value: value,
+                identifier: identifier,
+                isEnabled: isEnabled,
+                isRecording: $isRecording
+            )
+        }
+    }
+}
+
+private struct SettingsRecorderActivationOverlay: View {
+    let label: String
+    let value: String
+    let identifier: String
+    let isEnabled: Bool
+    @Binding var isRecording: Bool
+
+    var body: some View {
+        Button {
+                guard isEnabled else {
+                    return
+                }
+
+                isRecording = true
+        } label: {
+            Rectangle()
+                .fill(.clear)
+                .contentShape(Rectangle())
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        .buttonStyle(.plain)
+        .disabled(isEnabled == false)
+        .accessibilityLabel(label)
+        .accessibilityValue(value)
+        .accessibilityIdentifier(identifier)
     }
 }
 
 private struct EditorCompletionModifierRow: View {
-    private enum Layout {
-        static let labelWidth: CGFloat = 150
-        static let recorderWidth: CGFloat = 206
-        static let clearButtonWidth: CGFloat = 66
-        static let interItemSpacing: CGFloat = 12
-
-        static var messageLeadingPadding: CGFloat {
-            labelWidth + interItemSpacing
-        }
-    }
-
     @Environment(AppState.self) private var appState
     @State private var isRecording = false
     @State private var recorderMessage: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: Layout.interItemSpacing) {
-                Text("Open editor modifier")
-                    .frame(width: Layout.labelWidth, alignment: .trailing)
+        VStack(alignment: .leading, spacing: SettingsLayout.helpTextSpacing) {
+            HStack(alignment: .center, spacing: SettingsLayout.columnSpacing) {
+                SettingsFieldLabel("Open editor modifier")
 
-                ModifierKeyRecorderField(
-                    modifiers: appState.editorCompletionModifiers,
+                Spacer()
+                    .frame(width: SettingsLayout.toggleColumnWidth)
+
+                SettingsRecorderFieldContainer(
+                    label: "Open editor modifier",
+                    value: editorModifierDisplayValue,
+                    identifier: AppAutomationIdentifiers.settingsEditorCompletionModifierRecorder,
                     isEnabled: true,
-                    isRecording: $isRecording,
-                    onModifiersRecorded: { modifiers in
-                        recorderMessage = nil
-                        appState.editorCompletionModifiers = modifiers
-                        return true
-                    },
-                    onUnsupportedKey: { message in
-                        recorderMessage = message
-                    }
-                )
-                .frame(width: Layout.recorderWidth, height: 36)
-                .accessibilityIdentifier(AppAutomationIdentifiers.settingsEditorCompletionModifierRecorder)
+                    isRecording: $isRecording
+                ) {
+                    ModifierKeyRecorderField(
+                        modifiers: appState.editorCompletionModifiers,
+                        isEnabled: true,
+                        isRecording: $isRecording,
+                        accessibilityIdentifier: AppAutomationIdentifiers.settingsEditorCompletionModifierRecorder,
+                        accessibilityLabel: "Open editor modifier",
+                        onModifiersRecorded: { modifiers in
+                            recorderMessage = nil
+                            appState.editorCompletionModifiers = modifiers
+                            return true
+                        },
+                        onUnsupportedKey: { message in
+                            recorderMessage = message
+                        }
+                    )
+                }
+                .frame(width: SettingsLayout.fieldColumnWidth, height: SettingsLayout.controlHeight)
 
                 Button("Clear") {
                     recorderMessage = nil
                     appState.editorCompletionModifiers = []
                     isRecording = false
                 }
-                .frame(width: Layout.clearButtonWidth)
+                .frame(width: SettingsLayout.actionColumnWidth)
                 .controlSize(.regular)
                 .disabled(appState.editorCompletionModifiers.isEmpty)
                 .accessibilityIdentifier(AppAutomationIdentifiers.settingsEditorCompletionModifierClearButton)
@@ -121,46 +267,44 @@ private struct EditorCompletionModifierRow: View {
             }
 
             if isRecording {
-                Text("Hold one or more modifier keys, then release to save. Press Escape to cancel.")
+                SettingsHelpText("Hold one or more modifier keys, then release them to save. Press Escape to cancel.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, Layout.messageLeadingPadding)
+                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
             } else if appState.editorCompletionModifiers.isEmpty {
-                Text("No modifier is set, so completed captures open directly in the editor.")
+                SettingsHelpText("No modifier is set, so completed captures open directly in the editor.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, Layout.messageLeadingPadding)
+                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
             }
 
             if let recorderMessage {
-                Text(recorderMessage)
+                SettingsHelpText(recorderMessage)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, Layout.messageLeadingPadding)
+                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
             }
         }
-        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onChange(of: isRecording) { _, newValue in
             if newValue {
                 recorderMessage = nil
             }
         }
     }
+
+    private var editorModifierDisplayValue: String {
+        if isRecording {
+            return appState.editorCompletionModifiers.isEmpty
+                ? "Hold modifiers"
+                : "\(appState.editorCompletionModifiers.displayText)…"
+        }
+
+        return appState.editorCompletionModifiers.isEmpty
+            ? "Always open editor"
+            : appState.editorCompletionModifiers.displayText
+    }
+
 }
 
 private struct CaptureModeHotkeyRow: View {
-    private enum Layout {
-        static let labelWidth: CGFloat = 150
-        static let toggleWidth: CGFloat = 54
-        static let recorderWidth: CGFloat = 206
-        static let clearButtonWidth: CGFloat = 66
-        static let interItemSpacing: CGFloat = 12
-
-        static var messageLeadingPadding: CGFloat {
-            labelWidth + toggleWidth + (interItemSpacing * 2)
-        }
-    }
-
     @Environment(AppState.self) private var appState
     @State private var isShortcutEnabled = false
     @State private var isRecording = false
@@ -169,34 +313,41 @@ private struct CaptureModeHotkeyRow: View {
     let mode: CaptureMode
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: Layout.interItemSpacing) {
-                Text(mode.title)
-                    .frame(width: Layout.labelWidth, alignment: .trailing)
+        VStack(alignment: .leading, spacing: SettingsLayout.helpTextSpacing) {
+            HStack(alignment: .center, spacing: SettingsLayout.columnSpacing) {
+                SettingsFieldLabel(mode.title)
 
                 Toggle("", isOn: isEnabledBinding)
                     .toggleStyle(.switch)
                     .labelsHidden()
-                    .frame(width: Layout.toggleWidth, alignment: .center)
+                    .frame(width: SettingsLayout.toggleColumnWidth, alignment: .center)
                     .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyToggle(for: mode))
 
-                KeybindingRecorderField(
-                    shortcut: appState.shortcut(for: mode),
+                SettingsRecorderFieldContainer(
+                    label: "\(mode.title) shortcut",
+                    value: hotkeyDisplayValue,
+                    identifier: AppAutomationIdentifiers.settingsHotkeyRecorder(for: mode),
                     isEnabled: isShortcutEnabled,
-                    isRecording: $isRecording,
-                    onShortcutRecorded: { shortcut in
-                        recorderMessage = nil
-                        appState.clearHotkeyValidationMessage()
-                        return appState.updateShortcut(shortcut, for: mode)
-                    },
-                    onUnsupportedKey: { message in
-                        appState.clearHotkeyValidationMessage()
-                        recorderMessage = message
-                    }
-                )
-                .frame(width: Layout.recorderWidth, height: 36)
-                .disabled(isShortcutEnabled == false)
-                .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyRecorder(for: mode))
+                    isRecording: $isRecording
+                ) {
+                    KeybindingRecorderField(
+                        shortcut: appState.shortcut(for: mode),
+                        isEnabled: isShortcutEnabled,
+                        isRecording: $isRecording,
+                        accessibilityIdentifier: AppAutomationIdentifiers.settingsHotkeyRecorder(for: mode),
+                        accessibilityLabel: "\(mode.title) shortcut",
+                        onShortcutRecorded: { shortcut in
+                            recorderMessage = nil
+                            appState.clearHotkeyValidationMessage()
+                            return appState.updateShortcut(shortcut, for: mode)
+                        },
+                        onUnsupportedKey: { message in
+                            appState.clearHotkeyValidationMessage()
+                            recorderMessage = message
+                        }
+                    )
+                }
+                .frame(width: SettingsLayout.fieldColumnWidth, height: SettingsLayout.controlHeight)
 
                 Button("Clear") {
                     recorderMessage = nil
@@ -205,7 +356,7 @@ private struct CaptureModeHotkeyRow: View {
                     isShortcutEnabled = false
                     isRecording = false
                 }
-                .frame(width: Layout.clearButtonWidth)
+                .frame(width: SettingsLayout.actionColumnWidth)
                 .controlSize(.regular)
                 .disabled(appState.shortcut(for: mode) == nil)
                 .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyClearButton(for: mode))
@@ -214,20 +365,18 @@ private struct CaptureModeHotkeyRow: View {
             }
 
             if isRecording {
-                Text("Press Escape to cancel")
+                SettingsHelpText("Press Escape to cancel.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, Layout.messageLeadingPadding)
+                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
             }
 
             if let recorderMessage {
-                Text(recorderMessage)
+                SettingsHelpText(recorderMessage)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, Layout.messageLeadingPadding)
+                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
             }
         }
-        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             isShortcutEnabled = appState.shortcut(for: mode) != nil
         }
@@ -244,10 +393,6 @@ private struct CaptureModeHotkeyRow: View {
                 appState.clearHotkeyValidationMessage()
             }
         }
-    }
-
-    private var fallbackShortcut: HotkeyShortcut {
-        appState.shortcut(for: mode) ?? HotkeyShortcut.recommended(for: mode)
     }
 
     private var isEnabledBinding: Binding<Bool> {
@@ -269,4 +414,17 @@ private struct CaptureModeHotkeyRow: View {
             }
         )
     }
+
+    private var hotkeyDisplayValue: String {
+        if isShortcutEnabled == false {
+            return "Not set"
+        }
+
+        if isRecording {
+            return appState.shortcut(for: mode)?.displayText ?? "Type shortcut"
+        }
+
+        return appState.shortcut(for: mode)?.displayText ?? "Click to record"
+    }
+
 }

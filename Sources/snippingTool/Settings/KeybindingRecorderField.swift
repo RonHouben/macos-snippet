@@ -7,6 +7,8 @@ struct KeybindingRecorderField: NSViewRepresentable {
     var shortcut: HotkeyShortcut?
     var isEnabled: Bool
     @Binding var isRecording: Bool
+    var accessibilityIdentifier: String?
+    var accessibilityLabel: String?
     var onShortcutRecorded: (HotkeyShortcut) -> Bool
     var onUnsupportedKey: (String) -> Void
 
@@ -22,7 +24,9 @@ struct KeybindingRecorderField: NSViewRepresentable {
             modifiers: [],
             mode: .shortcut,
             isEnabled: isEnabled,
-            isRecording: isRecording
+            isRecording: isRecording,
+            accessibilityIdentifier: accessibilityIdentifier,
+            accessibilityLabel: accessibilityLabel
         )
         return textField
     }
@@ -35,7 +39,9 @@ struct KeybindingRecorderField: NSViewRepresentable {
             modifiers: [],
             mode: .shortcut,
             isEnabled: isEnabled,
-            isRecording: isRecording
+            isRecording: isRecording,
+            accessibilityIdentifier: accessibilityIdentifier,
+            accessibilityLabel: accessibilityLabel
         )
     }
 
@@ -74,6 +80,8 @@ struct ModifierKeyRecorderField: NSViewRepresentable {
     var modifiers: HotkeyModifiers
     var isEnabled: Bool
     @Binding var isRecording: Bool
+    var accessibilityIdentifier: String?
+    var accessibilityLabel: String?
     var onModifiersRecorded: (HotkeyModifiers) -> Bool
     var onUnsupportedKey: (String) -> Void
 
@@ -89,7 +97,9 @@ struct ModifierKeyRecorderField: NSViewRepresentable {
             modifiers: modifiers,
             mode: .modifiersOnly,
             isEnabled: isEnabled,
-            isRecording: isRecording
+            isRecording: isRecording,
+            accessibilityIdentifier: accessibilityIdentifier,
+            accessibilityLabel: accessibilityLabel
         )
         return textField
     }
@@ -102,7 +112,9 @@ struct ModifierKeyRecorderField: NSViewRepresentable {
             modifiers: modifiers,
             mode: .modifiersOnly,
             isEnabled: isEnabled,
-            isRecording: isRecording
+            isRecording: isRecording,
+            accessibilityIdentifier: accessibilityIdentifier,
+            accessibilityLabel: accessibilityLabel
         )
     }
 
@@ -168,6 +180,9 @@ final class RecorderTextField: NSTextField {
     private var previewModifiers: HotkeyModifiers = []
     private var previewShortcut: HotkeyShortcut?
     private var recordedModifiersCandidate: HotkeyModifiers = []
+    private var recorderAccessibilityLabel: String?
+    private var modifierFlagsMonitor: Any?
+    private var recordingRequested = false
 
     override var acceptsFirstResponder: Bool { isRecorderEnabled }
     override var canBecomeKeyView: Bool { isRecorderEnabled }
@@ -206,26 +221,48 @@ final class RecorderTextField: NSTextField {
         modifiers: HotkeyModifiers,
         mode: RecordingMode,
         isEnabled: Bool,
-        isRecording: Bool
+        isRecording: Bool,
+        accessibilityIdentifier: String? = nil,
+        accessibilityLabel: String? = nil
     ) {
         currentShortcut = shortcut
         currentModifiers = modifiers
         recordingMode = mode
         isRecorderEnabled = isEnabled
+        recordingRequested = isRecording
+        recorderAccessibilityLabel = accessibilityLabel
+
+        if let accessibilityIdentifier {
+            identifier = NSUserInterfaceItemIdentifier(accessibilityIdentifier)
+            setAccessibilityIdentifier(accessibilityIdentifier)
+        }
+
+        if let accessibilityLabel {
+            setAccessibilityLabel(accessibilityLabel)
+        }
 
         if isEnabled == false, window?.firstResponder === self {
             window?.makeFirstResponder(nil)
         }
 
         if isEnabled, isRecording, window?.firstResponder !== self {
-            window?.makeFirstResponder(self)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.isRecorderEnabled, self.window?.firstResponder !== self else {
+                    return
+                }
+
+                self.window?.makeFirstResponder(self)
+            }
         }
 
         if isEnabled == false {
+            stopModifierFlagsMonitoring()
             isRecordingActive = false
             previewModifiers = []
             previewShortcut = nil
             recordedModifiersCandidate = []
+        } else {
+            syncModifierFlagsMonitoring()
         }
 
         applyAppearance()
@@ -247,12 +284,7 @@ final class RecorderTextField: NSTextField {
             return false
         }
 
-        isRecordingActive = true
-        previewModifiers = []
-        previewShortcut = nil
-        recordedModifiersCandidate = []
-        recorderDelegate?.recorderDidBeginRecording()
-        updateDisplay()
+        beginRecordingSession(notifyDelegate: true)
         return true
     }
 
@@ -262,12 +294,8 @@ final class RecorderTextField: NSTextField {
             return false
         }
 
-        isRecordingActive = false
-        previewModifiers = []
-        previewShortcut = nil
-        recordedModifiersCandidate = []
-        recorderDelegate?.recorderDidEndRecording()
-        updateDisplay()
+        stopModifierFlagsMonitoring()
+        endRecordingSession(notifyDelegate: true)
         return true
     }
 
@@ -326,31 +354,118 @@ final class RecorderTextField: NSTextField {
             previewShortcut = nil
             updateDisplay()
         case .modifiersOnly:
-            previewModifiers = modifiers
-            previewShortcut = nil
+            handleModifierFlagsChanged(event)
+        }
+    }
 
-            if modifiers.isEmpty == false {
-                if modifiers.modifierCount >= recordedModifiersCandidate.modifierCount {
-                    recordedModifiersCandidate = modifiers
+    private func beginRecordingSession(notifyDelegate: Bool) {
+        guard isRecordingActive == false else {
+            return
+        }
+
+        isRecordingActive = true
+        previewModifiers = []
+        previewShortcut = nil
+        recordedModifiersCandidate = []
+
+        if notifyDelegate {
+            recorderDelegate?.recorderDidBeginRecording()
+        }
+
+        updateDisplay()
+    }
+
+    private func endRecordingSession(notifyDelegate: Bool) {
+        guard isRecordingActive else {
+            return
+        }
+
+        isRecordingActive = false
+        previewModifiers = []
+        previewShortcut = nil
+        recordedModifiersCandidate = []
+
+        if notifyDelegate {
+            recorderDelegate?.recorderDidEndRecording()
+        }
+
+        updateDisplay()
+    }
+
+    private func syncModifierFlagsMonitoring() {
+        let shouldMonitor = recordingMode == .modifiersOnly && isRecorderEnabled && recordingRequested
+
+        if shouldMonitor {
+            beginRecordingSession(notifyDelegate: false)
+
+            guard modifierFlagsMonitor == nil else {
+                return
+            }
+
+            modifierFlagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+                guard let self else {
+                    return event
                 }
-                updateDisplay()
-                return
-            }
 
-            guard recordedModifiersCandidate.isEmpty == false else {
-                updateDisplay()
-                return
-            }
+                guard self.recordingMode == .modifiersOnly,
+                      self.isRecorderEnabled,
+                      self.recordingRequested,
+                      self.window?.firstResponder !== self else {
+                    return event
+                }
 
-            let capturedModifiers = recordedModifiersCandidate
-            if recorderDelegate?.recorderDidCaptureModifiers(capturedModifiers) == true {
-                currentModifiers = capturedModifiers
+                self.handleModifierFlagsChanged(event)
+                return event
+            }
+        } else {
+            stopModifierFlagsMonitoring()
+
+            if window?.firstResponder !== self {
+                endRecordingSession(notifyDelegate: false)
+            }
+        }
+    }
+
+    private func stopModifierFlagsMonitoring() {
+        if let modifierFlagsMonitor {
+            NSEvent.removeMonitor(modifierFlagsMonitor)
+            self.modifierFlagsMonitor = nil
+        }
+    }
+
+    private func handleModifierFlagsChanged(_ event: NSEvent) {
+        let modifiers = HotkeyModifiers(eventModifierFlags: event.modifierFlags.hotkeyRelevantModifiers)
+
+        previewModifiers = modifiers
+        previewShortcut = nil
+
+        if modifiers.isEmpty == false {
+            if modifiers.modifierCount >= recordedModifiersCandidate.modifierCount {
+                recordedModifiersCandidate = modifiers
+            }
+            updateDisplay()
+            return
+        }
+
+        guard recordedModifiersCandidate.isEmpty == false else {
+            updateDisplay()
+            return
+        }
+
+        let capturedModifiers = recordedModifiersCandidate
+        if recorderDelegate?.recorderDidCaptureModifiers(capturedModifiers) == true {
+            currentModifiers = capturedModifiers
+            stopModifierFlagsMonitoring()
+
+            if window?.firstResponder === self {
                 window?.makeFirstResponder(nil)
             } else {
-                NSSound.beep()
-                recordedModifiersCandidate = []
-                updateDisplay()
+                endRecordingSession(notifyDelegate: true)
             }
+        } else {
+            NSSound.beep()
+            recordedModifiersCandidate = []
+            updateDisplay()
         }
     }
 
@@ -359,6 +474,7 @@ final class RecorderTextField: NSTextField {
             stringValue = "Not set"
             textColor = .secondaryLabelColor
             placeholderString = nil
+            setAccessibilityValue(stringValue)
             return
         }
 
@@ -375,6 +491,7 @@ final class RecorderTextField: NSTextField {
             }
             textColor = .labelColor
             placeholderString = nil
+            setAccessibilityValue(stringValue)
             return
         }
 
@@ -387,6 +504,11 @@ final class RecorderTextField: NSTextField {
             textColor = currentModifiers.isEmpty ? .secondaryLabelColor : .labelColor
         }
         placeholderString = nil
+        setAccessibilityValue(stringValue)
+
+        if let recorderAccessibilityLabel {
+            setAccessibilityLabel(recorderAccessibilityLabel)
+        }
     }
 
     private func applyAppearance() {

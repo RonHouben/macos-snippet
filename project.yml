@@ -46,11 +46,31 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_STRICT_CONCURRENCY: minimal
 
+  snippingToolHostTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: '14.0'
+    sources:
+      - path: Tests/snippingToolTests
+    dependencies:
+      - target: snippingToolHost
+      - package: snippingToolPackage
+        product: snippingToolCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ronhouben.snippingtool.host-tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: '$(BUILT_PRODUCTS_DIR)/snippingTool.app/Contents/MacOS/snippingTool'
+        BUNDLE_LOADER: '$(TEST_HOST)'
+        SWIFT_STRICT_CONCURRENCY: minimal
+
 schemes:
   snippingToolHost:
     build:
       targets:
         snippingToolHost: all
+        snippingToolHostTests:
+          - test
         snippingToolHostUITests:
           - test
     run:
@@ -59,4 +79,5 @@ schemes:
       config: Debug
       gatherCoverageData: false
       targets:
+        - name: snippingToolHostTests
         - name: snippingToolHostUITests

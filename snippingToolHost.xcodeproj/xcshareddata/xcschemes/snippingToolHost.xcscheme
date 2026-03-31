@@ -29,6 +29,20 @@
             buildForAnalyzing = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "2A8E24B171642C92E659DDE4"
+               BuildableName = "snippingToolHostTests.xctest"
+               BlueprintName = "snippingToolHostTests"
+               ReferencedContainer = "container:snippingToolHost.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "9D67661C7AFA6B7489BA5505"
                BuildableName = "snippingToolHostUITests.xctest"
                BlueprintName = "snippingToolHostUITests"
@@ -53,6 +67,17 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "2A8E24B171642C92E659DDE4"
+               BuildableName = "snippingToolHostTests.xctest"
+               BlueprintName = "snippingToolHostTests"
+               ReferencedContainer = "container:snippingToolHost.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
          <TestableReference
             skipped = "NO"
             parallelizable = "NO">
