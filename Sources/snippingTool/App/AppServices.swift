@@ -28,6 +28,10 @@ final class AppServices {
         appState.onHotkeysChanged = { [weak self] configuration in
             self?.captureCoordinator.configureHotkeys(configuration)
         }
+        appState.onThemePreferenceChanged = { [weak self] _ in
+            self?.editorWindowManager.applyThemePreference()
+            self?.settingsWindowManager.applyThemePreference()
+        }
         appState.onEditorCompletionModifiersChanged = { [weak self] modifiers in
             self?.captureCoordinator.editorCompletionModifiers = modifiers
         }

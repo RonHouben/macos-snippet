@@ -29,6 +29,41 @@ final class RecorderTextFieldTests: XCTestCase {
         XCTAssertEqual(recorder.stringValue, "⌥⌘")
     }
 
+    func testThemePreferenceDefaultsToSystem() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+
+        XCTAssertEqual(appState.themePreference, .system)
+    }
+
+    func testThemePreferenceRestoresPersistedValue() {
+        let defaults = makeDefaults(suiteName: #function)
+        defaults.set(AppThemePreference.dark.rawValue, forKey: "themePreference")
+
+        let appState = AppState(defaults: defaults)
+
+        XCTAssertEqual(appState.themePreference, .dark)
+    }
+
+    func testThemePreferencePersistsAndNotifies() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+        var receivedPreference: AppThemePreference?
+        appState.onThemePreferenceChanged = { receivedPreference = $0 }
+
+        appState.themePreference = .light
+
+        XCTAssertEqual(defaults.string(forKey: "themePreference"), AppThemePreference.light.rawValue)
+        XCTAssertEqual(receivedPreference, .light)
+    }
+
+    private func makeDefaults(suiteName: String) -> UserDefaults {
+        let suiteName = "snippingTool.tests.\(suiteName)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
+    }
+
     private func modifierFlagsChangedEvent(_ flags: NSEvent.ModifierFlags) -> NSEvent {
         guard let event = NSEvent.keyEvent(
             with: .flagsChanged,

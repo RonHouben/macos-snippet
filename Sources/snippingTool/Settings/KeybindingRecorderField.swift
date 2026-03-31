@@ -299,6 +299,11 @@ final class RecorderTextField: NSTextField {
         return true
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyAppearance()
+    }
+
     override func keyDown(with event: NSEvent) {
         guard isRecorderEnabled else {
             super.keyDown(with: event)

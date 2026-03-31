@@ -1,5 +1,36 @@
+import AppKit
 import Foundation
 import snippingToolCore
+
+enum AppThemePreference: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system:
+            "System"
+        case .light:
+            "Light"
+        case .dark:
+            "Dark"
+        }
+    }
+
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system:
+            nil
+        case .light:
+            NSAppearance(named: .aqua)
+        case .dark:
+            NSAppearance(named: .darkAqua)
+        }
+    }
+}
 
 enum AppLaunchConfiguration {
     static let uiTestingArgument = "--ui-testing"
@@ -83,6 +114,7 @@ enum AppAutomationIdentifiers {
 
     static let settingsWindow = "window.settings"
     static let settingsRoot = "settings.root"
+    static let settingsThemePicker = "settings.theme"
     static let settingsCaptureModePicker = "settings.capture-mode"
     static let settingsEditorCompletionModifierRecorder = "settings.editor-completion-modifier"
     static let settingsEditorCompletionModifierClearButton = "settings.editor-completion-modifier.clear"
@@ -139,6 +171,7 @@ enum AppAutomationIdentifiers {
     static func overlayModeButton(for mode: CaptureMode) -> String {
         "overlay.mode.\(mode.rawValue)"
     }
+
     static func uiTestCaptureModeButton(for mode: CaptureMode) -> String {
         "ui-test.capture-mode.\(mode.rawValue)"
     }

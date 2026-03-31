@@ -6,6 +6,7 @@ import snippingToolCore
 @MainActor
 final class AppState {
     private enum StorageKeys {
+        static let themePreference = "themePreference"
         static let preferredCaptureMode = "preferredCaptureMode"
         static let captureModeHotkeys = "captureModeHotkeys"
         static let editorCompletionModifier = "editorCompletionModifier"
@@ -25,6 +26,16 @@ final class AppState {
 
     @ObservationIgnored
     var onEditorCompletionModifiersChanged: ((HotkeyModifiers) -> Void)?
+
+    @ObservationIgnored
+    var onThemePreferenceChanged: ((AppThemePreference) -> Void)?
+
+    var themePreference: AppThemePreference {
+        didSet {
+            defaults.set(themePreference.rawValue, forKey: StorageKeys.themePreference)
+            onThemePreferenceChanged?(themePreference)
+        }
+    }
 
     var preferredCaptureMode: CaptureMode {
         didSet {
@@ -52,6 +63,13 @@ final class AppState {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+
+        if let storedThemePreference = defaults.string(forKey: StorageKeys.themePreference),
+           let restoredThemePreference = AppThemePreference(rawValue: storedThemePreference) {
+            themePreference = restoredThemePreference
+        } else {
+            themePreference = .system
+        }
 
         if let storedMode = defaults.string(forKey: StorageKeys.preferredCaptureMode),
            let preferredMode = CaptureMode(rawValue: storedMode) {

@@ -26,6 +26,8 @@ struct AnnotationCanvasView: View {
     @Bindable var annotationStore: AnnotationStore
     let capturedSnippet: CapturedSnippet
 
+    @Environment(\.colorScheme) private var colorScheme
+
     @State private var currentPoints: [AnnotationPoint] = []
     @State private var textDragState: TextDragState?
     @State private var shapeDragState: ShapeDragState?
@@ -417,9 +419,13 @@ struct AnnotationCanvasView: View {
         for center in ShapeAnnotationRenderer.handleCenters(for: shapeAnnotation, pointTransform: pointTransform).values {
             let rect = CGRect(x: center.x - handleRadius, y: center.y - handleRadius, width: handleRadius * 2, height: handleRadius * 2)
             let handlePath = Path(ellipseIn: rect)
-            context.fill(handlePath, with: .color(.white))
+            context.fill(handlePath, with: .color(selectionHandleFillColor))
             context.stroke(handlePath, with: .color(.accentColor), style: StrokeStyle(lineWidth: 1.5))
         }
+    }
+
+    private var selectionHandleFillColor: Color {
+        Color(nsColor: colorScheme == .dark ? .labelColor : .windowBackgroundColor)
     }
 
     private func draftEditorWidth(for canvasPoint: CGPoint, displayedImageSize: CGSize) -> CGFloat {

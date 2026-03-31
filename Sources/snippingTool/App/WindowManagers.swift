@@ -15,6 +15,7 @@ final class EditorWindowManager {
     func show() {
         let controller = windowController ?? makeWindowController()
         windowController = controller
+        applyThemePreference()
         NSApp.activate(ignoringOtherApps: true)
         positionEditorWindowIfNeeded(controller.window)
         controller.showWindow(nil)
@@ -25,6 +26,10 @@ final class EditorWindowManager {
 
     func close() {
         windowController?.close()
+    }
+
+    func applyThemePreference() {
+        windowController?.window?.apply(themePreference: services.appState.themePreference)
     }
 
     private func makeWindowController() -> NSWindowController {
@@ -43,6 +48,7 @@ final class EditorWindowManager {
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.collectionBehavior.formUnion([.moveToActiveSpace, .fullScreenAuxiliary])
         window.isReleasedWhenClosed = false
+        window.apply(themePreference: services.appState.themePreference)
         return NSWindowController(window: window)
     }
 
@@ -77,9 +83,14 @@ final class SettingsWindowManager {
     func show() {
         let controller = windowController ?? makeWindowController()
         windowController = controller
+        applyThemePreference()
         controller.showWindow(nil)
         controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applyThemePreference() {
+        windowController?.window?.apply(themePreference: services.appState.themePreference)
     }
 
     private func makeWindowController() -> NSWindowController {
@@ -95,6 +106,7 @@ final class SettingsWindowManager {
         window.setContentSize(NSSize(width: 680, height: 440))
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
+        window.apply(themePreference: services.appState.themePreference)
         return NSWindowController(window: window)
     }
 }
@@ -128,5 +140,13 @@ final class UITestControlWindowManager {
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
         return NSWindowController(window: window)
+    }
+}
+
+private extension NSWindow {
+    func apply(themePreference: AppThemePreference) {
+        appearance = themePreference.nsAppearance
+        contentViewController?.view.needsLayout = true
+        contentViewController?.view.needsDisplay = true
     }
 }

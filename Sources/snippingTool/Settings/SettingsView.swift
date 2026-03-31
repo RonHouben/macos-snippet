@@ -27,6 +27,27 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("Appearance") {
+                Text("Theme")
+                    .font(.headline)
+
+                SettingsHelpText("Choose whether the Editor and Settings follow the system appearance or stay light or dark.")
+
+                HStack(alignment: .center, spacing: SettingsLayout.columnSpacing) {
+                    SettingsFieldLabel("Theme")
+
+                    Picker("", selection: Bindable(appState).themePreference) {
+                        ForEach(AppThemePreference.allCases) { themePreference in
+                            Text(themePreference.title).tag(themePreference)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel("Theme")
+                    .accessibilityIdentifier(AppAutomationIdentifiers.settingsThemePicker)
+                }
+            }
+
             Section("Capture") {
                 Text("Capture defaults")
                     .font(.headline)
