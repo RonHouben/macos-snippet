@@ -82,6 +82,8 @@ private struct ExportSnapshotView: View {
                     switch stroke.tool {
                     case .select:
                         break
+                    case .ocr:
+                        break
                     case .eraser:
                         context.blendMode = .clear
                         context.stroke(path, with: .color(.clear), style: StrokeStyle(lineWidth: stroke.lineWidth, lineCap: .round, lineJoin: .round))

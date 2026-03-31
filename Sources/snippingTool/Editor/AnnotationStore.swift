@@ -12,15 +12,28 @@ private struct AnnotationSnapshot {
 final class AnnotationStore {
     private var isSyncingShapeInspectorState = false
 
-    var selectedTool: AnnotationTool = .select {
+    var selectedTool: AnnotationTool = .ocr {
         didSet {
             guard oldValue != selectedTool, selectedTool.isTextAnnotationTool == false else { return }
             finalizePendingTextIfNeeded()
-            if selectedTool.isShapeTool == false {
-                selectedShapeAnnotationID = nil
-            } else if selectedShape?.kind != selectedTool.shapeKind {
-                selectedShapeAnnotationID = nil
+            if selectedTool.isAnnotationSelectionTool {
+                syncInspectorStateFromSelectedShapeIfNeeded()
+                return
             }
+
+            if selectedTool.isShapeTool {
+                guard let selectedShape,
+                      selectedAnnotationSelections.count == 1,
+                      selectedShape.kind == selectedTool.shapeKind else {
+                    clearSelection()
+                    return
+                }
+
+                syncInspectorStateFromSelectedShapeIfNeeded()
+                return
+            }
+
+            clearSelection()
         }
     }
     var selectedColor: NSColor = .systemRed {
@@ -45,7 +58,7 @@ final class AnnotationStore {
     var strokes: [AnnotationStroke] = []
     var textAnnotations: [TextAnnotation] = []
     var shapeAnnotations: [ShapeAnnotation] = []
-    var selectedShapeAnnotationID: UUID?
+    var selectedAnnotationSelections: Set<AnnotationSelection> = []
     var pendingTextAnchor: AnnotationPoint?
     var draftText: String = ""
 
@@ -55,8 +68,32 @@ final class AnnotationStore {
     var canUndo: Bool { !undoStack.isEmpty }
     var canRedo: Bool { !redoStack.isEmpty }
     var isEditingText: Bool { pendingTextAnchor != nil }
+    var hasSelection: Bool { !selectedAnnotationSelections.isEmpty }
+    var selectedAnnotationCount: Int { selectedAnnotationSelections.count }
+    var selectedTextAnnotationIDs: Set<UUID> {
+        Set(selectedAnnotationSelections.compactMap {
+            if case .text(let id) = $0 {
+                return id
+            }
+
+            return nil
+        })
+    }
+    var selectedShapeAnnotationIDs: Set<UUID> {
+        Set(selectedAnnotationSelections.compactMap {
+            if case .shape(let id) = $0 {
+                return id
+            }
+
+            return nil
+        })
+    }
     var selectedShape: ShapeAnnotation? {
-        guard let selectedShapeAnnotationID else { return nil }
+        guard selectedShapeAnnotationIDs.count == 1,
+              let selectedShapeAnnotationID = selectedShapeAnnotationIDs.first else {
+            return nil
+        }
+
         return shapeAnnotations.first(where: { $0.id == selectedShapeAnnotationID })
     }
 
@@ -101,6 +138,7 @@ final class AnnotationStore {
         textAnnotations.append(textAnnotation)
         pendingTextAnchor = nil
         draftText = ""
+        selectOnly(.text(textAnnotation.id))
         return textAnnotation.id
     }
 
@@ -122,9 +160,41 @@ final class AnnotationStore {
         textAnnotations = updatedAnnotations
     }
 
-    func selectShapeAnnotation(id: UUID?) {
-        selectedShapeAnnotationID = id
+    func isSelected(_ selection: AnnotationSelection) -> Bool {
+        selectedAnnotationSelections.contains(selection)
+    }
+
+    func selectOnly(_ selection: AnnotationSelection?) {
+        replaceSelection(with: selection.map { [$0] } ?? [])
+    }
+
+    func replaceSelection(with selections: Set<AnnotationSelection>) {
+        selectedAnnotationSelections = validSelections(from: selections)
         syncInspectorStateFromSelectedShapeIfNeeded()
+    }
+
+    func toggleSelection(_ selection: AnnotationSelection) {
+        var updatedSelections = selectedAnnotationSelections
+        if updatedSelections.contains(selection) {
+            updatedSelections.remove(selection)
+        } else {
+            updatedSelections.insert(selection)
+        }
+
+        replaceSelection(with: updatedSelections)
+    }
+
+    func clearSelection() {
+        guard selectedAnnotationSelections.isEmpty == false else {
+            return
+        }
+
+        selectedAnnotationSelections.removeAll()
+        syncInspectorStateFromSelectedShapeIfNeeded()
+    }
+
+    func selectShapeAnnotation(id: UUID?) {
+        selectOnly(id.map(AnnotationSelection.shape))
     }
 
     func updateShapeAnnotation(_ updatedShape: ShapeAnnotation) {
@@ -132,20 +202,31 @@ final class AnnotationStore {
         var updatedShapes = shapeAnnotations
         updatedShapes[index] = updatedShape
         shapeAnnotations = updatedShapes
-        if selectedShapeAnnotationID == updatedShape.id {
+        if selectedShapeAnnotationIDs.contains(updatedShape.id) {
             syncInspectorStateFromSelectedShapeIfNeeded()
         }
     }
 
     func deleteSelectedShapeAnnotation() {
-        guard let selectedShapeAnnotationID,
-              let index = shapeAnnotations.firstIndex(where: { $0.id == selectedShapeAnnotationID }) else {
+        guard selectedShapeAnnotationIDs.isEmpty == false else {
+            return
+        }
+
+        deleteSelectedAnnotations()
+    }
+
+    func deleteSelectedAnnotations() {
+        guard hasSelection else {
             return
         }
 
         beginMutation()
-        shapeAnnotations.remove(at: index)
-        self.selectedShapeAnnotationID = nil
+        let selectedTextAnnotationIDs = selectedTextAnnotationIDs
+        let selectedShapeAnnotationIDs = selectedShapeAnnotationIDs
+        textAnnotations.removeAll { selectedTextAnnotationIDs.contains($0.id) }
+        shapeAnnotations.removeAll { selectedShapeAnnotationIDs.contains($0.id) }
+        selectedAnnotationSelections.removeAll()
+        syncInspectorStateFromSelectedShapeIfNeeded()
     }
 
     func deleteTextAnnotation(id: UUID) {
@@ -155,6 +236,8 @@ final class AnnotationStore {
 
         beginMutation()
         textAnnotations.remove(at: index)
+        selectedAnnotationSelections.remove(.text(id))
+        syncInspectorStateFromSelectedShapeIfNeeded()
     }
 
     func cancelTextEditing() {
@@ -167,7 +250,7 @@ final class AnnotationStore {
         strokes.removeAll()
         textAnnotations.removeAll()
         shapeAnnotations.removeAll()
-        selectedShapeAnnotationID = nil
+        selectedAnnotationSelections.removeAll()
         cancelTextEditing()
     }
 
@@ -193,10 +276,7 @@ final class AnnotationStore {
         strokes = snapshot.strokes
         textAnnotations = snapshot.textAnnotations
         shapeAnnotations = snapshot.shapeAnnotations
-        if let selectedShapeAnnotationID,
-           shapeAnnotations.contains(where: { $0.id == selectedShapeAnnotationID }) == false {
-            self.selectedShapeAnnotationID = nil
-        }
+        selectedAnnotationSelections = validSelections(from: selectedAnnotationSelections)
         syncInspectorStateFromSelectedShapeIfNeeded()
     }
 
@@ -247,5 +327,16 @@ final class AnnotationStore {
         lineWidth = selectedShape.lineWidth
         rectangleFillMode = selectedShape.fillMode
         isSyncingShapeInspectorState = false
+    }
+
+    private func validSelections(from selections: Set<AnnotationSelection>) -> Set<AnnotationSelection> {
+        selections.filter { selection in
+            switch selection {
+            case .text(let id):
+                textAnnotations.contains(where: { $0.id == id })
+            case .shape(let id):
+                shapeAnnotations.contains(where: { $0.id == id })
+            }
+        }
     }
 }

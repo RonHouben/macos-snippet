@@ -25,8 +25,21 @@ struct CapturedSnippet: Identifiable, Equatable {
     }
 }
 
+enum AnnotationSelection: Hashable {
+    case text(UUID)
+    case shape(UUID)
+
+    var id: UUID {
+        switch self {
+        case .text(let id), .shape(let id):
+            id
+        }
+    }
+}
+
 enum AnnotationTool: String, CaseIterable, Identifiable {
     case select
+    case ocr
     case pen
     case highlighter
     case eraser
@@ -40,13 +53,17 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         switch self {
         case .pen, .highlighter, .eraser, .rectangle, .arrow:
             true
-        case .select, .text:
+        case .select, .ocr, .text:
             false
         }
     }
 
-    var isSelectionTool: Bool {
+    var isAnnotationSelectionTool: Bool {
         self == .select
+    }
+
+    var isOCRTool: Bool {
+        self == .ocr
     }
 
     var isTextAnnotationTool: Bool {
@@ -63,14 +80,14 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             .rectangle
         case .arrow:
             .arrow
-        case .select, .pen, .highlighter, .eraser, .text:
+        case .select, .ocr, .pen, .highlighter, .eraser, .text:
             nil
         }
     }
 
     var usesColor: Bool {
         switch self {
-        case .select, .eraser:
+        case .select, .ocr, .eraser:
             false
         case .pen, .highlighter, .text, .rectangle, .arrow:
             true
@@ -92,7 +109,9 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
 
         switch self {
         case .select:
-            return "Live Text"
+            return "Selection"
+        case .ocr:
+            return "OCR"
         case .eraser:
             return "Eraser"
         case .rectangle:
@@ -107,6 +126,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
     var inspectorMessage: String? {
         switch self {
         case .select:
+            return "Click or drag to select • drag to move • press Delete to remove"
+        case .ocr:
             return "Drag to select text • switch tools to annotate"
         case .eraser:
             return "Remove annotations"
@@ -123,6 +144,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         switch self {
         case .select:
             "Select"
+        case .ocr:
+            "OCR"
         case .pen:
             "Pen"
         case .highlighter:

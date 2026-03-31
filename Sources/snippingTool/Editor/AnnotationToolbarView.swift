@@ -100,8 +100,8 @@ struct AnnotationToolbarView: View {
                     Text(inspectorMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .frame(width: 140, alignment: .leading)
+                        .lineLimit(2)
+                        .frame(width: 220, alignment: .leading)
                 }
 
                 if annotationStore.selectedTool.shapeKind == .rectangle {

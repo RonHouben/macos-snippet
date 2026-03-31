@@ -5,14 +5,14 @@ import SwiftUI
 
 struct SelectableCaptureImageView: NSViewRepresentable {
     let capturedSnippet: CapturedSnippet
-    let isTextSelectionEnabled: Bool
+    let isOCREnabled: Bool
 
     func makeNSView(context: Context) -> SelectableCapturePlatformView {
         SelectableCapturePlatformView()
     }
 
     func updateNSView(_ nsView: SelectableCapturePlatformView, context: Context) {
-        nsView.update(capturedSnippet: capturedSnippet, isTextSelectionEnabled: isTextSelectionEnabled)
+        nsView.update(capturedSnippet: capturedSnippet, isOCREnabled: isOCREnabled)
     }
 }
 
@@ -130,7 +130,7 @@ final class SelectableCapturePlatformView: NSView {
     private var analysisTask: Task<Void, Never>?
     private var activeCaptureID: UUID?
     private var localKeyMonitor: Any?
-    private var isTextSelectionEnabled = false
+    private var isOCREnabled = false
     private var recognizedLines: [RecognizedLine] = []
     private var lineTextViews: [RecognizedLineTextView] = []
 
@@ -178,13 +178,13 @@ final class SelectableCapturePlatformView: NSView {
         return super.performKeyEquivalent(with: event)
     }
 
-    func update(capturedSnippet: CapturedSnippet, isTextSelectionEnabled: Bool) {
-        self.isTextSelectionEnabled = isTextSelectionEnabled
+    func update(capturedSnippet: CapturedSnippet, isOCREnabled: Bool) {
+        self.isOCREnabled = isOCREnabled
         imageView.image = NSImage(
             cgImage: capturedSnippet.cgImage,
             size: .zero
         )
-        lineTextViews.forEach { $0.isHidden = isTextSelectionEnabled == false }
+        lineTextViews.forEach { $0.isHidden = isOCREnabled == false }
 
         guard activeCaptureID != capturedSnippet.id else {
             return
@@ -299,9 +299,9 @@ final class SelectableCapturePlatformView: NSView {
                 .backgroundColor: NSColor.selectedTextBackgroundColor.withAlphaComponent(0.45),
                 .foregroundColor: NSColor.clear
             ]
-            textView.setAccessibilityIdentifier(AppAutomationIdentifiers.editorRecognizedTextLine(index))
+            textView.setAccessibilityIdentifier(AppAutomationIdentifiers.editorOCRLine(index))
             textView.setAccessibilityLabel(line.text)
-            textView.isHidden = isTextSelectionEnabled == false
+            textView.isHidden = isOCREnabled == false
             addSubview(textView)
             return textView
         }

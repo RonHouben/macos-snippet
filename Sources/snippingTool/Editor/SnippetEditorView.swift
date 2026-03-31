@@ -117,11 +117,11 @@ struct SnippetEditorView: View {
     }
 
     private var footerMessage: String? {
-        exportMessage ?? (annotationStore.selectedTool.isSelectionTool ? selectionHintMessage : nil)
+        exportMessage ?? (annotationStore.selectedTool.isOCRTool ? ocrHintMessage : nil)
     }
 
-    private var selectionHintMessage: String {
-        "Live Text is ready — drag across text in the screenshot, then press ⌘C to copy it."
+    private var ocrHintMessage: String {
+        "OCR is ready — drag across text in the screenshot, then press ⌘C to copy it."
     }
 
     private var uiTestShapeSummary: String {
@@ -131,6 +131,9 @@ struct SnippetEditorView: View {
             "shapeCount=\(annotationStore.shapeAnnotations.count)",
             "strokeCount=\(annotationStore.strokes.count)",
             "textCount=\(annotationStore.textAnnotations.count)",
+            "selectedCount=\(annotationStore.selectedAnnotationCount)",
+            "selectedTextCount=\(annotationStore.selectedTextAnnotationIDs.count)",
+            "selectedShapeCount=\(annotationStore.selectedShapeAnnotationIDs.count)",
             "pendingTextActive=\(annotationStore.pendingTextAnchor == nil ? "0" : "1")",
             "currentColor=\(formattedColor(annotationStore.selectedColor))",
             "currentLineWidth=\(formatted(annotationStore.lineWidth))",

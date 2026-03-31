@@ -8,6 +8,24 @@ private struct TextDragState {
     let dragStartImagePoint: CGPoint
 }
 
+private struct AnnotationSelectionDragState {
+    let dragStartImagePoint: CGPoint
+    let initialTextAnchors: [UUID: AnnotationPoint]
+    let initialShapes: [UUID: ShapeAnnotation]
+}
+
+private struct MarqueeSelectionState {
+    let startImagePoint: CGPoint
+    var currentImagePoint: CGPoint
+    let isAdditive: Bool
+}
+
+private enum SelectionGestureState {
+    case pendingHit(annotation: AnnotationSelection, startImagePoint: CGPoint, isAdditive: Bool)
+    case moving(AnnotationSelectionDragState)
+    case marquee(MarqueeSelectionState)
+}
+
 private enum ShapeDragMode {
     case creating(kind: AnnotationShapeKind)
     case moving
@@ -31,10 +49,10 @@ struct AnnotationCanvasView: View {
     @State private var currentPoints: [AnnotationPoint] = []
     @State private var textDragState: TextDragState?
     @State private var shapeDragState: ShapeDragState?
+    @State private var selectionGestureState: SelectionGestureState?
     @State private var draftShapeAnnotation: ShapeAnnotation?
     @State private var localKeyMonitor: Any?
     @State private var hoveredTextAnnotationID: UUID?
-    @State private var selectedTextAnnotationID: UUID?
     @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
@@ -65,10 +83,10 @@ struct AnnotationCanvasView: View {
                 currentPoints.removeAll()
                 textDragState = nil
                 shapeDragState = nil
+                selectionGestureState = nil
                 draftShapeAnnotation = nil
                 if annotationStore.selectedTool.isTextAnnotationTool == false {
                     hoveredTextAnnotationID = nil
-                    selectedTextAnnotationID = nil
                 }
                 updateCursor()
             }
@@ -77,12 +95,6 @@ struct AnnotationCanvasView: View {
                     hoveredTextAnnotationID = nil
                 }
                 updateCursor()
-            }
-            .onChange(of: annotationStore.textAnnotations) { _, newValue in
-                if let selectedTextAnnotationID,
-                   !newValue.contains(where: { $0.id == selectedTextAnnotationID }) {
-                    self.selectedTextAnnotationID = nil
-                }
             }
             .onChange(of: hoveredTextAnnotationID) { _, _ in
                 updateCursor()
@@ -105,14 +117,8 @@ struct AnnotationCanvasView: View {
                         return event
                     }
 
-                    if annotationStore.selectedShape != nil {
-                        annotationStore.deleteSelectedShapeAnnotation()
-                        return nil
-                    }
-
-                    if let selectedTextAnnotationID {
-                        annotationStore.deleteTextAnnotation(id: selectedTextAnnotationID)
-                        self.selectedTextAnnotationID = nil
+                    if annotationStore.hasSelection {
+                        annotationStore.deleteSelectedAnnotations()
                         return nil
                     }
 
@@ -134,11 +140,11 @@ struct AnnotationCanvasView: View {
         ZStack {
             SelectableCaptureImageView(
                 capturedSnippet: capturedSnippet,
-                isTextSelectionEnabled: annotationStore.selectedTool.isSelectionTool
+                isOCREnabled: annotationStore.selectedTool.isOCRTool
             )
                 .frame(width: displayedImageSize.width, height: displayedImageSize.height)
                 .clipped()
-                .accessibilityIdentifier(AppAutomationIdentifiers.editorRecognizedTextSelectionRoot)
+                .accessibilityIdentifier(AppAutomationIdentifiers.editorOCRRoot)
 
             annotationOverlay(displayedImageSize: displayedImageSize, localImageFrame: localImageFrame, imageSize: imageSize)
 
@@ -170,7 +176,7 @@ struct AnnotationCanvasView: View {
                     .offset(x: canvasPoint.x, y: canvasPoint.y)
                     .focused($isTextFieldFocused)
                     .onSubmit {
-                        selectedTextAnnotationID = annotationStore.commitText()
+                        _ = annotationStore.commitText()
                     }
                     .onExitCommand {
                         annotationStore.cancelTextEditing()
@@ -210,7 +216,9 @@ struct AnnotationCanvasView: View {
             for textAnnotation in annotationStore.textAnnotations {
                 render(textAnnotation: textAnnotation, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
 
-                if hoveredTextAnnotationID == textAnnotation.id || textDragState?.annotationID == textAnnotation.id || selectedTextAnnotationID == textAnnotation.id {
+                if hoveredTextAnnotationID == textAnnotation.id
+                    || textDragState?.annotationID == textAnnotation.id
+                    || annotationStore.isSelected(.text(textAnnotation.id)) {
                     let bounds = canvasTextBounds(for: textAnnotation, imageFrame: localImageFrame, imageSize: imageSize)
                     let outline = Path(roundedRect: bounds, cornerRadius: 8)
                     context.stroke(
@@ -221,14 +229,25 @@ struct AnnotationCanvasView: View {
                 }
             }
 
+            for shapeAnnotation in annotationStore.shapeAnnotations where annotationStore.isSelected(.shape(shapeAnnotation.id)) {
+                renderSelectionOutline(for: shapeAnnotation, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
+            }
+
             if let selectedShape = annotationStore.selectedShape,
                annotationStore.selectedTool.shapeKind == selectedShape.kind {
-                renderSelection(for: selectedShape, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
+                renderShapeTransformHandles(for: selectedShape, into: &context, imageFrame: localImageFrame, imageSize: imageSize)
+            }
+
+            if case .marquee(let marqueeState) = selectionGestureState {
+                let rect = canvasRect(for: marqueeState, imageFrame: localImageFrame, imageSize: imageSize)
+                let path = Path(rect)
+                context.fill(path, with: .color(.accentColor.opacity(0.12)))
+                context.stroke(path, with: .color(.accentColor), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
             }
         }
         .frame(width: displayedImageSize.width, height: displayedImageSize.height)
         .contentShape(Rectangle())
-        .allowsHitTesting(annotationStore.selectedTool.isSelectionTool == false)
+        .allowsHitTesting(annotationStore.selectedTool.isOCRTool == false)
         .onContinuousHover(coordinateSpace: .local) { phase in
             guard annotationStore.selectedTool.isTextAnnotationTool,
                   annotationStore.pendingTextAnchor == nil,
@@ -256,6 +275,10 @@ struct AnnotationCanvasView: View {
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    if handleSelectionDragChanged(value, imageFrame: localImageFrame, imageSize: imageSize) {
+                        return
+                    }
+
                     if handleShapeDragChanged(value, imageFrame: localImageFrame, imageSize: imageSize) {
                         return
                     }
@@ -279,6 +302,10 @@ struct AnnotationCanvasView: View {
                     currentPoints.append(AnnotationPoint(imagePoint))
                 }
                 .onEnded { value in
+                    if handleSelectionDragEnded(value, imageFrame: localImageFrame, imageSize: imageSize) {
+                        return
+                    }
+
                     if handleShapeDragEnded(value, imageFrame: localImageFrame, imageSize: imageSize) {
                         return
                     }
@@ -289,7 +316,7 @@ struct AnnotationCanvasView: View {
 
                     if annotationStore.selectedTool.isTextAnnotationTool {
                         currentPoints.removeAll()
-                        selectedTextAnnotationID = nil
+                        annotationStore.clearSelection()
                         guard let imagePoint = AnnotationCoordinateMapper.imagePoint(
                             fromCanvasPoint: value.location,
                             imageFrame: localImageFrame,
@@ -336,6 +363,8 @@ struct AnnotationCanvasView: View {
 
         switch stroke.tool {
         case .select:
+            break
+        case .ocr:
             break
         case .eraser:
             context.blendMode = .clear
@@ -402,7 +431,7 @@ struct AnnotationCanvasView: View {
         }
     }
 
-    private func renderSelection(for shapeAnnotation: ShapeAnnotation, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
+    private func renderSelectionOutline(for shapeAnnotation: ShapeAnnotation, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
         let pointTransform: (CGPoint) -> CGPoint = { imagePoint in
             AnnotationCoordinateMapper.canvasPoint(
                 fromImagePoint: imagePoint,
@@ -417,6 +446,16 @@ struct AnnotationCanvasView: View {
             with: .color(.accentColor),
             style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
         )
+    }
+
+    private func renderShapeTransformHandles(for shapeAnnotation: ShapeAnnotation, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
+        let pointTransform: (CGPoint) -> CGPoint = { imagePoint in
+            AnnotationCoordinateMapper.canvasPoint(
+                fromImagePoint: imagePoint,
+                imageFrame: imageFrame,
+                imageSize: imageSize
+            )
+        }
 
         let connectorPath = ShapeAnnotationRenderer.rotationConnectorPath(for: shapeAnnotation, pointTransform: pointTransform)
         context.stroke(connectorPath, with: .color(.accentColor.opacity(0.8)), style: StrokeStyle(lineWidth: 1.25))
@@ -776,6 +815,15 @@ struct AnnotationCanvasView: View {
             }
     }
 
+    private func hitSelectableShape(at imagePoint: CGPoint, imageFrame: CGRect, imageSize: CGSize) -> ShapeAnnotation? {
+        let tolerance = imageLength(forCanvasLength: 12, imageFrame: imageFrame, imageSize: imageSize)
+        return annotationStore.shapeAnnotations
+            .reversed()
+            .first { shape in
+                ShapeAnnotationRenderer.hitTest(imagePoint, shape: shape, tolerance: tolerance)
+            }
+    }
+
     private func imageLength(forCanvasLength canvasLength: CGFloat, imageFrame: CGRect, imageSize: CGSize) -> CGFloat {
         guard imageFrame.width > 0, imageFrame.height > 0 else {
             return canvasLength
@@ -822,7 +870,7 @@ struct AnnotationCanvasView: View {
             dragStartImagePoint: startImagePoint
         )
         hoveredTextAnnotationID = hitAnnotation.id
-        selectedTextAnnotationID = hitAnnotation.id
+        annotationStore.selectOnly(.text(hitAnnotation.id))
         annotationStore.moveTextAnnotation(id: hitAnnotation.id, to: hitAnnotation.anchor)
         return true
     }
@@ -851,7 +899,7 @@ struct AnnotationCanvasView: View {
 
         if let hitAnnotation = hitTextAnnotation(at: startImagePoint) {
             hoveredTextAnnotationID = hitAnnotation.id
-            selectedTextAnnotationID = hitAnnotation.id
+            annotationStore.selectOnly(.text(hitAnnotation.id))
             return true
         }
 
@@ -910,9 +958,9 @@ struct AnnotationCanvasView: View {
     }
 
     private func updateCursor() {
-        if textDragState != nil {
+        if textDragState != nil || isMovingSelection {
             NSCursor.closedHand.set()
-        } else if annotationStore.selectedTool.isSelectionTool {
+        } else if annotationStore.selectedTool.isOCRTool {
             NSCursor.iBeam.set()
         } else if annotationStore.selectedTool.isTextAnnotationTool,
                   annotationStore.pendingTextAnchor == nil,
@@ -928,7 +976,7 @@ struct AnnotationCanvasView: View {
             return .accentColor.opacity(0.95)
         }
 
-        if selectedTextAnnotationID == textAnnotationID {
+        if annotationStore.isSelected(.text(textAnnotationID)) {
             return .accentColor
         }
 
@@ -936,7 +984,7 @@ struct AnnotationCanvasView: View {
     }
 
     private func outlineDash(for textAnnotationID: UUID) -> [CGFloat] {
-        if selectedTextAnnotationID == textAnnotationID || textDragState?.annotationID == textAnnotationID {
+        if annotationStore.isSelected(.text(textAnnotationID)) || textDragState?.annotationID == textAnnotationID {
             return []
         }
 
@@ -944,10 +992,267 @@ struct AnnotationCanvasView: View {
     }
 
     private func outlineLineWidth(for textAnnotationID: UUID) -> CGFloat {
-        if selectedTextAnnotationID == textAnnotationID || textDragState?.annotationID == textAnnotationID {
+        if annotationStore.isSelected(.text(textAnnotationID)) || textDragState?.annotationID == textAnnotationID {
             return 2
         }
 
         return 1.5
+    }
+
+    private var isMovingSelection: Bool {
+        if case .moving = selectionGestureState {
+            return true
+        }
+
+        return false
+    }
+
+    private func handleSelectionDragChanged(_ value: DragGesture.Value, imageFrame: CGRect, imageSize: CGSize) -> Bool {
+        guard annotationStore.selectedTool.isAnnotationSelectionTool,
+              let currentImagePoint = AnnotationCoordinateMapper.imagePoint(
+                fromCanvasPoint: value.location,
+                imageFrame: imageFrame,
+                imageSize: imageSize
+              ) else {
+            return false
+        }
+
+        switch selectionGestureState {
+        case .moving(let dragState):
+            moveSelectedAnnotations(using: dragState, currentImagePoint: currentImagePoint, imageSize: imageSize)
+            return true
+
+        case .marquee(var marqueeState):
+            marqueeState.currentImagePoint = currentImagePoint
+            selectionGestureState = .marquee(marqueeState)
+            return true
+
+        case .pendingHit(let annotation, let startImagePoint, let isAdditive):
+            guard isAdditive == false,
+                  dragDistance(from: startImagePoint, to: currentImagePoint) >= dragThreshold(imageFrame: imageFrame, imageSize: imageSize) else {
+                return true
+            }
+
+            if annotationStore.isSelected(annotation) == false {
+                annotationStore.selectOnly(annotation)
+            }
+
+            annotationStore.beginMutation()
+            let dragState = makeSelectionDragState(startImagePoint: startImagePoint)
+            selectionGestureState = .moving(dragState)
+            moveSelectedAnnotations(using: dragState, currentImagePoint: currentImagePoint, imageSize: imageSize)
+            return true
+
+        case .none:
+            break
+        }
+
+        guard let startImagePoint = AnnotationCoordinateMapper.imagePoint(
+            fromCanvasPoint: value.startLocation,
+            imageFrame: imageFrame,
+            imageSize: imageSize
+        ) else {
+            return false
+        }
+
+        let isAdditive = isSelectionModifierPressed
+        if let hitAnnotation = hitSelectableAnnotation(at: startImagePoint, imageFrame: imageFrame, imageSize: imageSize) {
+            selectionGestureState = .pendingHit(annotation: hitAnnotation, startImagePoint: startImagePoint, isAdditive: isAdditive)
+            return true
+        }
+
+        selectionGestureState = .marquee(
+            MarqueeSelectionState(
+                startImagePoint: startImagePoint,
+                currentImagePoint: currentImagePoint,
+                isAdditive: isAdditive
+            )
+        )
+        return true
+    }
+
+    private func handleSelectionDragEnded(_ value: DragGesture.Value, imageFrame: CGRect, imageSize: CGSize) -> Bool {
+        defer { selectionGestureState = nil }
+
+        guard annotationStore.selectedTool.isAnnotationSelectionTool else {
+            selectionGestureState = nil
+            return false
+        }
+
+        switch selectionGestureState {
+        case .pendingHit(let annotation, _, let isAdditive):
+            if isAdditive {
+                annotationStore.toggleSelection(annotation)
+            } else {
+                annotationStore.selectOnly(annotation)
+            }
+            return true
+
+        case .moving(let dragState):
+            if let endImagePoint = AnnotationCoordinateMapper.imagePoint(
+                fromCanvasPoint: value.location,
+                imageFrame: imageFrame,
+                imageSize: imageSize
+            ) {
+                moveSelectedAnnotations(using: dragState, currentImagePoint: endImagePoint, imageSize: imageSize)
+            }
+            return true
+
+        case .marquee(let marqueeState):
+            let rect = imageRect(from: marqueeState.startImagePoint, to: marqueeState.currentImagePoint)
+            if rect.width < 2, rect.height < 2 {
+                if marqueeState.isAdditive == false {
+                    annotationStore.clearSelection()
+                }
+                return true
+            }
+
+            let marqueeSelection = selectableAnnotations(intersecting: rect)
+            if marqueeState.isAdditive {
+                annotationStore.replaceSelection(with: annotationStore.selectedAnnotationSelections.union(marqueeSelection))
+            } else {
+                annotationStore.replaceSelection(with: marqueeSelection)
+            }
+            return true
+
+        case .none:
+            return false
+        }
+    }
+
+    private func hitSelectableAnnotation(at imagePoint: CGPoint, imageFrame: CGRect, imageSize: CGSize) -> AnnotationSelection? {
+        if let textAnnotation = hitTextAnnotation(at: imagePoint) {
+            return .text(textAnnotation.id)
+        }
+
+        if let shapeAnnotation = hitSelectableShape(at: imagePoint, imageFrame: imageFrame, imageSize: imageSize) {
+            return .shape(shapeAnnotation.id)
+        }
+
+        return nil
+    }
+
+    private func selectableAnnotations(intersecting imageRect: CGRect) -> Set<AnnotationSelection> {
+        var selections = Set<AnnotationSelection>()
+
+        for textAnnotation in annotationStore.textAnnotations where textBounds(for: textAnnotation).intersects(imageRect) {
+            selections.insert(.text(textAnnotation.id))
+        }
+
+        for shapeAnnotation in annotationStore.shapeAnnotations where shapeBounds(for: shapeAnnotation).intersects(imageRect) {
+            selections.insert(.shape(shapeAnnotation.id))
+        }
+
+        return selections
+    }
+
+    private func shapeBounds(for shape: ShapeAnnotation) -> CGRect {
+        let corners = ShapeAnnotationGeometry.cornerPoints(
+            center: shape.center.cgPoint,
+            size: shape.size,
+            rotation: shape.rotation
+        )
+
+        guard let firstCorner = corners.first else {
+            return .null
+        }
+
+        return corners.dropFirst().reduce(CGRect(origin: firstCorner, size: .zero)) { partialResult, point in
+            partialResult.union(CGRect(origin: point, size: .zero))
+        }
+    }
+
+    private func makeSelectionDragState(startImagePoint: CGPoint) -> AnnotationSelectionDragState {
+        let initialTextAnchors: [UUID: AnnotationPoint] = Dictionary(uniqueKeysWithValues: annotationStore.textAnnotations.compactMap { annotation in
+            guard annotationStore.selectedTextAnnotationIDs.contains(annotation.id) else {
+                return nil
+            }
+
+            return (annotation.id, annotation.anchor)
+        })
+        let initialShapes: [UUID: ShapeAnnotation] = Dictionary(uniqueKeysWithValues: annotationStore.shapeAnnotations.compactMap { annotation in
+            guard annotationStore.selectedShapeAnnotationIDs.contains(annotation.id) else {
+                return nil
+            }
+
+            return (annotation.id, annotation)
+        })
+
+        return AnnotationSelectionDragState(
+            dragStartImagePoint: startImagePoint,
+            initialTextAnchors: initialTextAnchors,
+            initialShapes: initialShapes
+        )
+    }
+
+    private func moveSelectedAnnotations(using dragState: AnnotationSelectionDragState, currentImagePoint: CGPoint, imageSize: CGSize) {
+        let delta = CGPoint(
+            x: currentImagePoint.x - dragState.dragStartImagePoint.x,
+            y: currentImagePoint.y - dragState.dragStartImagePoint.y
+        )
+
+        for (id, anchor) in dragState.initialTextAnchors {
+            let translatedAnchor = CGPoint(x: anchor.x + delta.x, y: anchor.y + delta.y)
+            annotationStore.moveTextAnnotation(id: id, to: AnnotationPoint(clampedImagePoint(translatedAnchor, imageSize: imageSize)))
+        }
+
+        for (id, shape) in dragState.initialShapes {
+            let translatedCenter = CGPoint(x: shape.center.x + delta.x, y: shape.center.y + delta.y)
+            annotationStore.updateShapeAnnotation(
+                ShapeAnnotation(
+                    id: id,
+                    kind: shape.kind,
+                    color: shape.color,
+                    lineWidth: shape.lineWidth,
+                    fillMode: shape.fillMode,
+                    center: AnnotationPoint(clampedImagePoint(translatedCenter, imageSize: imageSize)),
+                    size: shape.size,
+                    rotation: shape.rotation
+                )
+            )
+        }
+    }
+
+    private var isSelectionModifierPressed: Bool {
+        let modifierFlags = NSApp.currentEvent?.modifierFlags.intersection(.deviceIndependentFlagsMask) ?? []
+        return modifierFlags.contains(.command) || modifierFlags.contains(.shift)
+    }
+
+    private func dragDistance(from start: CGPoint, to end: CGPoint) -> CGFloat {
+        hypot(end.x - start.x, end.y - start.y)
+    }
+
+    private func dragThreshold(imageFrame: CGRect, imageSize: CGSize) -> CGFloat {
+        imageLength(forCanvasLength: 4, imageFrame: imageFrame, imageSize: imageSize)
+    }
+
+    private func imageRect(from start: CGPoint, to end: CGPoint) -> CGRect {
+        CGRect(
+            x: min(start.x, end.x),
+            y: min(start.y, end.y),
+            width: abs(end.x - start.x),
+            height: abs(end.y - start.y)
+        )
+    }
+
+    private func canvasRect(for marqueeState: MarqueeSelectionState, imageFrame: CGRect, imageSize: CGSize) -> CGRect {
+        let imageRect = imageRect(from: marqueeState.startImagePoint, to: marqueeState.currentImagePoint)
+        let origin = AnnotationCoordinateMapper.canvasPoint(
+            fromImagePoint: imageRect.origin,
+            imageFrame: imageFrame,
+            imageSize: imageSize
+        )
+        let maxPoint = AnnotationCoordinateMapper.canvasPoint(
+            fromImagePoint: CGPoint(x: imageRect.maxX, y: imageRect.maxY),
+            imageFrame: imageFrame,
+            imageSize: imageSize
+        )
+
+        return CGRect(
+            x: min(origin.x, maxPoint.x),
+            y: min(origin.y, maxPoint.y),
+            width: abs(maxPoint.x - origin.x),
+            height: abs(maxPoint.y - origin.y)
+        )
     }
 }

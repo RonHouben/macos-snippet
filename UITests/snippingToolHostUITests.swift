@@ -117,6 +117,7 @@ final class SnippingToolHostUITests: XCTestCase {
 
     func testLoadSampleCaptureOpensEditorAndShowsRecognizedLine() throws {
         openEditorWithSampleCaptureIfNeeded()
+        selectEditorTool(named: "OCR")
 
         let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
@@ -129,6 +130,7 @@ final class SnippingToolHostUITests: XCTestCase {
         NSPasteboard.general.clearContents()
 
         openEditorWithSampleCaptureIfNeeded()
+        selectEditorTool(named: "OCR")
 
         let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
@@ -220,6 +222,70 @@ final class SnippingToolHostUITests: XCTestCase {
             }),
             "Expected the eraser stroke to clear the earlier pen stroke back to the sample background."
         )
+    }
+
+    func testCanMarqueeSelectMoveAndDeleteMultipleAnnotationsInEditor() throws {
+        openEditorWithSampleCaptureIfNeeded()
+
+        let canvas = editorDrawingSurface()
+        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+
+        selectEditorTool(named: "Text")
+        tap(on: canvas, atImagePoint: CGPoint(x: 650, y: 420))
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        app.typeText("Group note")
+        app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+
+        let textSummary = waitForShapeSummary(timeout: 5) { summary in
+            summary["textCount"] == "1" && summary["lastTextValue"] == "Group note"
+        }
+
+        let initialTextX = try XCTUnwrap(doubleValue(for: "lastTextX", in: textSummary), "Expected the text summary to include an x-position.")
+        let initialTextY = try XCTUnwrap(doubleValue(for: "lastTextY", in: textSummary), "Expected the text summary to include a y-position.")
+
+        selectEditorTool(named: "Rectangle")
+        drag(on: canvas, fromImagePoint: CGPoint(x: 560, y: 360), toImagePoint: CGPoint(x: 900, y: 520))
+
+        let shapeSummary = waitForShapeSummary(timeout: 5) { summary in
+            summary["shapeCount"] == "1" && summary["selectedKind"] == "rectangle"
+        }
+
+        let initialCenterX = try XCTUnwrap(doubleValue(for: "centerX", in: shapeSummary), "Expected the rectangle summary to include a center x-value.")
+        let initialCenterY = try XCTUnwrap(doubleValue(for: "centerY", in: shapeSummary), "Expected the rectangle summary to include a center y-value.")
+
+        selectEditorTool(named: "Select")
+        drag(on: canvas, fromImagePoint: CGPoint(x: 520, y: 330), toImagePoint: CGPoint(x: 940, y: 540))
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["selectedTool"] == "select"
+                && summary["selectedCount"] == "2"
+                && summary["selectedTextCount"] == "1"
+                && summary["selectedShapeCount"] == "1"
+        }
+
+        drag(on: canvas, fromImagePoint: CGPoint(x: initialCenterX, y: initialCenterY), toImagePoint: CGPoint(x: initialCenterX + 90, y: initialCenterY - 70))
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            guard let movedTextX = doubleValue(for: "lastTextX", in: summary),
+                  let movedTextY = doubleValue(for: "lastTextY", in: summary),
+                  let movedCenterX = doubleValue(for: "centerX", in: summary),
+                  let movedCenterY = doubleValue(for: "centerY", in: summary) else {
+                return false
+            }
+
+            return movedTextX > initialTextX + 50
+                && movedTextY < initialTextY - 30
+                && movedCenterX > initialCenterX + 50
+                && movedCenterY < initialCenterY - 30
+        }
+
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["textCount"] == "0"
+                && summary["shapeCount"] == "0"
+                && summary["selectedCount"] == "0"
+        }
     }
 
     func testCanCreateAndMoveTextAnnotationInEditor() throws {
@@ -546,7 +612,7 @@ final class SnippingToolHostUITests: XCTestCase {
             return identified
         }
 
-        return app.descendants(matching: .any)[AppAutomationIdentifiers.editorRecognizedTextLine(0)]
+        return app.descendants(matching: .any)[AppAutomationIdentifiers.editorOCRLine(0)]
     }
 
     private func openEditorWithSampleCaptureIfNeeded() {
@@ -569,7 +635,7 @@ final class SnippingToolHostUITests: XCTestCase {
             return canvasSurface
         }
 
-        let recognizedTextSurface = app.descendants(matching: .any).matching(identifier: AppAutomationIdentifiers.editorRecognizedTextSelectionRoot).firstMatch
+        let recognizedTextSurface = app.descendants(matching: .any).matching(identifier: AppAutomationIdentifiers.editorOCRRoot).firstMatch
         if recognizedTextSurface.waitForExistence(timeout: 2) {
             return recognizedTextSurface
         }

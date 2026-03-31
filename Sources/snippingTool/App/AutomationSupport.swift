@@ -137,7 +137,7 @@ enum AppAutomationIdentifiers {
     static let editorCopyAndCloseButton = "editor.copy-and-close"
     static let editorSaveButton = "editor.save"
     static let editorFooterMessage = "editor.footer-message"
-    static let editorRecognizedTextSelectionRoot = "editor.live-text-root"
+    static let editorOCRRoot = "editor.ocr-root"
 
     static let overlayRoot = "overlay.root"
     static let overlayToolbar = "overlay.toolbar"
@@ -176,8 +176,8 @@ enum AppAutomationIdentifiers {
         "ui-test.capture-mode.\(mode.rawValue)"
     }
 
-    static func editorRecognizedTextLine(_ index: Int) -> String {
-        "editor.live-text-line.\(index)"
+    static func editorOCRLine(_ index: Int) -> String {
+        "editor.ocr-line.\(index)"
     }
 
     static func editorToolButton(named rawValue: String) -> String {
