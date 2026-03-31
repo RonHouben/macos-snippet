@@ -105,12 +105,18 @@ struct AnnotationCanvasView: View {
                         return event
                     }
 
-                    guard annotationStore.selectedShape != nil else {
-                        return event
+                    if annotationStore.selectedShape != nil {
+                        annotationStore.deleteSelectedShapeAnnotation()
+                        return nil
                     }
 
-                    annotationStore.deleteSelectedShapeAnnotation()
-                    return nil
+                    if let selectedTextAnnotationID {
+                        annotationStore.deleteTextAnnotation(id: selectedTextAnnotationID)
+                        self.selectedTextAnnotationID = nil
+                        return nil
+                    }
+
+                    return event
                 }
             }
             .onDisappear {

@@ -39,6 +39,7 @@
 		EF88084EEC5779E20C73C9E3 /* UITestSampleCaptureFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC1E1850293C7581F75C99C /* UITestSampleCaptureFactory.swift */; };
 		F0931B7C4A18F14531B293F7 /* SnippingToolApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04FD1AC18C9BEF63591D2EA2 /* SnippingToolApp.swift */; };
 		F2E2C5A5D53FA2E4C02356E5 /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626EE4F8768D2FE6C6643502 /* MenuBarContentView.swift */; };
+		F6010C62FE9F6D0E80EE7112 /* AnnotationStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55BEB2F2B864565A972118DE /* AnnotationStoreTests.swift */; };
 		F673C87D1354C20E81AD5E1F /* AutomationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */; };
 		FC25194A5433085917F64889 /* AnnotationToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */; };
 /* End PBXBuildFile section */
@@ -78,6 +79,7 @@
 		44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationToolbarView.swift; sourceTree = "<group>"; };
 		522C4FDF4AEB4C541610BB94 /* WindowSelectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSelectionService.swift; sourceTree = "<group>"; };
 		54935EFE6D9992AA3AED0514 /* CaptureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureModels.swift; sourceTree = "<group>"; };
+		55BEB2F2B864565A972118DE /* AnnotationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationStoreTests.swift; sourceTree = "<group>"; };
 		626EE4F8768D2FE6C6643502 /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContentView.swift; sourceTree = "<group>"; };
 		68609BA7AFCD4A6F142F5D34 /* snippingToolHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = snippingToolHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		72DF3076A5E95E802F6411F0 /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
@@ -169,6 +171,7 @@
 		47C8E8272D7038EDA5106748 /* snippingToolTests */ = {
 			isa = PBXGroup;
 			children = (
+				55BEB2F2B864565A972118DE /* AnnotationStoreTests.swift */,
 				BEA6F5BCCB815D3996FC97C1 /* RecorderTextFieldTests.swift */,
 			);
 			path = snippingToolTests;
@@ -442,6 +445,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F6010C62FE9F6D0E80EE7112 /* AnnotationStoreTests.swift in Sources */,
 				DA999529CFB1FDCFC67EADC7 /* RecorderTextFieldTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

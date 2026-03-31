@@ -270,6 +270,12 @@ final class SnippingToolHostUITests: XCTestCase {
                 && updatedTextX > initialTextX + 80
                 && updatedTextY > initialTextY + 60
         }
+
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["textCount"] == "0"
+        }
     }
 
     func testCanDrawConfigureTransformAndDeleteRectangleInEditor() throws {
@@ -474,6 +480,12 @@ final class SnippingToolHostUITests: XCTestCase {
             }
 
             return abs(rotation) > 0.25
+        }
+
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["shapeCount"] == "0" && summary["selectedKind"] == "none"
         }
     }
 

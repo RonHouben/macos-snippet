@@ -148,6 +148,15 @@ final class AnnotationStore {
         self.selectedShapeAnnotationID = nil
     }
 
+    func deleteTextAnnotation(id: UUID) {
+        guard let index = textAnnotations.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        beginMutation()
+        textAnnotations.remove(at: index)
+    }
+
     func cancelTextEditing() {
         pendingTextAnchor = nil
         draftText = ""
