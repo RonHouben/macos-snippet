@@ -292,6 +292,10 @@ final class OCRTextSelectionView: NSView {
         }
 
         let menu = NSMenu(title: "OCR Text")
+        let selectAllItem = NSMenuItem(title: "Select all text", action: #selector(selectAllRecognizedText(_:)), keyEquivalent: "")
+        selectAllItem.target = self
+        menu.addItem(selectAllItem)
+
         let copyItem = NSMenuItem(title: "Copy text", action: #selector(copy(_:)), keyEquivalent: "")
         copyItem.target = self
         menu.addItem(copyItem)
@@ -326,6 +330,18 @@ final class OCRTextSelectionView: NSView {
 
     @objc func copy(_ sender: Any?) {
         copySelectedText()
+    }
+
+    @objc func selectAllRecognizedText(_ sender: Any?) {
+        guard !selectionState.regions.isEmpty else {
+            return
+        }
+
+        dragSelectionSource = nil
+        dragAddsToSelection = false
+        selectionState.endDragSelection()
+        selectionState.selectRegions(selectionState.regions.map(\ .id))
+        refreshSelectionPresentation()
     }
 
     private func copySelectedText() {

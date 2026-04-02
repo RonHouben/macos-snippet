@@ -347,6 +347,43 @@ final class SnippingToolHostUITests: XCTestCase {
         )
     }
 
+    func testCanSelectAllTextFromOCRContextMenu() throws {
+        NSPasteboard.general.clearContents()
+
+        openEditorWithSampleCaptureIfNeeded()
+        selectEditorTool(named: "OCR")
+
+        let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
+        XCTAssertTrue(
+            firstRecognizedLine.waitForExistence(timeout: 15),
+            "Expected the recognized sample text line overlay to exist for the sample capture."
+        )
+
+        firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.82, dy: 0.5)).rightClick()
+
+        let selectAllMenuItem = app.menuItems["Select all text"]
+        XCTAssertTrue(
+            selectAllMenuItem.waitForExistence(timeout: 3),
+            "Expected a context-menu item titled 'Select all text' for OCR text."
+        )
+        selectAllMenuItem.click()
+
+        _ = waitForOCRSelectionSummary(timeout: 3) { summary in
+            summary["selectedCount"] == "1"
+                && summary["hasSelection"] == "1"
+                && summary["selectedRange"] == ""
+                && summary["text"] == SampleCaptureText.primaryLine
+        }
+
+        app.typeKey("c", modifierFlags: .command)
+
+        XCTAssertEqual(
+            waitForCopiedString(timeout: 2)?.trimmingCharacters(in: .whitespacesAndNewlines),
+            SampleCaptureText.primaryLine,
+            "Expected selecting all OCR text from the context menu to make the full recognized line copyable."
+        )
+    }
+
     func testCanDrawPenHighlightAndEraseInEditor() throws {
         openEditorWithSampleCaptureIfNeeded()
 

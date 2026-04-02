@@ -215,6 +215,26 @@ final class OCRSelectionStateTests: XCTestCase {
         XCTAssertFalse(view.selectionState.hasSelection)
     }
 
+    func testSelectAllRecognizedTextSelectsEveryRegion() {
+        let firstRegion = makeSampleRegion()
+        let secondRegion = OCRTextRegion(
+            text: "Epsilon Zeta",
+            boundingBox: CGRect(x: 0.10, y: 0.56, width: 0.30, height: 0.08),
+            words: [
+                OCRWord(text: "Epsilon", boundingBox: CGRect(x: 0.10, y: 0.56, width: 0.14, height: 0.08), range: NSRange(location: 0, length: 7)),
+                OCRWord(text: "Zeta", boundingBox: CGRect(x: 0.27, y: 0.56, width: 0.08, height: 0.08), range: NSRange(location: 8, length: 4))
+            ]
+        )
+        let view = OCRTextSelectionView(frame: CGRect(origin: .zero, size: viewSize))
+        view.selectionState.regions = [firstRegion, secondRegion]
+        view.selectionState.selectRange(word(named: "Beta", in: firstRegion).range, in: firstRegion.id)
+
+        view.selectAllRecognizedText(nil)
+
+        XCTAssertEqual(view.selectionState.selections.count, 2)
+        XCTAssertEqual(view.selectionState.selectedText, "Alpha Beta Gamma Delta\nEpsilon Zeta")
+    }
+
     private func makeSampleRegion() -> OCRTextRegion {
         OCRTextRegion(
             text: "Alpha Beta Gamma Delta",
