@@ -144,6 +144,77 @@ final class OCRSelectionStateTests: XCTestCase {
         XCTAssertEqual(state.selectedText, "Beta Gamma")
     }
 
+    func testSelectionContainingPointReturnsPartialSelection() throws {
+        let region = makeSampleRegion()
+        let state = OCRSelectionState()
+        state.regions = [region]
+
+        let range = region.selectionRange(from: word(named: "Beta", in: region).range, to: word(named: "Gamma", in: region).range)
+        state.selectRange(range, in: region.id)
+
+        let gammaFrame = region.wordFrame(for: word(named: "Gamma", in: region), in: viewSize)
+        let selection = try XCTUnwrap(
+            state.selection(containing: CGPoint(x: gammaFrame.midX, y: gammaFrame.midY), viewSize: viewSize),
+            "Expected a point inside the selected OCR words to resolve to the active selection."
+        )
+
+        XCTAssertEqual(selection.regionID, region.id)
+        XCTAssertEqual(selection.range, range)
+    }
+
+    func testSelectionContainingPointIgnoresUnselectedWords() {
+        let region = makeSampleRegion()
+        let state = OCRSelectionState()
+        state.regions = [region]
+
+        let range = region.selectionRange(from: word(named: "Beta", in: region).range, to: word(named: "Gamma", in: region).range)
+        state.selectRange(range, in: region.id)
+
+        let alphaFrame = region.wordFrame(for: word(named: "Alpha", in: region), in: viewSize)
+        let selection = state.selection(containing: CGPoint(x: alphaFrame.midX, y: alphaFrame.midY), viewSize: viewSize)
+
+        XCTAssertNil(selection, "Expected a point outside the selected OCR words to not resolve to the active selection.")
+    }
+
+    func testContextMenuPreparationPreservesExistingPartialSelection() {
+        let region = makeSampleRegion()
+        let view = OCRTextSelectionView(frame: CGRect(origin: .zero, size: viewSize))
+        view.selectionState.regions = [region]
+
+        let range = region.selectionRange(from: word(named: "Beta", in: region).range, to: word(named: "Gamma", in: region).range)
+        view.selectionState.selectRange(range, in: region.id)
+
+        let betaFrame = region.wordFrame(for: word(named: "Beta", in: region), in: viewSize)
+        let changed = view.prepareSelectionForContextMenu(at: CGPoint(x: betaFrame.midX, y: betaFrame.midY))
+
+        XCTAssertFalse(changed)
+        XCTAssertEqual(view.selectionState.selectedText, "Beta Gamma")
+    }
+
+    func testContextMenuPreparationSelectsClickedWord() {
+        let region = makeSampleRegion()
+        let view = OCRTextSelectionView(frame: CGRect(origin: .zero, size: viewSize))
+        view.selectionState.regions = [region]
+
+        let deltaFrame = region.wordFrame(for: word(named: "Delta", in: region), in: viewSize)
+        let changed = view.prepareSelectionForContextMenu(at: CGPoint(x: deltaFrame.midX, y: deltaFrame.midY))
+
+        XCTAssertTrue(changed)
+        XCTAssertEqual(view.selectionState.selectedText, "Delta")
+    }
+
+    func testContextMenuPreparationClearsSelectionForEmptySpace() {
+        let region = makeSampleRegion()
+        let view = OCRTextSelectionView(frame: CGRect(origin: .zero, size: viewSize))
+        view.selectionState.regions = [region]
+        view.selectionState.selectRegion(region.id)
+
+        let changed = view.prepareSelectionForContextMenu(at: CGPoint(x: 40, y: 40))
+
+        XCTAssertTrue(changed)
+        XCTAssertFalse(view.selectionState.hasSelection)
+    }
+
     private func makeSampleRegion() -> OCRTextRegion {
         OCRTextRegion(
             text: "Alpha Beta Gamma Delta",

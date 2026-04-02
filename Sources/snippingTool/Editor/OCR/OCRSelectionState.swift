@@ -191,4 +191,26 @@ final class OCRSelectionState {
     func selection(for regionID: UUID) -> OCRRegionSelection? {
         selections.first { $0.regionID == regionID }
     }
+
+    /// Returns the selection containing a given point, if any.
+    func selection(containing point: CGPoint, viewSize: CGSize) -> OCRRegionSelection? {
+        let regionsByID = Dictionary(uniqueKeysWithValues: regions.map { ($0.id, $0) })
+
+        return selections.first { selection in
+            guard let region = regionsByID[selection.regionID] else {
+                return false
+            }
+
+            if let range = selection.range {
+                let frames = region.selectionFrames(for: range, in: viewSize)
+                if frames.isEmpty {
+                    return region.paddedViewFrame(in: viewSize).contains(point)
+                }
+
+                return frames.contains(where: { $0.contains(point) })
+            }
+
+            return region.paddedViewFrame(in: viewSize).contains(point)
+        }
+    }
 }

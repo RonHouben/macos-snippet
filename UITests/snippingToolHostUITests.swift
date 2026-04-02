@@ -309,6 +309,44 @@ final class SnippingToolHostUITests: XCTestCase {
         )
     }
 
+    func testCanRightClickAndCopySelectedRecognizedWords() throws {
+        NSPasteboard.general.clearContents()
+
+        openEditorWithSampleCaptureIfNeeded()
+        selectEditorTool(named: "OCR")
+
+        let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
+        XCTAssertTrue(
+            firstRecognizedLine.waitForExistence(timeout: 15),
+            "Expected the recognized sample text line overlay to exist for the sample capture."
+        )
+
+        let start = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.36, dy: 0.5))
+        let end = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: 0.5))
+        start.press(forDuration: 0.1, thenDragTo: end)
+
+        _ = waitForOCRSelectionSummary(timeout: 3) { summary in
+            summary["selectedCount"] == "1"
+                && summary["hasSelection"] == "1"
+                && summary["selectedRange"] == "6,10"
+        }
+
+        firstRecognizedLine.rightClick()
+
+        let copyTextMenuItem = app.menuItems["Copy text"]
+        XCTAssertTrue(
+            copyTextMenuItem.waitForExistence(timeout: 3),
+            "Expected a context-menu item titled 'Copy text' for the OCR selection."
+        )
+        copyTextMenuItem.click()
+
+        XCTAssertEqual(
+            waitForCopiedString(timeout: 2)?.trimmingCharacters(in: .whitespacesAndNewlines),
+            "Beta Gamma",
+            "Expected the OCR context menu to copy the selected words."
+        )
+    }
+
     func testCanDrawPenHighlightAndEraseInEditor() throws {
         openEditorWithSampleCaptureIfNeeded()
 

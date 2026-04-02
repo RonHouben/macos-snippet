@@ -277,7 +277,52 @@ final class OCRTextSelectionView: NSView {
         return super.performKeyEquivalent(with: event)
     }
 
+    override func menu(for event: NSEvent) -> NSMenu? {
+        window?.makeFirstResponder(self)
+
+        let point = convert(event.locationInWindow, from: nil)
+        let selectionChanged = prepareSelectionForContextMenu(at: point)
+
+        if selectionChanged {
+            refreshSelectionPresentation()
+        }
+
+        guard !selectionState.selectedText.isEmpty else {
+            return nil
+        }
+
+        let menu = NSMenu(title: "OCR Text")
+        let copyItem = NSMenuItem(title: "Copy text", action: #selector(copy(_:)), keyEquivalent: "")
+        copyItem.target = self
+        menu.addItem(copyItem)
+        return menu
+    }
+
     // MARK: - Copy Support
+
+    @discardableResult
+    func prepareSelectionForContextMenu(at point: CGPoint) -> Bool {
+        let previousSelections = selectionState.selections
+        dragSelectionSource = nil
+        dragAddsToSelection = false
+        selectionState.endDragSelection()
+
+        if selectionState.selection(containing: point, viewSize: bounds.size) != nil {
+            return false
+        }
+
+        if let region = selectionState.region(at: point, viewSize: bounds.size) {
+            if let clickedWord = region.word(at: point, in: bounds.size) {
+                selectionState.selectRange(clickedWord.range, in: region.id)
+            } else {
+                selectionState.selectRegion(region.id)
+            }
+        } else {
+            selectionState.clearSelection()
+        }
+
+        return selectionState.selections != previousSelections
+    }
 
     @objc func copy(_ sender: Any?) {
         copySelectedText()
@@ -291,6 +336,12 @@ final class OCRTextSelectionView: NSView {
 
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private func refreshSelectionPresentation() {
+        needsDisplay = true
+        updateAccessibilityValue()
+        selectionDidChange?()
     }
 
     // MARK: - Hit Testing
