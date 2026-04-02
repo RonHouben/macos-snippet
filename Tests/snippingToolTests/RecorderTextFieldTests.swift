@@ -218,6 +218,52 @@ final class OCRSelectionStateTests: XCTestCase {
         XCTAssertEqual(state.selectedText, "Beta Gamma")
     }
 
+    func testSelectionHighlightFramesMergeSelectedWordsIntoSinglePill() {
+        let region = makeSampleRegion()
+        let range = region.selectionRange(from: word(named: "Beta", in: region).range, to: word(named: "Gamma", in: region).range)
+
+        let wordFrames = region.selectionFrames(for: range, in: viewSize)
+        let highlightFrames = region.selectionHighlightFrames(for: range, in: viewSize)
+
+        XCTAssertEqual(wordFrames.count, 2)
+        XCTAssertEqual(highlightFrames.count, 1)
+
+        let mergedFrame = try! XCTUnwrap(highlightFrames.first)
+        XCTAssertEqual(mergedFrame.minX, wordFrames[0].minX, accuracy: 0.5)
+        XCTAssertEqual(mergedFrame.maxX, wordFrames[1].maxX, accuracy: 0.5)
+        XCTAssertEqual(mergedFrame.minY, min(wordFrames[0].minY, wordFrames[1].minY), accuracy: 0.5)
+        XCTAssertEqual(mergedFrame.maxY, max(wordFrames[0].maxY, wordFrames[1].maxY), accuracy: 0.5)
+    }
+
+    func testSelectionHighlightFramesKeepSingleWordSelectionAsSingleFrame() {
+        let region = makeSampleRegion()
+        let betaRange = word(named: "Beta", in: region).range
+
+        let wordFrames = region.selectionFrames(for: betaRange, in: viewSize)
+        let highlightFrames = region.selectionHighlightFrames(for: betaRange, in: viewSize)
+
+        XCTAssertEqual(wordFrames.count, 1)
+        XCTAssertEqual(highlightFrames.count, 1)
+        XCTAssertEqual(highlightFrames[0], wordFrames[0])
+    }
+
+    func testSelectionContainingPointIncludesWhitespaceInsideMergedHighlightPill() throws {
+        let region = makeSampleRegion()
+        let state = OCRSelectionState()
+        state.regions = [region]
+
+        let range = region.selectionRange(from: word(named: "Beta", in: region).range, to: word(named: "Gamma", in: region).range)
+        state.selectRange(range, in: region.id)
+
+        let mergedFrame = try XCTUnwrap(region.selectionHighlightFrames(for: range, in: viewSize).first)
+        let whitespacePoint = CGPoint(x: mergedFrame.midX, y: mergedFrame.midY)
+
+        let selection = state.selection(containing: whitespacePoint, viewSize: viewSize)
+
+        XCTAssertEqual(selection?.regionID, region.id)
+        XCTAssertEqual(selection?.range, range)
+    }
+
     func testSelectionContainingPointReturnsPartialSelection() throws {
         let region = makeSampleRegion()
         let state = OCRSelectionState()
@@ -328,6 +374,37 @@ final class OCRSelectionStateTests: XCTestCase {
         view.clearRecognizedRegions()
 
         XCTAssertEqual(view.captureHighlightBackgroundTone, .fallback)
+    }
+
+    func testMultiLineSelectionResolverExtendsSelectionIntoNextSentence() throws {
+        let firstRegion = makeSampleRegion()
+        let secondRegion = OCRTextRegion(
+            text: "Epsilon Zeta Eta",
+            boundingBox: CGRect(x: 0.10, y: 0.56, width: 0.38, height: 0.08),
+            words: [
+                OCRWord(text: "Epsilon", boundingBox: CGRect(x: 0.10, y: 0.56, width: 0.14, height: 0.08), range: NSRange(location: 0, length: 7)),
+                OCRWord(text: "Zeta", boundingBox: CGRect(x: 0.27, y: 0.56, width: 0.08, height: 0.08), range: NSRange(location: 8, length: 4)),
+                OCRWord(text: "Eta", boundingBox: CGRect(x: 0.38, y: 0.56, width: 0.06, height: 0.08), range: NSRange(location: 13, length: 3))
+            ]
+        )
+        let state = OCRSelectionState()
+        state.regions = [secondRegion, firstRegion]
+
+        let selections = try XCTUnwrap(
+            OCRRegionSelectionResolver.selections(
+                from: word(named: "Beta", in: firstRegion),
+                in: firstRegion.id,
+                to: word(named: "Zeta", in: secondRegion),
+                in: secondRegion.id,
+                regions: state.regions,
+                viewSize: viewSize
+            )
+        )
+
+        state.setSelections(selections)
+
+        XCTAssertEqual(state.selectedText, "Beta Gamma Delta\nEpsilon Zeta")
+        XCTAssertEqual(selections.count, 2)
     }
 
     private func makeSampleRegion() -> OCRTextRegion {

@@ -97,6 +97,17 @@ final class OCRSelectionState {
         selections = regionIDs.map { .entireRegion($0) }
     }
 
+    /// Replaces the current selection set with the provided selections.
+    func setSelections(_ updatedSelections: [OCRRegionSelection], additive: Bool = false) {
+        if additive {
+            let updatedRegionIDs = Set(updatedSelections.map(\.regionID))
+            selections.removeAll { updatedRegionIDs.contains($0.regionID) }
+            selections.append(contentsOf: updatedSelections)
+        } else {
+            selections = updatedSelections
+        }
+    }
+
     /// Adds a region to the current selection (for shift-click behavior).
     func addRegionToSelection(_ regionID: UUID) {
         guard !selectedRegionIDs.contains(regionID) else {
@@ -202,7 +213,7 @@ final class OCRSelectionState {
             }
 
             if let range = selection.range {
-                let frames = region.selectionFrames(for: range, in: viewSize)
+                let frames = region.selectionHighlightFrames(for: range, in: viewSize)
                 if frames.isEmpty {
                     return region.paddedViewFrame(in: viewSize).contains(point)
                 }

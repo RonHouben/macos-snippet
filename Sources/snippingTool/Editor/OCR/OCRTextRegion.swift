@@ -193,6 +193,26 @@ extension OCRTextRegion {
         }
     }
 
+    /// Returns merged highlight frames for the selected words within this region.
+    ///
+    /// Unlike `selectionFrames(for:in:)`, this is intended for drawing and merges
+    /// adjacent selected words within the same OCR line into a single growing pill.
+    func selectionHighlightFrames(for selectedRange: NSRange, in viewSize: CGSize) -> [CGRect] {
+        let frames = selectionFrames(for: selectedRange, in: viewSize)
+        guard let firstFrame = frames.first else {
+            return []
+        }
+
+        let mergedFrame = frames
+            .dropFirst()
+            .reduce(firstFrame) { partialFrame, nextFrame in
+                partialFrame.union(nextFrame)
+            }
+            .integral
+
+        return [mergedFrame]
+    }
+
     /// Returns the substring of text for a given range.
     ///
     /// - Parameter range: The range to extract.

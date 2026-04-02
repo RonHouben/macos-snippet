@@ -9,6 +9,8 @@ enum EditorPanEdge {
 }
 
 struct AnnotationToolbarView: View {
+    private static let controlGroupHeight: CGFloat = 50
+
     @Bindable var annotationStore: AnnotationStore
     let zoomScale: CGFloat
     let onResetZoom: () -> Void
@@ -21,11 +23,107 @@ struct AnnotationToolbarView: View {
             toolButtonGroup
 
             if shouldShowInspectorPanel {
-                inspectorPanel
+                toolSettingsGroup
             }
 
             Spacer()
 
+            historyControlGroup
+            viewControlGroup
+            outputControlGroup
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(.bar)
+        .accessibilityIdentifier(AppAutomationIdentifiers.editorToolbar)
+    }
+
+    private var toolButtonGroup: some View {
+        EditorControlGroup(
+            accessibilityLabel: "Tool picker",
+            accessibilityIdentifier: AppAutomationIdentifiers.editorToolPicker
+        ) {
+            ForEach(AnnotationTool.allCases) { tool in
+                EditorToolButton(
+                    tool: tool,
+                    isSelected: annotationStore.selectedTool == tool
+                ) {
+                    annotationStore.selectedTool = tool
+                }
+            }
+        }
+    }
+
+    private var toolSettingsGroup: some View {
+        EditorControlGroup(
+            spacing: 12,
+            minHeight: Self.controlGroupHeight,
+            accessibilityLabel: "Tool settings",
+            accessibilityIdentifier: AppAutomationIdentifiers.editorToolSettingsGroup
+        ) {
+            if let inspectorTitle = annotationStore.selectedTool.inspectorTitle {
+                Text(inspectorTitle)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            if annotationStore.selectedTool.usesColor {
+                ColorPicker(
+                    "Color",
+                    selection: Binding(
+                        get: { Color(nsColor: annotationStore.selectedColor) },
+                        set: { annotationStore.selectedColor = NSColor($0) }
+                    ),
+                    supportsOpacity: true
+                )
+                .labelsHidden()
+                .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorColorPicker)
+            }
+
+            if annotationStore.selectedTool.showsSizeControl {
+                if annotationStore.selectedTool.usesStrokeWidth {
+                    AccessibleInspectorSlider(
+                        value: $annotationStore.lineWidth,
+                        range: 1...16,
+                        accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
+                    )
+                    .frame(width: 120)
+                } else {
+                    AccessibleInspectorSlider(
+                        value: $annotationStore.textFontSize,
+                        range: 12...96,
+                        accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
+                    )
+                    .frame(width: 120)
+                }
+            }
+
+            if let inspectorMessage = annotationStore.selectedTool.inspectorMessage,
+               annotationStore.selectedTool.showsSizeControl == false {
+                Text(inspectorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(width: 280, alignment: .leading)
+            }
+
+            if annotationStore.selectedTool.shapeKind == .rectangle {
+                AccessibleRectangleFillPicker(
+                    selection: $annotationStore.rectangleFillMode,
+                    accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorFillPicker
+                )
+                .frame(width: 180)
+            }
+        }
+    }
+
+    private var historyControlGroup: some View {
+        EditorControlGroup(
+            spacing: 8,
+            minHeight: Self.controlGroupHeight,
+            accessibilityLabel: "History",
+            accessibilityIdentifier: AppAutomationIdentifiers.editorHistoryGroup
+        ) {
             Button(action: annotationStore.undo) {
                 Label("Undo", systemImage: "arrow.uturn.backward")
             }
@@ -37,7 +135,16 @@ struct AnnotationToolbarView: View {
             }
             .disabled(!annotationStore.canRedo)
             .accessibilityIdentifier(AppAutomationIdentifiers.editorRedoButton)
+        }
+    }
 
+    private var viewControlGroup: some View {
+        EditorControlGroup(
+            spacing: 10,
+            minHeight: Self.controlGroupHeight,
+            accessibilityLabel: "View",
+            accessibilityIdentifier: AppAutomationIdentifiers.editorViewGroup
+        ) {
             Button(action: onResetZoom) {
                 Label("100%", systemImage: "scope")
             }
@@ -48,7 +155,16 @@ struct AnnotationToolbarView: View {
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier(AppAutomationIdentifiers.editorZoomValueLabel)
+        }
+    }
 
+    private var outputControlGroup: some View {
+        EditorControlGroup(
+            spacing: 8,
+            minHeight: Self.controlGroupHeight,
+            accessibilityLabel: "Output actions",
+            accessibilityIdentifier: AppAutomationIdentifiers.editorOutputGroup
+        ) {
             Button(action: onCopy) {
                 Label("Copy", systemImage: "doc.on.doc")
             }
@@ -64,91 +180,6 @@ struct AnnotationToolbarView: View {
             }
             .accessibilityIdentifier(AppAutomationIdentifiers.editorSaveButton)
         }
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .background(.bar)
-        .accessibilityIdentifier(AppAutomationIdentifiers.editorToolbar)
-    }
-
-    private var toolButtonGroup: some View {
-        HStack(spacing: 10) {
-            ForEach(AnnotationTool.allCases) { tool in
-                EditorToolButton(
-                    tool: tool,
-                    isSelected: annotationStore.selectedTool == tool
-                ) {
-                    annotationStore.selectedTool = tool
-                }
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.quaternary.opacity(0.55))
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Tool picker")
-        .accessibilityIdentifier(AppAutomationIdentifiers.editorToolPicker)
-    }
-
-    @ViewBuilder
-    private var inspectorPanel: some View {
-        HStack(spacing: 12) {
-            if annotationStore.selectedTool.usesColor {
-                ColorPicker(
-                    "Color",
-                    selection: Binding(
-                        get: { Color(nsColor: annotationStore.selectedColor) },
-                        set: { annotationStore.selectedColor = NSColor($0) }
-                    ),
-                    supportsOpacity: true
-                )
-                .labelsHidden()
-                .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorColorPicker)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                if let inspectorTitle = annotationStore.selectedTool.inspectorTitle {
-                    Text(inspectorTitle)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                if annotationStore.selectedTool.showsSizeControl {
-                    if annotationStore.selectedTool.usesStrokeWidth {
-                        AccessibleInspectorSlider(
-                            value: $annotationStore.lineWidth,
-                            range: 1...16,
-                            accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
-                        )
-                            .frame(width: 120)
-                    } else {
-                        AccessibleInspectorSlider(
-                            value: $annotationStore.textFontSize,
-                            range: 12...96,
-                            accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
-                        )
-                            .frame(width: 120)
-                    }
-                } else if let inspectorMessage = annotationStore.selectedTool.inspectorMessage {
-                    Text(inspectorMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .frame(width: 220, alignment: .leading)
-                }
-
-                if annotationStore.selectedTool.shapeKind == .rectangle {
-                    AccessibleRectangleFillPicker(
-                        selection: $annotationStore.rectangleFillMode,
-                        accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorFillPicker
-                    )
-                    .frame(width: 180)
-                }
-            }
-        }
-        .frame(minWidth: 150, alignment: .leading)
     }
 
     private var isZoomAtDefault: Bool {
@@ -165,6 +196,44 @@ struct AnnotationToolbarView: View {
             || annotationStore.selectedTool.shapeKind == .rectangle
             || annotationStore.selectedTool.inspectorTitle != nil
             || annotationStore.selectedTool.inspectorMessage != nil
+    }
+}
+
+private struct EditorControlGroup<Content: View>: View {
+    let spacing: CGFloat
+    let minHeight: CGFloat
+    let accessibilityLabel: String
+    let accessibilityIdentifier: String
+    @ViewBuilder let content: () -> Content
+
+    init(
+        spacing: CGFloat = 10,
+        minHeight: CGFloat = 50,
+        accessibilityLabel: String,
+        accessibilityIdentifier: String,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.spacing = spacing
+        self.minHeight = minHeight
+        self.accessibilityLabel = accessibilityLabel
+        self.accessibilityIdentifier = accessibilityIdentifier
+        self.content = content
+    }
+
+    var body: some View {
+        HStack(spacing: spacing) {
+            content()
+        }
+        .frame(minHeight: minHeight)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.quaternary.opacity(0.55))
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 }
 

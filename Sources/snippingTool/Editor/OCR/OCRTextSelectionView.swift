@@ -134,6 +134,70 @@ enum OCRHighlightStyle {
     }
 }
 
+enum OCRRegionSelectionResolver {
+    static func orderedRegions(_ regions: [OCRTextRegion], in viewSize: CGSize) -> [OCRTextRegion] {
+        regions.sorted { lhs, rhs in
+            let lhsFrame = lhs.viewFrame(in: viewSize)
+            let rhsFrame = rhs.viewFrame(in: viewSize)
+            let rowThreshold = max(4, min(lhsFrame.height, rhsFrame.height) * 0.5)
+
+            if abs(lhsFrame.midY - rhsFrame.midY) > rowThreshold {
+                return lhsFrame.minY < rhsFrame.minY
+            }
+
+            return lhsFrame.minX < rhsFrame.minX
+        }
+    }
+
+    static func selections(
+        from anchorWord: OCRWord,
+        in anchorRegionID: UUID,
+        to targetWord: OCRWord,
+        in targetRegionID: UUID,
+        regions: [OCRTextRegion],
+        viewSize: CGSize
+    ) -> [OCRRegionSelection]? {
+        let orderedRegions = orderedRegions(regions, in: viewSize)
+
+        guard let anchorIndex = orderedRegions.firstIndex(where: { $0.id == anchorRegionID }),
+              let targetIndex = orderedRegions.firstIndex(where: { $0.id == targetRegionID }) else {
+            return nil
+        }
+
+        if anchorIndex == targetIndex {
+            let selectedRange = orderedRegions[anchorIndex].selectionRange(from: anchorWord.range, to: targetWord.range)
+            return [.range(selectedRange, in: anchorRegionID)]
+        }
+
+        let lowerIndex = min(anchorIndex, targetIndex)
+        let upperIndex = max(anchorIndex, targetIndex)
+
+        return orderedRegions[lowerIndex...upperIndex].map { region in
+            switch region.id {
+            case anchorRegionID where anchorIndex < targetIndex:
+                return .range(rangeFromWordToRegionEnd(anchorWord, in: region), in: region.id)
+            case targetRegionID where anchorIndex < targetIndex:
+                return .range(rangeFromRegionStartToWord(targetWord), in: region.id)
+            case targetRegionID where targetIndex < anchorIndex:
+                return .range(rangeFromWordToRegionEnd(targetWord, in: region), in: region.id)
+            case anchorRegionID where targetIndex < anchorIndex:
+                return .range(rangeFromRegionStartToWord(anchorWord), in: region.id)
+            default:
+                return .entireRegion(region.id)
+            }
+        }
+    }
+
+    private static func rangeFromWordToRegionEnd(_ word: OCRWord, in region: OCRTextRegion) -> NSRange {
+        let textLength = (region.text as NSString).length
+        return NSRange(location: word.range.location, length: max(textLength - word.range.location, 0))
+    }
+
+    private static func rangeFromRegionStartToWord(_ word: OCRWord) -> NSRange {
+        NSRange(location: 0, length: word.range.location + word.range.length)
+    }
+}
+
 /// A unified view for displaying OCR-recognized text and handling text selection.
 ///
 /// This view replaces the previous multi-view approach (RecognizedLineTextView + OCRSelectionHighlightView)
@@ -145,6 +209,9 @@ enum OCRHighlightStyle {
 @MainActor
 final class OCRTextSelectionView: NSView {
     // MARK: - Configuration
+
+    private let highlightAnimationDuration: TimeInterval = 0.145
+    private let highlightAnimationFrameInterval: TimeInterval = 1.0 / 90.0
 
     private enum DragSelectionSource {
         case marquee
@@ -162,6 +229,11 @@ final class OCRTextSelectionView: NSView {
     private let accessibilitySummaryView = OCRAccessibilityTextView(frame: .zero)
     private var dragSelectionSource: DragSelectionSource?
     private var dragAddsToSelection = false
+    private var displayedHighlightFrames: [CGRect] = []
+    private var highlightAnimationStartFrames: [CGRect] = []
+    private var highlightAnimationTargetFrames: [CGRect] = []
+    private var highlightAnimationStartTime: TimeInterval?
+    private var highlightAnimationTimer: Timer?
 
     /// Callback invoked when selection changes.
     var selectionDidChange: (() -> Void)?
@@ -182,6 +254,10 @@ final class OCRTextSelectionView: NSView {
 
     override var canBecomeKeyView: Bool {
         true
+    }
+
+    private var shouldReduceMotion: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
     // MARK: - Initialization
@@ -208,6 +284,7 @@ final class OCRTextSelectionView: NSView {
         super.layout()
         accessibilitySummaryView.frame = bounds
         layoutAccessibilityTextViews()
+        refreshSelectionHighlights(animated: false)
     }
 
     // MARK: - Setup
@@ -259,13 +336,14 @@ final class OCRTextSelectionView: NSView {
         dragAddsToSelection = false
         selectionState.endDragSelection()
         selectionState.clearSelection()
-        needsDisplay = true
+        refreshSelectionHighlights(animated: false)
         updateAccessibilityValue()
         selectionDidChange?()
     }
 
     func refreshCaptureHighlightBackgroundTone(using cgImage: CGImage?) {
         captureHighlightBackgroundTone = OCRHighlightToneResolver.resolvedBackgroundTone(for: cgImage)
+        needsDisplay = true
     }
 
     /// Clears all recognized regions and selection.
@@ -278,7 +356,7 @@ final class OCRTextSelectionView: NSView {
         selectionState.endDragSelection()
         selectionState.regions = []
         selectionState.clearSelection()
-        needsDisplay = true
+        refreshSelectionHighlights(animated: false)
         updateAccessibilityValue()
     }
 
@@ -308,7 +386,7 @@ final class OCRTextSelectionView: NSView {
             selectionState.beginDragSelection(at: point)
         }
 
-        needsDisplay = true
+        refreshSelectionHighlights(animated: true)
         updateAccessibilityValue()
         selectionDidChange?()
     }
@@ -319,13 +397,24 @@ final class OCRTextSelectionView: NSView {
 
         switch dragSelectionSource {
         case let .word(regionID, anchorWord):
-            guard let region = selectionState.regions.first(where: { $0.id == regionID }),
-                  let targetWord = region.nearestWord(to: point, in: bounds.size) else {
+            guard let targetRegion = selectionState.region(at: point, viewSize: bounds.size),
+                  let targetWord = targetRegion.nearestWord(to: point, in: bounds.size) else {
                 break
             }
 
-            let selectedRange = region.selectionRange(from: anchorWord.range, to: targetWord.range)
-            selectionState.selectRange(selectedRange, in: regionID, additive: dragAddsToSelection)
+            if targetRegion.id == regionID {
+                let selectedRange = targetRegion.selectionRange(from: anchorWord.range, to: targetWord.range)
+                selectionState.selectRange(selectedRange, in: regionID, additive: dragAddsToSelection)
+            } else if let selections = OCRRegionSelectionResolver.selections(
+                from: anchorWord,
+                in: regionID,
+                to: targetWord,
+                in: targetRegion.id,
+                regions: selectionState.regions,
+                viewSize: bounds.size
+            ) {
+                selectionState.setSelections(selections, additive: dragAddsToSelection)
+            }
 
         case .marquee, .none:
             if let dragRect = selectionState.dragSelectionRect {
@@ -334,7 +423,7 @@ final class OCRTextSelectionView: NSView {
             }
         }
 
-        needsDisplay = true
+        refreshSelectionHighlights(animated: true)
         updateAccessibilityValue()
         selectionDidChange?()
     }
@@ -343,7 +432,7 @@ final class OCRTextSelectionView: NSView {
         selectionState.endDragSelection()
         dragSelectionSource = nil
         dragAddsToSelection = false
-        needsDisplay = true
+        refreshSelectionHighlights(animated: false)
         updateAccessibilityValue()
         selectionDidChange?()
     }
@@ -461,7 +550,7 @@ final class OCRTextSelectionView: NSView {
     }
 
     private func refreshSelectionPresentation() {
-        needsDisplay = true
+        refreshSelectionHighlights(animated: false)
         updateAccessibilityValue()
         selectionDidChange?()
     }
@@ -483,34 +572,113 @@ final class OCRTextSelectionView: NSView {
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
-        guard !selectionState.selections.isEmpty else {
+        guard !displayedHighlightFrames.isEmpty else {
             return
         }
 
-        let viewSize = bounds.size
+        for highlightFrame in displayedHighlightFrames where highlightFrame.intersects(dirtyRect) {
+            drawSelectionHighlight(rect: highlightFrame, isDragging: selectionState.isDragging)
+        }
+    }
 
-        // Draw selection highlights for each selected region
-        for selection in selectionState.selections {
+    private func currentSelectionHighlightFrames(in viewSize: CGSize) -> [CGRect] {
+        selectionState.selections.flatMap { selection in
             guard let region = selectionState.regions.first(where: { $0.id == selection.regionID }) else {
-                continue
+                return [CGRect]()
             }
 
             let highlightFrames: [CGRect]
             if let selectedRange = selection.range {
-                let wordFrames = region.selectionFrames(for: selectedRange, in: viewSize)
-                if wordFrames.isEmpty {
+                let mergedFrames = region.selectionHighlightFrames(for: selectedRange, in: viewSize)
+                if mergedFrames.isEmpty {
                     highlightFrames = [region.paddedViewFrame(in: viewSize)]
                 } else {
-                    highlightFrames = wordFrames
+                    highlightFrames = mergedFrames
                 }
             } else {
                 highlightFrames = [region.paddedViewFrame(in: viewSize)]
             }
 
-            for highlightFrame in highlightFrames.map(visualHighlightFrame(for:)) where highlightFrame.intersects(dirtyRect) {
-                drawSelectionHighlight(rect: highlightFrame, isDragging: selectionState.isDragging)
+            return highlightFrames.map(visualHighlightFrame(for:))
+        }
+    }
+
+    private func refreshSelectionHighlights(animated: Bool) {
+        let targetFrames = currentSelectionHighlightFrames(in: bounds.size)
+
+        if targetFrames == displayedHighlightFrames,
+           highlightAnimationTimer == nil {
+            return
+        }
+
+        guard animated,
+              shouldReduceMotion == false,
+              displayedHighlightFrames.count == targetFrames.count,
+              targetFrames.isEmpty == false else {
+            stopHighlightAnimation()
+            displayedHighlightFrames = targetFrames
+            needsDisplay = true
+            return
+        }
+
+        if targetFrames == highlightAnimationTargetFrames,
+           highlightAnimationTimer != nil {
+            return
+        }
+
+        highlightAnimationStartFrames = displayedHighlightFrames
+        highlightAnimationTargetFrames = targetFrames
+        highlightAnimationStartTime = CACurrentMediaTime()
+        highlightAnimationTimer?.invalidate()
+        highlightAnimationTimer = Timer.scheduledTimer(withTimeInterval: highlightAnimationFrameInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.stepHighlightAnimation()
             }
         }
+        if let highlightAnimationTimer {
+            RunLoop.main.add(highlightAnimationTimer, forMode: .common)
+        }
+    }
+
+    private func stepHighlightAnimation() {
+        guard let startTime = highlightAnimationStartTime else {
+            stopHighlightAnimation()
+            return
+        }
+
+        let progress = min(max((CACurrentMediaTime() - startTime) / highlightAnimationDuration, 0), 1)
+        displayedHighlightFrames = zip(highlightAnimationStartFrames, highlightAnimationTargetFrames).map { startFrame, targetFrame in
+            interpolatedRect(from: startFrame, to: targetFrame, progress: progress)
+        }
+        needsDisplay = true
+
+        if progress >= 1 {
+            displayedHighlightFrames = highlightAnimationTargetFrames
+            stopHighlightAnimation()
+        }
+    }
+
+    private func stopHighlightAnimation() {
+        highlightAnimationTimer?.invalidate()
+        highlightAnimationTimer = nil
+        highlightAnimationStartTime = nil
+        highlightAnimationStartFrames = []
+        highlightAnimationTargetFrames = []
+    }
+
+    private func interpolatedRect(from startRect: CGRect, to targetRect: CGRect, progress: Double) -> CGRect {
+        let easedProgress = easedHighlightAnimationProgress(for: progress)
+        return CGRect(
+            x: startRect.minX + ((targetRect.minX - startRect.minX) * easedProgress),
+            y: startRect.minY + ((targetRect.minY - startRect.minY) * easedProgress),
+            width: startRect.width + ((targetRect.width - startRect.width) * easedProgress),
+            height: startRect.height + ((targetRect.height - startRect.height) * easedProgress)
+        )
+    }
+
+    private func easedHighlightAnimationProgress(for progress: Double) -> Double {
+        let clampedProgress = min(max(progress, 0), 1)
+        return 0.5 - (cos(clampedProgress * .pi) / 2)
     }
 
     private func visualHighlightFrame(for rect: CGRect) -> CGRect {
@@ -597,7 +765,7 @@ final class OCRTextSelectionView: NSView {
         selectionState.endDragSelection()
         selectionState.regions = regions
         selectionState.clearSelection()
-        needsDisplay = true
+        refreshSelectionHighlights(animated: false)
         updateAccessibilityValue()
         updateAccessibilityLabels()
     }
