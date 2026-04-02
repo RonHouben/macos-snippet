@@ -29,7 +29,6 @@ struct AnnotationToolbarView: View {
             Spacer()
 
             historyControlGroup
-            viewControlGroup
             outputControlGroup
         }
         .padding(.horizontal)
@@ -57,16 +56,10 @@ struct AnnotationToolbarView: View {
     private var toolSettingsGroup: some View {
         EditorControlGroup(
             spacing: 12,
-            minHeight: Self.controlGroupHeight,
+            height: Self.controlGroupHeight,
             accessibilityLabel: "Tool settings",
             accessibilityIdentifier: AppAutomationIdentifiers.editorToolSettingsGroup
         ) {
-            if let inspectorTitle = annotationStore.selectedTool.inspectorTitle {
-                Text(inspectorTitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-
             if annotationStore.selectedTool.usesColor {
                 ColorPicker(
                     "Color",
@@ -77,35 +70,42 @@ struct AnnotationToolbarView: View {
                     supportsOpacity: true
                 )
                 .labelsHidden()
+                .controlSize(.small)
                 .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorColorPicker)
             }
 
-            if annotationStore.selectedTool.showsSizeControl {
-                if annotationStore.selectedTool.usesStrokeWidth {
-                    AccessibleInspectorSlider(
-                        value: $annotationStore.lineWidth,
-                        range: 1...16,
-                        accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
-                    )
-                    .frame(width: 120)
-                } else {
-                    AccessibleInspectorSlider(
-                        value: $annotationStore.textFontSize,
-                        range: 12...96,
-                        accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
-                    )
-                    .frame(width: 120)
+            VStack(alignment: .leading, spacing: 0) {
+                if let inspectorTitle = annotationStore.selectedTool.inspectorTitle {
+                    Text(inspectorTitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                if annotationStore.selectedTool.showsSizeControl {
+                    if annotationStore.selectedTool.usesStrokeWidth {
+                        AccessibleInspectorSlider(
+                            value: $annotationStore.lineWidth,
+                            range: 1...16,
+                            accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
+                        )
+                        .frame(width: 120)
+                    } else {
+                        AccessibleInspectorSlider(
+                            value: $annotationStore.textFontSize,
+                            range: 12...96,
+                            accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
+                        )
+                        .frame(width: 120)
+                    }
+                } else if let inspectorMessage = annotationStore.selectedTool.inspectorMessage {
+                    Text(inspectorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
-
-            if let inspectorMessage = annotationStore.selectedTool.inspectorMessage,
-               annotationStore.selectedTool.showsSizeControl == false {
-                Text(inspectorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(width: 280, alignment: .leading)
-            }
+            .frame(width: annotationStore.selectedTool.showsSizeControl ? 120 : 280, alignment: .leading)
 
             if annotationStore.selectedTool.shapeKind == .rectangle {
                 AccessibleRectangleFillPicker(
@@ -120,7 +120,7 @@ struct AnnotationToolbarView: View {
     private var historyControlGroup: some View {
         EditorControlGroup(
             spacing: 8,
-            minHeight: Self.controlGroupHeight,
+            height: Self.controlGroupHeight,
             accessibilityLabel: "History",
             accessibilityIdentifier: AppAutomationIdentifiers.editorHistoryGroup
         ) {
@@ -138,30 +138,10 @@ struct AnnotationToolbarView: View {
         }
     }
 
-    private var viewControlGroup: some View {
-        EditorControlGroup(
-            spacing: 10,
-            minHeight: Self.controlGroupHeight,
-            accessibilityLabel: "View",
-            accessibilityIdentifier: AppAutomationIdentifiers.editorViewGroup
-        ) {
-            Button(action: onResetZoom) {
-                Label("100%", systemImage: "scope")
-            }
-            .disabled(isZoomAtDefault)
-            .accessibilityIdentifier(AppAutomationIdentifiers.editorResetZoomButton)
-
-            Text(zoomPercentageLabel)
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier(AppAutomationIdentifiers.editorZoomValueLabel)
-        }
-    }
-
     private var outputControlGroup: some View {
         EditorControlGroup(
             spacing: 8,
-            minHeight: Self.controlGroupHeight,
+            height: Self.controlGroupHeight,
             accessibilityLabel: "Output actions",
             accessibilityIdentifier: AppAutomationIdentifiers.editorOutputGroup
         ) {
@@ -182,14 +162,6 @@ struct AnnotationToolbarView: View {
         }
     }
 
-    private var isZoomAtDefault: Bool {
-        abs(zoomScale - 1) < 0.001
-    }
-
-    private var zoomPercentageLabel: String {
-        "\(Int((zoomScale * 100).rounded()))%"
-    }
-
     private var shouldShowInspectorPanel: Bool {
         annotationStore.selectedTool.usesColor
             || annotationStore.selectedTool.showsSizeControl
@@ -201,20 +173,20 @@ struct AnnotationToolbarView: View {
 
 private struct EditorControlGroup<Content: View>: View {
     let spacing: CGFloat
-    let minHeight: CGFloat
+    let height: CGFloat
     let accessibilityLabel: String
     let accessibilityIdentifier: String
     @ViewBuilder let content: () -> Content
 
     init(
         spacing: CGFloat = 10,
-        minHeight: CGFloat = 50,
+        height: CGFloat = 50,
         accessibilityLabel: String,
         accessibilityIdentifier: String,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.spacing = spacing
-        self.minHeight = minHeight
+        self.height = height
         self.accessibilityLabel = accessibilityLabel
         self.accessibilityIdentifier = accessibilityIdentifier
         self.content = content
@@ -224,9 +196,9 @@ private struct EditorControlGroup<Content: View>: View {
         HStack(spacing: spacing) {
             content()
         }
-        .frame(minHeight: minHeight)
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
+        .frame(height: height)
         .background {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(.quaternary.opacity(0.55))

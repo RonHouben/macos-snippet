@@ -150,15 +150,34 @@ final class SnippingToolHostUITests: XCTestCase {
         }
     }
 
-    func testEditorZoomControlsShowDefaultState() throws {
+    func testEditorHistoryAndOutputControlsShowDefaultState() throws {
         openEditorWithSampleCaptureIfNeeded()
 
-        let zoomIndicator = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label == %@", "100%"))
-            .firstMatch
+        let undoButton = app.buttons[AppAutomationIdentifiers.editorUndoButton]
+        let redoButton = app.buttons[AppAutomationIdentifiers.editorRedoButton]
+        let copyButton = app.buttons[AppAutomationIdentifiers.editorCopyButton]
+        let copyAndCloseButton = app.buttons[AppAutomationIdentifiers.editorCopyAndCloseButton]
+        let saveButton = app.buttons[AppAutomationIdentifiers.editorSaveButton]
+
         XCTAssertTrue(
-            zoomIndicator.waitForExistence(timeout: 5),
-            "Expected the editor toolbar to show the default 100% zoom indicator."
+            undoButton.waitForExistence(timeout: 5),
+            "Expected the editor toolbar to expose the Undo button."
+        )
+        XCTAssertTrue(
+            redoButton.waitForExistence(timeout: 5),
+            "Expected the editor toolbar to expose the Redo button."
+        )
+        XCTAssertTrue(
+            copyButton.waitForExistence(timeout: 5),
+            "Expected the editor toolbar to expose the Copy button."
+        )
+        XCTAssertTrue(
+            copyAndCloseButton.waitForExistence(timeout: 5),
+            "Expected the editor toolbar to expose the Copy & Close button."
+        )
+        XCTAssertTrue(
+            saveButton.waitForExistence(timeout: 5),
+            "Expected the editor toolbar to expose the Save button."
         )
     }
 
