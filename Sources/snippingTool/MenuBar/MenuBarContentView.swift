@@ -14,6 +14,7 @@ struct MenuBarContentView: View {
         } label: {
             Label("New Capture", systemImage: "plus.viewfinder")
         }
+        .pointingHandCursor()
         .keyboardShortcut("n")
 
         Menu("Capture Mode") {
@@ -29,18 +30,21 @@ struct MenuBarContentView: View {
                 }
             }
         }
+        .pointingHandCursor()
 
         Button {
             services.editorWindowManager.show()
         } label: {
             Label("Open Editor", systemImage: "pencil.and.scribble")
         }
+        .pointingHandCursor()
 
         Button {
             services.settingsWindowManager.show()
         } label: {
             Label("Settings", systemImage: "gearshape")
         }
+        .pointingHandCursor()
 
         if recentCaptureStore.recentCaptures.isEmpty == false {
             Menu("Recent Captures") {
@@ -50,6 +54,7 @@ struct MenuBarContentView: View {
                     }
                 }
             }
+            .pointingHandCursor()
         }
 
         if let message = captureCoordinator.statusMessage {
@@ -64,6 +69,7 @@ struct MenuBarContentView: View {
         } label: {
             Label("Quit", systemImage: "power")
         }
+        .pointingHandCursor()
         .keyboardShortcut("q")
     }
 }

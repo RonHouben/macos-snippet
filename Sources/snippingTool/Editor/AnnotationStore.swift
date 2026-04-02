@@ -17,6 +17,7 @@ final class AnnotationStore {
             guard oldValue != selectedTool, selectedTool.isTextAnnotationTool == false else { return }
             finalizePendingTextIfNeeded()
             if selectedTool.isAnnotationSelectionTool {
+                clampLineWidthToSelectedToolRangeIfNeeded()
                 syncInspectorStateFromSelectedShapeIfNeeded()
                 return
             }
@@ -25,14 +26,17 @@ final class AnnotationStore {
                 guard let selectedShape,
                       selectedAnnotationSelections.count == 1,
                       selectedShape.kind == selectedTool.shapeKind else {
+                    clampLineWidthToSelectedToolRangeIfNeeded()
                     clearSelection()
                     return
                 }
 
+                clampLineWidthToSelectedToolRangeIfNeeded()
                 syncInspectorStateFromSelectedShapeIfNeeded()
                 return
             }
 
+            clampLineWidthToSelectedToolRangeIfNeeded()
             clearSelection()
         }
     }
@@ -338,5 +342,19 @@ final class AnnotationStore {
                 shapeAnnotations.contains(where: { $0.id == id })
             }
         }
+    }
+
+    private func clampLineWidthToSelectedToolRangeIfNeeded() {
+        guard selectedTool.usesStrokeWidth else {
+            return
+        }
+
+        let range = selectedTool.strokeWidthRange
+        let clampedLineWidth = min(max(lineWidth, range.lowerBound), range.upperBound)
+        guard clampedLineWidth != lineWidth else {
+            return
+        }
+
+        lineWidth = clampedLineWidth
     }
 }

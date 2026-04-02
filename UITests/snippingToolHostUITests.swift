@@ -444,14 +444,20 @@ final class SnippingToolHostUITests: XCTestCase {
         )
 
         selectEditorTool(named: "Eraser")
-        adjustStrokeSlider(to: 14)
+        adjustStrokeSlider(to: 24, maximum: 28)
         drag(on: canvas, fromImagePoint: CGPoint(x: 260, y: 560), toImagePoint: CGPoint(x: 520, y: 560))
 
-        _ = waitForShapeSummary(timeout: 5) { summary in
+        let eraserSummary = waitForShapeSummary(timeout: 5) { summary in
             summary["selectedTool"] == "eraser"
                 && summary["strokeCount"] == "3"
                 && summary["lastStrokeTool"] == "eraser"
+                && approximatelyEquals(key: "lastStrokeLineWidth", expected: 24, in: summary, tolerance: 0.75)
         }
+
+        XCTAssertTrue(
+            approximatelyEquals(key: "currentLineWidth", expected: 24, in: eraserSummary, tolerance: 0.75),
+            "Expected the eraser to support the expanded size range."
+        )
 
         let erasedImage = try copyEditorImageToPasteboard()
         try XCTAssertTrue(
@@ -459,6 +465,139 @@ final class SnippingToolHostUITests: XCTestCase {
                 isClose($0, to: SampleCaptureColor.background, tolerance: 0.18)
             }),
             "Expected the eraser stroke to clear the earlier pen stroke back to the sample background."
+        )
+    }
+
+    func testDrawingToolsExposeCursorPreviewSummary() throws {
+        openEditorWithSampleCaptureIfNeeded()
+
+        let canvas = editorDrawingSurface()
+        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+
+        selectEditorTool(named: "Pen")
+        adjustStrokeSlider(to: 12)
+        let penSummary = waitForShapeSummary(timeout: 5) { summary in
+            summary["selectedTool"] == "pen"
+                && approximatelyEquals(key: "currentLineWidth", expected: 12, in: summary, tolerance: 0.75)
+        }
+        let penLineWidth = try XCTUnwrap(
+            doubleValue(for: "currentLineWidth", in: penSummary),
+            "Expected the pen inspector summary to expose the current line width."
+        )
+
+        tap(on: canvas, atImagePoint: CGPoint(x: 180, y: 180))
+
+        let penPreview = waitForCursorPreviewSummary(timeout: 5) { summary in
+            summary["isVisible"] == "1"
+                && summary["tool"] == "pen"
+                && summary["style"] == "filledRing"
+                && summary["colorMode"] == "selected"
+                && approximatelyEquals(key: "imageDiameter", expected: penLineWidth, in: summary, tolerance: 0.75)
+                && approximatelyEquals(key: "imageX", expected: 180, in: summary, tolerance: 10)
+                && approximatelyEquals(key: "imageY", expected: 180, in: summary, tolerance: 10)
+        }
+        XCTAssertEqual(
+            penPreview["colorHex"],
+            penSummary["currentColor"],
+            "Expected the pen preview to expose the currently selected color."
+        )
+
+        selectEditorTool(named: "Highlight")
+        adjustStrokeSlider(to: 8)
+        let highlighterSummary = waitForShapeSummary(timeout: 5) { summary in
+            summary["selectedTool"] == "highlighter"
+                && approximatelyEquals(key: "currentLineWidth", expected: 8, in: summary, tolerance: 0.75)
+        }
+        let highlighterLineWidth = try XCTUnwrap(
+            doubleValue(for: "currentLineWidth", in: highlighterSummary),
+            "Expected the highlighter inspector summary to expose the current line width."
+        )
+
+        tap(on: canvas, atImagePoint: CGPoint(x: 320, y: 180))
+
+        let highlighterPreview = waitForCursorPreviewSummary(timeout: 5) { summary in
+            summary["isVisible"] == "1"
+                && summary["tool"] == "highlighter"
+                && summary["style"] == "translucentRect"
+                && summary["shape"] == "rect"
+                && summary["colorMode"] == "selected"
+                && approximatelyEquals(key: "imageWidth", expected: highlighterLineWidth, in: summary, tolerance: 0.75)
+                && approximatelyEquals(key: "imageHeight", expected: highlighterLineWidth * 3, in: summary, tolerance: 0.75)
+                && approximatelyEquals(key: "imageX", expected: 320, in: summary, tolerance: 10)
+                && approximatelyEquals(key: "imageY", expected: 180, in: summary, tolerance: 10)
+        }
+        XCTAssertEqual(
+            highlighterPreview["colorHex"],
+            highlighterSummary["currentColor"],
+            "Expected the highlighter preview to expose the currently selected color."
+        )
+
+        selectEditorTool(named: "Eraser")
+        adjustStrokeSlider(to: 24, maximum: 28)
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["selectedTool"] == "eraser"
+            && approximatelyEquals(key: "currentLineWidth", expected: 24, in: summary, tolerance: 0.75)
+        }
+        let eraserSummary = currentShapeSummary()
+        let eraserLineWidth = try XCTUnwrap(
+            doubleValue(for: "currentLineWidth", in: eraserSummary),
+            "Expected the eraser inspector summary to expose the current line width."
+        )
+
+        tap(on: canvas, atImagePoint: CGPoint(x: 460, y: 180))
+
+        let eraserPreview = waitForCursorPreviewSummary(timeout: 5) { summary in
+            summary["isVisible"] == "1"
+                && summary["tool"] == "eraser"
+                && summary["style"] == "neutralRect"
+                && summary["shape"] == "rect"
+                && summary["colorMode"] == "neutral"
+                && approximatelyEquals(key: "imageWidth", expected: eraserLineWidth, in: summary, tolerance: 0.75)
+                && approximatelyEquals(key: "imageHeight", expected: eraserLineWidth * 3, in: summary, tolerance: 0.75)
+                && approximatelyEquals(key: "imageX", expected: 460, in: summary, tolerance: 10)
+                && approximatelyEquals(key: "imageY", expected: 180, in: summary, tolerance: 10)
+        }
+        XCTAssertEqual(
+            eraserPreview["colorHex"],
+            "none",
+            "Expected the eraser preview to use the neutral preview style instead of the selected ink color."
+        )
+    }
+
+    func testDrawingPreviewTracksDragDestination() throws {
+        openEditorWithSampleCaptureIfNeeded()
+
+        let canvas = editorDrawingSurface()
+        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+
+        selectEditorTool(named: "Pen")
+        adjustStrokeSlider(to: 10)
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["selectedTool"] == "pen"
+                && approximatelyEquals(key: "currentLineWidth", expected: 10, in: summary, tolerance: 0.75)
+        }
+
+        let dragStart = CGPoint(x: 180, y: 220)
+        let dragEnd = CGPoint(x: 420, y: 300)
+        drag(on: canvas, fromImagePoint: dragStart, toImagePoint: dragEnd)
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["strokeCount"] == "1"
+                && summary["lastStrokeTool"] == "pen"
+        }
+
+        let previewSummary = waitForCursorPreviewSummary(timeout: 5) { summary in
+            summary["isVisible"] == "1"
+                && summary["tool"] == "pen"
+                && approximatelyEquals(key: "imageX", expected: dragEnd.x, in: summary, tolerance: 12)
+                && approximatelyEquals(key: "imageY", expected: dragEnd.y, in: summary, tolerance: 12)
+        }
+
+        XCTAssertFalse(
+            approximatelyEquals(key: "imageX", expected: dragStart.x, in: previewSummary, tolerance: 12)
+                && approximatelyEquals(key: "imageY", expected: dragStart.y, in: previewSummary, tolerance: 12),
+            "Expected the cursor preview to move with the drag instead of remaining at the initial press location."
         )
     }
 
@@ -908,8 +1047,8 @@ final class SnippingToolHostUITests: XCTestCase {
         app.buttons[name].click()
     }
 
-    private func adjustStrokeSlider(to value: Double) {
-        adjustSlider(identifier: AppAutomationIdentifiers.editorInspectorSizeSlider, value: value, minimum: 1, maximum: 16)
+    private func adjustStrokeSlider(to value: Double, maximum: Double = 16) {
+        adjustSlider(identifier: AppAutomationIdentifiers.editorInspectorSizeSlider, value: value, minimum: 1, maximum: maximum)
     }
 
     private func adjustSlider(identifier: String, value: Double, minimum: Double, maximum: Double) {
@@ -1087,6 +1226,49 @@ final class SnippingToolHostUITests: XCTestCase {
         let rawSummary = rawSummaryCandidates
             .compactMap { $0 }
             .first(where: { $0.contains("selectedCount=") })
+            ?? ""
+
+        return Dictionary(
+            uniqueKeysWithValues: rawSummary
+                .split(separator: ";", omittingEmptySubsequences: false)
+                .compactMap { entry -> (String, String)? in
+                    let pieces = entry
+                        .split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                        .map(String.init)
+                    guard pieces.count == 2 else { return nil }
+                    return (pieces[0], pieces[1])
+                }
+        )
+    }
+
+    private func waitForCursorPreviewSummary(
+        timeout: TimeInterval,
+        predicate: ([String: String]) -> Bool
+    ) -> [String: String] {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        repeat {
+            let summary = currentCursorPreviewSummary()
+            if predicate(summary) {
+                return summary
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        } while Date() < deadline
+
+        let finalSummary = currentCursorPreviewSummary()
+        XCTFail("Timed out waiting for cursor preview summary to match expected state. Last summary: \(finalSummary)")
+        return finalSummary
+    }
+
+    private func currentCursorPreviewSummary() -> [String: String] {
+        let summaryElement = app.descendants(matching: .any)[AppAutomationIdentifiers.editorCursorPreviewSummary]
+        XCTAssertTrue(summaryElement.waitForExistence(timeout: 5), "Expected the cursor preview automation element to exist.")
+
+        let rawSummaryCandidates = [summaryElement.value as? String, summaryElement.label]
+        let rawSummary = rawSummaryCandidates
+            .compactMap { $0 }
+            .first(where: { $0.contains("isVisible=") })
             ?? ""
 
         return Dictionary(

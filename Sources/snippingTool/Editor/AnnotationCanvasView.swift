@@ -40,6 +40,66 @@ private struct ShapeDragState {
     let initialShape: ShapeAnnotation?
 }
 
+private struct CursorPreviewConfiguration {
+    let tool: AnnotationTool
+    let style: String
+    let shape: String
+    let colorMode: String
+    let canvasPoint: CGPoint
+    let imagePoint: CGPoint
+    let imageSize: CGSize
+    let canvasSize: CGSize
+    let ringColor: NSColor
+    let ringOpacity: CGFloat
+    let fillColor: NSColor?
+    let fillOpacity: CGFloat
+    let colorHex: String
+}
+
+private struct CursorPreviewTelemetry: Equatable {
+    var isVisible: Bool = false
+    var tool: String = "none"
+    var style: String = "none"
+    var shape: String = "none"
+    var colorMode: String = "none"
+    var imageDiameter: CGFloat = 0
+    var canvasDiameter: CGFloat = 0
+    var imageWidth: CGFloat = 0
+    var imageHeight: CGFloat = 0
+    var canvasWidth: CGFloat = 0
+    var canvasHeight: CGFloat = 0
+    var canvasX: CGFloat = 0
+    var canvasY: CGFloat = 0
+    var imageX: CGFloat = 0
+    var imageY: CGFloat = 0
+    var colorHex: String = "none"
+
+    var accessibilitySummary: String {
+        [
+            "isVisible=\(isVisible ? "1" : "0")",
+            "tool=\(tool)",
+            "style=\(style)",
+            "shape=\(shape)",
+            "colorMode=\(colorMode)",
+            "imageDiameter=\(formatted(imageDiameter))",
+            "canvasDiameter=\(formatted(canvasDiameter))",
+            "imageWidth=\(formatted(imageWidth))",
+            "imageHeight=\(formatted(imageHeight))",
+            "canvasWidth=\(formatted(canvasWidth))",
+            "canvasHeight=\(formatted(canvasHeight))",
+            "canvasX=\(formatted(canvasX))",
+            "canvasY=\(formatted(canvasY))",
+            "imageX=\(formatted(imageX))",
+            "imageY=\(formatted(imageY))",
+            "colorHex=\(colorHex)"
+        ].joined(separator: ";")
+    }
+
+    private func formatted(_ value: CGFloat) -> String {
+        String(format: "%.2f", value)
+    }
+}
+
 struct AnnotationCanvasView: View {
     @Bindable var annotationStore: AnnotationStore
     let capturedSnippet: CapturedSnippet
@@ -47,6 +107,7 @@ struct AnnotationCanvasView: View {
     @Binding var panOffset: CGSize
     @Binding var panBounds: CGSize
     @Binding var viewportTelemetry: EditorViewportTelemetry
+    @Binding var cursorPreviewSummary: String
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -63,6 +124,8 @@ struct AnnotationCanvasView: View {
     @State private var pinchAnchorCanvasPoint: CGPoint?
     @State private var pinchAnchorNormalizedPoint: CGPoint?
     @State private var pointerCanvasPoint: CGPoint?
+    @State private var isPointerInsideCapturedImage = false
+    @State private var isSystemCursorHidden = false
     @FocusState private var isTextFieldFocused: Bool
 
     private let minZoomScale: CGFloat = 1.0
@@ -240,6 +303,12 @@ struct AnnotationCanvasView: View {
                     self.localScrollMonitor = nil
                 }
                 pointerCanvasPoint = nil
+                isPointerInsideCapturedImage = false
+                cursorPreviewSummary = CursorPreviewTelemetry(
+                    isVisible: false,
+                    tool: annotationStore.selectedTool.rawValue
+                ).accessibilitySummary
+                setSystemCursorHidden(false)
                 NSCursor.arrow.set()
             }
             .gesture(
@@ -258,6 +327,8 @@ struct AnnotationCanvasView: View {
 
     @ViewBuilder
     private func canvasContent(containerSize: CGSize, imageFrame: CGRect, imageSize: CGSize) -> some View {
+        let previewSummary = cursorPreviewTelemetry(imageFrame: imageFrame, imageSize: imageSize).accessibilitySummary
+
         ZStack(alignment: .topLeading) {
             SelectableCaptureImageView(
                 capturedSnippet: capturedSnippet,
@@ -309,12 +380,27 @@ struct AnnotationCanvasView: View {
         }
         .frame(width: containerSize.width, height: containerSize.height)
         .clipped()
+        .onAppear {
+            syncCursorPreviewSummary(previewSummary)
+            updateCursor()
+        }
+        .onChange(of: previewSummary) { _, newValue in
+            syncCursorPreviewSummary(newValue)
+        }
         .onContinuousHover(coordinateSpace: .local) { phase in
             switch phase {
             case .active(let location):
                 pointerCanvasPoint = location
+                isPointerInsideCapturedImage = AnnotationCoordinateMapper.imagePoint(
+                    fromCanvasPoint: location,
+                    imageFrame: imageFrame,
+                    imageSize: imageSize
+                ) != nil
+                updateCursor()
             case .ended:
                 pointerCanvasPoint = nil
+                isPointerInsideCapturedImage = false
+                updateCursor()
             }
         }
         .accessibilityIdentifier(AppAutomationIdentifiers.editorCanvas)
@@ -375,6 +461,8 @@ struct AnnotationCanvasView: View {
                 context.fill(path, with: .color(.accentColor.opacity(0.12)))
                 context.stroke(path, with: .color(.accentColor), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
             }
+
+            renderCursorPreview(into: &context, imageFrame: imageFrame, imageSize: imageSize)
         }
         .frame(width: containerSize.width, height: containerSize.height)
         .contentShape(Rectangle())
@@ -384,6 +472,8 @@ struct AnnotationCanvasView: View {
                                     textDragState == nil else {
                                 hoveredTextAnnotationID = nil
                                 hoveredSelectableAnnotation = nil
+                                isPointerInsideCapturedImage = false
+                                updateCursor()
                 return
             }
 
@@ -396,8 +486,12 @@ struct AnnotationCanvasView: View {
                 ) else {
                     hoveredTextAnnotationID = nil
                     hoveredSelectableAnnotation = nil
+                    isPointerInsideCapturedImage = false
+                    updateCursor()
                     return
                 }
+
+                isPointerInsideCapturedImage = true
 
                 if annotationStore.selectedTool.isTextAnnotationTool,
                    let hoveredTextAnnotation = hitTextAnnotation(at: imagePoint) {
@@ -415,14 +509,19 @@ struct AnnotationCanvasView: View {
                     hoveredTextAnnotationID = nil
                     hoveredSelectableAnnotation = nil
                 }
+                updateCursor()
             case .ended:
                 hoveredTextAnnotationID = nil
                 hoveredSelectableAnnotation = nil
+                isPointerInsideCapturedImage = false
+                updateCursor()
             }
         }
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
+                    pointerCanvasPoint = value.location
+
                     if handleSelectionDragChanged(value, imageFrame: imageFrame, imageSize: imageSize) {
                         return
                     }
@@ -450,6 +549,8 @@ struct AnnotationCanvasView: View {
                     currentPoints.append(AnnotationPoint(imagePoint))
                 }
                 .onEnded { value in
+                    pointerCanvasPoint = value.location
+
                     if handleSelectionDragEnded(value, imageFrame: imageFrame, imageSize: imageSize) {
                         return
                     }
@@ -639,13 +740,26 @@ struct AnnotationCanvasView: View {
     private func render(stroke: AnnotationStroke, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
         guard stroke.points.count > 1 else { return }
 
-        var path = Path()
-        path.move(to: AnnotationCoordinateMapper.canvasPoint(fromImagePoint: stroke.points[0].cgPoint, imageFrame: imageFrame, imageSize: imageSize))
-
-        for point in stroke.points.dropFirst() {
-            path.addLine(to: AnnotationCoordinateMapper.canvasPoint(fromImagePoint: point.cgPoint, imageFrame: imageFrame, imageSize: imageSize))
+        let imageFootprintSize = FreehandBrushGeometry.footprintSize(for: stroke.tool, lineWidth: stroke.lineWidth)
+        let canvasPoints = stroke.points.map {
+            AnnotationCoordinateMapper.canvasPoint(fromImagePoint: $0.cgPoint, imageFrame: imageFrame, imageSize: imageSize)
         }
-
+        let centerlinePath = FreehandBrushGeometry.centerlinePath(points: canvasPoints)
+        let rectangularBrushPath = FreehandBrushGeometry.rectangularStampPath(
+            points: canvasPoints,
+            footprint: CGSize(
+                width: AnnotationCoordinateMapper.canvasLineWidth(
+                    fromImageLineWidth: imageFootprintSize.width,
+                    imageFrame: imageFrame,
+                    imageSize: imageSize
+                ),
+                height: AnnotationCoordinateMapper.canvasLineWidth(
+                    fromImageLineWidth: imageFootprintSize.height,
+                    imageFrame: imageFrame,
+                    imageSize: imageSize
+                )
+            )
+        )
         let renderedLineWidth = AnnotationCoordinateMapper.canvasLineWidth(fromImageLineWidth: stroke.lineWidth, imageFrame: imageFrame, imageSize: imageSize)
 
         switch stroke.tool {
@@ -655,13 +769,13 @@ struct AnnotationCanvasView: View {
             break
         case .eraser:
             context.blendMode = .clear
-            context.stroke(path, with: .color(.clear), style: StrokeStyle(lineWidth: renderedLineWidth, lineCap: .round, lineJoin: .round))
+            context.fill(rectangularBrushPath, with: .color(.clear))
             context.blendMode = .normal
         case .pen:
-            context.stroke(path, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: renderedLineWidth, lineCap: .round, lineJoin: .round))
+            context.stroke(centerlinePath, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: renderedLineWidth, lineCap: .round, lineJoin: .round))
         case .highlighter:
             context.opacity = 0.45
-            context.stroke(path, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: renderedLineWidth * 3, lineCap: .round, lineJoin: .round))
+            context.fill(rectangularBrushPath, with: .color(Color(nsColor: stroke.color)))
             context.opacity = 1
         case .text, .rectangle, .arrow:
             break
@@ -716,6 +830,51 @@ struct AnnotationCanvasView: View {
         case .arrow:
             context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: renderedLineWidth, lineCap: .round, lineJoin: .round))
         }
+    }
+
+    private func renderCursorPreview(into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
+        guard let configuration = cursorPreviewConfiguration(imageFrame: imageFrame, imageSize: imageSize) else {
+            return
+        }
+
+        let previewRect = CGRect(
+            x: configuration.canvasPoint.x - (configuration.canvasSize.width / 2),
+            y: configuration.canvasPoint.y - (configuration.canvasSize.height / 2),
+            width: configuration.canvasSize.width,
+            height: configuration.canvasSize.height
+        )
+        let cornerRadius = max(1, min(configuration.canvasSize.width, configuration.canvasSize.height) * 0.24)
+        let previewPath = configuration.shape == "rect"
+            ? Path(roundedRect: previewRect, cornerRadius: cornerRadius)
+            : Path(ellipseIn: previewRect)
+
+        if let fillColor = configuration.fillColor {
+            context.fill(
+                previewPath,
+                with: .color(Color(nsColor: fillColor).opacity(Double(configuration.fillOpacity)))
+            )
+        }
+
+        let maxCanvasDimension = max(configuration.canvasSize.width, configuration.canvasSize.height)
+        let outerHaloLineWidth = max(3.5, min(maxCanvasDimension * 0.18, 6))
+        let innerHaloLineWidth = max(2.0, min(maxCanvasDimension * 0.12, 4))
+        let ringLineWidth = max(1.25, min(maxCanvasDimension * 0.08, 2.5))
+
+        context.stroke(
+            previewPath,
+            with: .color(.black.opacity(0.78)),
+            style: StrokeStyle(lineWidth: outerHaloLineWidth)
+        )
+        context.stroke(
+            previewPath,
+            with: .color(.white.opacity(0.94)),
+            style: StrokeStyle(lineWidth: innerHaloLineWidth)
+        )
+        context.stroke(
+            previewPath,
+            with: .color(Color(nsColor: configuration.ringColor).opacity(Double(configuration.ringOpacity))),
+            style: StrokeStyle(lineWidth: ringLineWidth)
+        )
     }
 
     private func renderSelectionOutline(for shapeAnnotation: ShapeAnnotation, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
@@ -1244,7 +1403,161 @@ struct AnnotationCanvasView: View {
         )
     }
 
+    private func cursorPreviewConfiguration(imageFrame: CGRect, imageSize: CGSize) -> CursorPreviewConfiguration? {
+        guard let pointerCanvasPoint,
+              let imagePoint = AnnotationCoordinateMapper.imagePoint(
+                fromCanvasPoint: pointerCanvasPoint,
+                imageFrame: imageFrame,
+                imageSize: imageSize
+              ) else {
+            return nil
+        }
+
+        let selectedPreviewColor = opaquePreviewColor(annotationStore.selectedColor)
+
+        let style: String
+        let shape: String
+        let colorMode: String
+        let imageFootprintSize: CGSize
+        let ringColor: NSColor
+        let ringOpacity: CGFloat
+        let fillColor: NSColor?
+        let fillOpacity: CGFloat
+        let colorHex: String
+
+        switch annotationStore.selectedTool {
+        case .pen:
+            style = "filledRing"
+            shape = "circle"
+            colorMode = "selected"
+            imageFootprintSize = FreehandBrushGeometry.footprintSize(for: .pen, lineWidth: annotationStore.lineWidth)
+            ringColor = selectedPreviewColor
+            ringOpacity = 0.96
+            fillColor = selectedPreviewColor
+            fillOpacity = 0.22
+            colorHex = formattedColor(annotationStore.selectedColor)
+
+        case .highlighter:
+            style = "translucentRect"
+            shape = "rect"
+            colorMode = "selected"
+            imageFootprintSize = FreehandBrushGeometry.footprintSize(for: .highlighter, lineWidth: annotationStore.lineWidth)
+            ringColor = selectedPreviewColor
+            ringOpacity = 0.72
+            fillColor = selectedPreviewColor
+            fillOpacity = 0.18
+            colorHex = formattedColor(annotationStore.selectedColor)
+
+        case .eraser:
+            style = "neutralRect"
+            shape = "rect"
+            colorMode = "neutral"
+            imageFootprintSize = FreehandBrushGeometry.footprintSize(for: .eraser, lineWidth: annotationStore.lineWidth)
+            ringColor = .systemGray
+            ringOpacity = 0.98
+            fillColor = nil
+            fillOpacity = 0
+            colorHex = "none"
+
+        default:
+            return nil
+        }
+
+        let canvasFootprintSize = CGSize(
+            width: AnnotationCoordinateMapper.canvasLineWidth(
+                fromImageLineWidth: imageFootprintSize.width,
+                imageFrame: imageFrame,
+                imageSize: imageSize
+            ),
+            height: AnnotationCoordinateMapper.canvasLineWidth(
+                fromImageLineWidth: imageFootprintSize.height,
+                imageFrame: imageFrame,
+                imageSize: imageSize
+            )
+        )
+
+        return CursorPreviewConfiguration(
+            tool: annotationStore.selectedTool,
+            style: style,
+            shape: shape,
+            colorMode: colorMode,
+            canvasPoint: pointerCanvasPoint,
+            imagePoint: imagePoint,
+            imageSize: imageFootprintSize,
+            canvasSize: canvasFootprintSize,
+            ringColor: ringColor,
+            ringOpacity: ringOpacity,
+            fillColor: fillColor,
+            fillOpacity: fillOpacity,
+            colorHex: colorHex
+        )
+    }
+
+    private func cursorPreviewTelemetry(imageFrame: CGRect, imageSize: CGSize) -> CursorPreviewTelemetry {
+        guard let configuration = cursorPreviewConfiguration(imageFrame: imageFrame, imageSize: imageSize) else {
+            return CursorPreviewTelemetry(
+                isVisible: false,
+                tool: annotationStore.selectedTool.rawValue
+            )
+        }
+
+        return CursorPreviewTelemetry(
+            isVisible: true,
+            tool: configuration.tool.rawValue,
+            style: configuration.style,
+            shape: configuration.shape,
+            colorMode: configuration.colorMode,
+            imageDiameter: max(configuration.imageSize.width, configuration.imageSize.height),
+            canvasDiameter: max(configuration.canvasSize.width, configuration.canvasSize.height),
+            imageWidth: configuration.imageSize.width,
+            imageHeight: configuration.imageSize.height,
+            canvasWidth: configuration.canvasSize.width,
+            canvasHeight: configuration.canvasSize.height,
+            canvasX: configuration.canvasPoint.x,
+            canvasY: configuration.canvasPoint.y,
+            imageX: configuration.imagePoint.x,
+            imageY: configuration.imagePoint.y,
+            colorHex: configuration.colorHex
+        )
+    }
+
+    private func syncCursorPreviewSummary(_ summary: String) {
+        guard cursorPreviewSummary != summary else {
+            return
+        }
+
+        cursorPreviewSummary = summary
+    }
+
+    private func opaquePreviewColor(_ color: NSColor) -> NSColor {
+        let resolvedColor = color.usingColorSpace(.deviceRGB) ?? color
+        return NSColor(
+            deviceRed: resolvedColor.redComponent,
+            green: resolvedColor.greenComponent,
+            blue: resolvedColor.blueComponent,
+            alpha: 1
+        )
+    }
+
+    private func formattedColor(_ color: NSColor) -> String {
+        let resolvedColor = color.usingColorSpace(.deviceRGB) ?? color
+        let red = Int((resolvedColor.redComponent * 255).rounded())
+        let green = Int((resolvedColor.greenComponent * 255).rounded())
+        let blue = Int((resolvedColor.blueComponent * 255).rounded())
+        let alpha = Int((resolvedColor.alphaComponent * 255).rounded())
+        return String(format: "#%02X%02X%02X%02X", red, green, blue, alpha)
+    }
+
     private func updateCursor() {
+        let shouldHideSystemCursor = annotationStore.selectedTool.hidesSystemCursorInCanvas
+            && isPointerInsideCapturedImage
+
+        setSystemCursorHidden(shouldHideSystemCursor)
+
+        guard shouldHideSystemCursor == false else {
+            return
+        }
+
         if isDraggingSelectionOrText {
             NSCursor.closedHand.set()
         } else if isHoveringDraggableAnnotation {
@@ -1252,6 +1565,20 @@ struct AnnotationCanvasView: View {
         } else {
             annotationStore.selectedTool.idleCursor.set()
         }
+    }
+
+    private func setSystemCursorHidden(_ hidden: Bool) {
+        guard isSystemCursorHidden != hidden else {
+            return
+        }
+
+        if hidden {
+            NSCursor.hide()
+        } else {
+            NSCursor.unhide()
+        }
+
+        isSystemCursorHidden = hidden
     }
 
     private var isDraggingSelectionOrText: Bool {

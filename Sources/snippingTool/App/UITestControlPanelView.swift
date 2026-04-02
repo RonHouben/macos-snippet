@@ -23,6 +23,7 @@ struct UITestControlPanelView: View {
                             services.setPreferredCaptureMode(mode)
                         }
                         .buttonStyle(.bordered)
+                        .pointingHandCursor()
                         .accessibilityIdentifier(AppAutomationIdentifiers.uiTestCaptureModeButton(for: mode))
                     }
                 }
@@ -35,30 +36,35 @@ struct UITestControlPanelView: View {
                     services.startPreferredCapture()
                 }
                 .buttonStyle(.borderedProminent)
+                .pointingHandCursor()
                 .accessibilityIdentifier(AppAutomationIdentifiers.uiTestNewCaptureButton)
 
                 Button("Load Sample Capture") {
                     services.loadUITestSampleCapture()
                 }
                 .buttonStyle(.bordered)
+                .pointingHandCursor()
                 .accessibilityIdentifier(AppAutomationIdentifiers.uiTestLoadSampleCaptureButton)
 
                 Button("Open Editor") {
                     services.openEditor()
                 }
                 .buttonStyle(.bordered)
+                .pointingHandCursor()
                 .accessibilityIdentifier(AppAutomationIdentifiers.uiTestOpenEditorButton)
 
                 Button("Open Settings") {
                     services.openSettings()
                 }
                 .buttonStyle(.bordered)
+                .pointingHandCursor()
                 .accessibilityIdentifier(AppAutomationIdentifiers.uiTestOpenSettingsButton)
 
                 Button("Quit snippingTool") {
                     services.quit()
                 }
                 .buttonStyle(.bordered)
+                .pointingHandCursor()
                 .accessibilityIdentifier(AppAutomationIdentifiers.uiTestQuitButton)
             }
 

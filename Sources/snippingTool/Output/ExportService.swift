@@ -73,11 +73,12 @@ private struct ExportSnapshotView: View {
 
             Canvas { context, _ in
                 for stroke in strokes where stroke.points.count > 1 {
-                    var path = Path()
-                    path.move(to: stroke.points[0].cgPoint)
-                    for point in stroke.points.dropFirst() {
-                        path.addLine(to: point.cgPoint)
-                    }
+                    let points = stroke.points.map(\.cgPoint)
+                    let centerlinePath = FreehandBrushGeometry.centerlinePath(points: points)
+                    let brushPath = FreehandBrushGeometry.rectangularStampPath(
+                        points: points,
+                        footprint: FreehandBrushGeometry.footprintSize(for: stroke.tool, lineWidth: stroke.lineWidth)
+                    )
 
                     switch stroke.tool {
                     case .select:
@@ -86,13 +87,13 @@ private struct ExportSnapshotView: View {
                         break
                     case .eraser:
                         context.blendMode = .clear
-                        context.stroke(path, with: .color(.clear), style: StrokeStyle(lineWidth: stroke.lineWidth, lineCap: .round, lineJoin: .round))
+                        context.fill(brushPath, with: .color(.clear))
                         context.blendMode = .normal
                     case .pen:
-                        context.stroke(path, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: stroke.lineWidth, lineCap: .round, lineJoin: .round))
+                        context.stroke(centerlinePath, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: stroke.lineWidth, lineCap: .round, lineJoin: .round))
                     case .highlighter:
                         context.opacity = 0.45
-                        context.stroke(path, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: stroke.lineWidth * 3, lineCap: .round, lineJoin: .round))
+                        context.fill(brushPath, with: .color(Color(nsColor: stroke.color)))
                         context.opacity = 1
                     case .text, .rectangle, .arrow:
                         break

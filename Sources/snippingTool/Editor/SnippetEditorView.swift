@@ -38,6 +38,7 @@ struct SnippetEditorView: View {
     @State private var editorPanOffset: CGSize = .zero
     @State private var editorPanBounds: CGSize = .zero
     @State private var viewportTelemetry = EditorViewportTelemetry()
+    @State private var cursorPreviewSummary: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,7 +64,8 @@ struct SnippetEditorView: View {
                     zoomScale: $editorZoomScale,
                     panOffset: $editorPanOffset,
                     panBounds: $editorPanBounds,
-                    viewportTelemetry: $viewportTelemetry
+                    viewportTelemetry: $viewportTelemetry,
+                    cursorPreviewSummary: $cursorPreviewSummary
                 )
 
                 if let exportMessage {
@@ -101,16 +103,26 @@ struct SnippetEditorView: View {
                     .accessibilityLabel(viewportTelemetry.accessibilitySummary)
                     .accessibilityValue(viewportTelemetry.accessibilitySummary)
                     .allowsHitTesting(false)
+
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier(AppAutomationIdentifiers.editorCursorPreviewSummary)
+                    .accessibilityLabel(cursorPreviewSummary)
+                    .accessibilityValue(cursorPreviewSummary)
+                    .allowsHitTesting(false)
             }
         }
         .navigationTitle("Editor")
         .onAppear {
             exportMessage = nil
+            cursorPreviewSummary = ""
             resetEditorZoom()
         }
         .onChange(of: captureCoordinator.currentCapture?.id) { _, _ in
             annotationStore = AnnotationStore()
             exportMessage = nil
+            cursorPreviewSummary = ""
             resetEditorZoom()
         }
     }

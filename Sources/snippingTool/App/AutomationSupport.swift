@@ -129,6 +129,7 @@ enum AppAutomationIdentifiers {
     static let editorHistoryGroup = "editor.history-group"
     static let editorOutputGroup = "editor.output-group"
     static let editorCanvas = "editor.canvas"
+    static let editorCursorPreviewSummary = "editor.cursor-preview-summary"
     static let editorShapeSummary = "editor.shape-summary"
     static let editorInspectorColorPicker = "editor.inspector.color-picker"
     static let editorInspectorSizeSlider = "editor.inspector.size-slider"

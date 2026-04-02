@@ -42,6 +42,7 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
+                    .pointingHandCursor()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityLabel("Theme")
                     .accessibilityIdentifier(AppAutomationIdentifiers.settingsThemePicker)
@@ -63,6 +64,7 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
+                    .pointingHandCursor()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityLabel("Default capture mode")
                     .accessibilityIdentifier(AppAutomationIdentifiers.settingsCaptureModePicker)
@@ -91,11 +93,13 @@ struct SettingsView: View {
                         Button("Request Screen Recording") {
                             captureCoordinator.requestScreenRecording()
                         }
+                        .pointingHandCursor()
                         .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestScreenRecordingButton)
 
                         Button("Request Accessibility") {
                             captureCoordinator.requestAccessibility()
                         }
+                        .pointingHandCursor()
                         .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestAccessibilityButton)
                     }
                 }
@@ -231,6 +235,7 @@ private struct SettingsRecorderActivationOverlay: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .buttonStyle(.plain)
         .disabled(isEnabled == false)
+        .pointingHandCursor()
         .accessibilityLabel(label)
         .accessibilityValue(value)
         .accessibilityIdentifier(identifier)
@@ -283,6 +288,7 @@ private struct EditorCompletionModifierRow: View {
                 .frame(width: SettingsLayout.actionColumnWidth)
                 .controlSize(.regular)
                 .disabled(appState.editorCompletionModifiers.isEmpty)
+                .pointingHandCursor()
                 .accessibilityIdentifier(AppAutomationIdentifiers.settingsEditorCompletionModifierClearButton)
 
                 Spacer(minLength: 0)
@@ -342,6 +348,7 @@ private struct CaptureModeHotkeyRow: View {
                 Toggle("", isOn: isEnabledBinding)
                     .toggleStyle(.switch)
                     .labelsHidden()
+                    .pointingHandCursor()
                     .frame(width: SettingsLayout.toggleColumnWidth, alignment: .center)
                     .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyToggle(for: mode))
 
@@ -381,6 +388,7 @@ private struct CaptureModeHotkeyRow: View {
                 .frame(width: SettingsLayout.actionColumnWidth)
                 .controlSize(.regular)
                 .disabled(appState.shortcut(for: mode) == nil)
+                .pointingHandCursor()
                 .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyClearButton(for: mode))
 
                 Spacer(minLength: 0)

@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import SwiftUI
 import snippingToolCore
 
 private func archivedColorData(for color: NSColor) -> Data {
@@ -119,6 +120,15 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         }
     }
 
+    var hidesSystemCursorInCanvas: Bool {
+        switch self {
+        case .pen, .highlighter, .eraser:
+            true
+        case .select, .ocr, .text, .rectangle, .arrow:
+            false
+        }
+    }
+
     var isAnnotationSelectionTool: Bool {
         self == .select
     }
@@ -157,6 +167,17 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
 
     var showsSizeControl: Bool {
         usesStrokeWidth || isTextAnnotationTool
+    }
+
+    var strokeWidthRange: ClosedRange<CGFloat> {
+        switch self {
+        case .eraser:
+            1...28
+        case .pen, .highlighter, .rectangle, .arrow:
+            1...16
+        case .select, .ocr, .text:
+            1...16
+        }
     }
 
     var inspectorTitle: String? {
@@ -377,4 +398,85 @@ struct ExportedCapture: Identifiable, Equatable {
     let id: UUID
     let fileURL: URL
     let createdAt: Date
+}
+
+enum FreehandBrushGeometry {
+    private static let rectangularAspectRatio: CGFloat = 3
+    private static let rectangularCornerRatio: CGFloat = 0.24
+
+    static func footprintSize(for tool: AnnotationTool, lineWidth: CGFloat) -> CGSize {
+        let baseWidth = max(lineWidth, 1)
+
+        switch tool {
+        case .highlighter, .eraser:
+            return CGSize(width: baseWidth, height: max(baseWidth * rectangularAspectRatio, baseWidth))
+        case .pen, .select, .ocr, .text, .rectangle, .arrow:
+            return CGSize(width: baseWidth, height: baseWidth)
+        }
+    }
+
+    static func centerlinePath(points: [CGPoint]) -> Path {
+        var path = Path()
+        guard let firstPoint = points.first else {
+            return path
+        }
+
+        path.move(to: firstPoint)
+        for point in points.dropFirst() {
+            path.addLine(to: point)
+        }
+
+        return path
+    }
+
+    static func rectangularStampPath(points: [CGPoint], footprint: CGSize) -> Path {
+        var path = Path()
+        guard let firstPoint = points.first else {
+            return path
+        }
+
+        addRoundedRect(centeredAt: firstPoint, footprint: footprint, to: &path)
+
+        guard points.count > 1 else {
+            return path
+        }
+
+        let step = max(1, min(footprint.width, footprint.height) * 0.35)
+        for (start, end) in zip(points, points.dropFirst()) {
+            let deltaX = end.x - start.x
+            let deltaY = end.y - start.y
+            let distance = hypot(deltaX, deltaY)
+
+            guard distance > 0 else {
+                addRoundedRect(centeredAt: end, footprint: footprint, to: &path)
+                continue
+            }
+
+            let sampleCount = max(1, Int(ceil(distance / step)))
+            for sampleIndex in 1...sampleCount {
+                let progress = CGFloat(sampleIndex) / CGFloat(sampleCount)
+                let point = CGPoint(
+                    x: start.x + (deltaX * progress),
+                    y: start.y + (deltaY * progress)
+                )
+                addRoundedRect(centeredAt: point, footprint: footprint, to: &path)
+            }
+        }
+
+        return path
+    }
+
+    private static func addRoundedRect(centeredAt center: CGPoint, footprint: CGSize, to path: inout Path) {
+        let rect = CGRect(
+            x: center.x - (footprint.width / 2),
+            y: center.y - (footprint.height / 2),
+            width: footprint.width,
+            height: footprint.height
+        )
+        let cornerRadius = max(1, min(footprint.width, footprint.height) * rectangularCornerRatio)
+        path.addRoundedRect(
+            in: rect,
+            cornerSize: CGSize(width: cornerRadius, height: cornerRadius)
+        )
+    }
 }

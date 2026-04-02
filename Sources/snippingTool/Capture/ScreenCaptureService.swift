@@ -1,6 +1,9 @@
 import AppKit
 import CoreGraphics
 import Foundation
+#if canImport(ScreenCaptureKit)
+@preconcurrency import ScreenCaptureKit
+#endif
 import snippingToolCore
 
 struct ScreenCaptureService {
@@ -67,19 +70,12 @@ struct ScreenCaptureService {
         return CapturedSnippet(cgImage: image, sourceRect: screen.frame)
     }
 
-    func captureWindow(windowID: CGWindowID, bounds: CGRect) throws -> CapturedSnippet {
+    func captureWindow(windowID: CGWindowID, bounds: CGRect) async throws -> CapturedSnippet {
         guard CGPreflightScreenCaptureAccess() else {
             throw CaptureError.permissionDenied
         }
 
-        guard let image = CGWindowListCreateImage(
-            .null,
-            .optionIncludingWindow,
-            windowID,
-            [.bestResolution]
-        ) else {
-            throw CaptureError.windowUnavailable
-        }
+        let image = try await captureWindowImage(windowID: windowID)
 
         return CapturedSnippet(cgImage: image, sourceRect: bounds.standardized.integral)
     }
@@ -87,6 +83,40 @@ struct ScreenCaptureService {
     private func screen(containing rect: CGRect) -> NSScreen? {
         NSScreen.screens.first { $0.frame.intersects(rect) }
     }
+
+#if canImport(ScreenCaptureKit)
+    @available(macOS 14.0, *)
+    private func captureWindowImage(windowID: CGWindowID) async throws -> CGImage {
+        let shareableContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        guard let window = shareableContent.windows.first(where: { $0.windowID == windowID }) else {
+            throw CaptureError.windowUnavailable
+        }
+
+        let contentFilter = SCContentFilter(desktopIndependentWindow: window)
+        let configuration = screenshotConfiguration(for: contentFilter)
+        return try await SCScreenshotManager.captureImage(contentFilter: contentFilter, configuration: configuration)
+    }
+
+    @available(macOS 14.0, *)
+    private func screenshotConfiguration(for contentFilter: SCContentFilter) -> SCStreamConfiguration {
+        let configuration = SCStreamConfiguration()
+        let scale = max(CGFloat(contentFilter.pointPixelScale), 1)
+        let contentRect = contentFilter.contentRect.integral
+
+        configuration.width = max(Int((contentRect.width * scale).rounded(.up)), 1)
+        configuration.height = max(Int((contentRect.height * scale).rounded(.up)), 1)
+        configuration.scalesToFit = false
+        configuration.showsCursor = false
+        configuration.ignoreShadowsSingleWindow = false
+
+        return configuration
+    }
+#else
+    private func captureWindowImage(windowID: CGWindowID) async throws -> CGImage {
+        _ = windowID
+        throw CaptureError.windowUnavailable
+    }
+#endif
 }
 
 private extension NSScreen {

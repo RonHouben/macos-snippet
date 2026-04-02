@@ -191,7 +191,7 @@ final class CaptureCoordinator {
             }
 
             do {
-                currentCapture = try screenCaptureService.captureWindow(windowID: target.windowID, bounds: target.bounds)
+                currentCapture = try await screenCaptureService.captureWindow(windowID: target.windowID, bounds: target.bounds)
                 completeCapture(
                     status: "Captured \(target.displayName).",
                     hasOverlay: false,

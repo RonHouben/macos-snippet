@@ -1,6 +1,58 @@
 import AppKit
 import SwiftUI
 
+struct PointingHandCursorModifier: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering in
+                updateCursorHoverState(hovering)
+            }
+            .onChange(of: isEnabled) { _, enabled in
+                if enabled {
+                    guard isHovering else {
+                        return
+                    }
+
+                    updateCursorHoverState(false)
+                    updateCursorHoverState(true)
+                } else {
+                    updateCursorHoverState(false)
+                }
+            }
+            .onDisappear {
+                updateCursorHoverState(false)
+            }
+    }
+
+    private func updateCursorHoverState(_ hovering: Bool) {
+        if hovering, isEnabled {
+            guard isHovering == false else {
+                return
+            }
+
+            NSCursor.pointingHand.push()
+            isHovering = true
+            return
+        }
+
+        guard isHovering else {
+            return
+        }
+
+        NSCursor.pop()
+        isHovering = false
+    }
+}
+
+extension View {
+    func pointingHandCursor() -> some View {
+        modifier(PointingHandCursorModifier())
+    }
+}
+
 enum EditorPanEdge {
     case left
     case right
@@ -71,6 +123,7 @@ struct AnnotationToolbarView: View {
                 )
                 .labelsHidden()
                 .controlSize(.small)
+                .pointingHandCursor()
                 .accessibilityIdentifier(AppAutomationIdentifiers.editorInspectorColorPicker)
             }
 
@@ -86,7 +139,7 @@ struct AnnotationToolbarView: View {
                     if annotationStore.selectedTool.usesStrokeWidth {
                         AccessibleInspectorSlider(
                             value: $annotationStore.lineWidth,
-                            range: 1...16,
+                            range: annotationStore.selectedTool.strokeWidthRange,
                             accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorSizeSlider
                         )
                         .frame(width: 120)
@@ -128,12 +181,14 @@ struct AnnotationToolbarView: View {
                 Label("Undo", systemImage: "arrow.uturn.backward")
             }
             .disabled(!annotationStore.canUndo)
+            .pointingHandCursor()
             .accessibilityIdentifier(AppAutomationIdentifiers.editorUndoButton)
 
             Button(action: annotationStore.redo) {
                 Label("Redo", systemImage: "arrow.uturn.forward")
             }
             .disabled(!annotationStore.canRedo)
+            .pointingHandCursor()
             .accessibilityIdentifier(AppAutomationIdentifiers.editorRedoButton)
         }
     }
@@ -148,16 +203,19 @@ struct AnnotationToolbarView: View {
             Button(action: onCopy) {
                 Label("Copy", systemImage: "doc.on.doc")
             }
+            .pointingHandCursor()
             .accessibilityIdentifier(AppAutomationIdentifiers.editorCopyButton)
 
             Button(action: onCopyAndClose) {
                 Label("Copy & Close", systemImage: "doc.on.doc.fill")
             }
+            .pointingHandCursor()
             .accessibilityIdentifier(AppAutomationIdentifiers.editorCopyAndCloseButton)
 
             Button(action: onSave) {
                 Label("Save", systemImage: "square.and.arrow.down")
             }
+            .pointingHandCursor()
             .accessibilityIdentifier(AppAutomationIdentifiers.editorSaveButton)
         }
     }
@@ -299,6 +357,7 @@ struct ToolbarIconButton: View {
             .contentShape(RoundedRectangle(cornerRadius: 11))
         }
         .buttonStyle(.plain)
+        .pointingHandCursor()
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(accessibilityHint ?? helpText)
         .accessibilityIdentifier(automationIdentifier)
@@ -474,10 +533,17 @@ private final class InspectorSliderContainerView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func resetCursorRects() {
+        discardCursorRects()
+        addCursorRect(bounds, cursor: .pointingHand)
+        super.resetCursorRects()
+    }
+
     func updateAccessibility(identifier: String, label: String) {
         self.identifier = NSUserInterfaceItemIdentifier(identifier)
         setAccessibilityIdentifier(identifier)
         setAccessibilityLabel(label)
+        window?.invalidateCursorRects(for: self)
     }
 }
 
@@ -515,9 +581,16 @@ private final class SegmentedControlContainerView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func resetCursorRects() {
+        discardCursorRects()
+        addCursorRect(bounds, cursor: .pointingHand)
+        super.resetCursorRects()
+    }
+
     func updateAccessibility(identifier: String, label: String) {
         self.identifier = NSUserInterfaceItemIdentifier(identifier)
         setAccessibilityIdentifier(identifier)
         setAccessibilityLabel(label)
+        window?.invalidateCursorRects(for: self)
     }
 }

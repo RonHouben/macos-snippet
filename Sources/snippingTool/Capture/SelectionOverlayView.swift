@@ -349,6 +349,7 @@ private struct CancelToolbarButton: View {
                 .contentShape(RoundedRectangle(cornerRadius: 11))
         }
         .buttonStyle(.plain)
+        .pointingHandCursor()
         .accessibilityLabel("Cancel capture")
         .accessibilityIdentifier(AppAutomationIdentifiers.overlayCancelButton)
         .help("Cancel")
