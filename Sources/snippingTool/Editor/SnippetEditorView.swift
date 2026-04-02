@@ -66,8 +66,8 @@ struct SnippetEditorView: View {
                     viewportTelemetry: $viewportTelemetry
                 )
 
-                if let footerMessage {
-                    Text(footerMessage)
+                if let exportMessage {
+                    Text(exportMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(10)
@@ -168,14 +168,6 @@ struct SnippetEditorView: View {
         } catch {
             exportMessage = error.localizedDescription
         }
-    }
-
-    private var footerMessage: String? {
-        exportMessage ?? (annotationStore.selectedTool.isOCRTool ? ocrHintMessage : nil)
-    }
-
-    private var ocrHintMessage: String {
-        "OCR is ready — drag across text in the screenshot, then press ⌘C to copy it."
     }
 
     private var uiTestShapeSummary: String {

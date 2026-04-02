@@ -20,7 +20,9 @@ struct AnnotationToolbarView: View {
         HStack(spacing: 14) {
             toolButtonGroup
 
-            inspectorPanel
+            if shouldShowInspectorPanel {
+                inspectorPanel
+            }
 
             Spacer()
 
@@ -155,6 +157,14 @@ struct AnnotationToolbarView: View {
 
     private var zoomPercentageLabel: String {
         "\(Int((zoomScale * 100).rounded()))%"
+    }
+
+    private var shouldShowInspectorPanel: Bool {
+        annotationStore.selectedTool.usesColor
+            || annotationStore.selectedTool.showsSizeControl
+            || annotationStore.selectedTool.shapeKind == .rectangle
+            || annotationStore.selectedTool.inspectorTitle != nil
+            || annotationStore.selectedTool.inspectorMessage != nil
     }
 }
 

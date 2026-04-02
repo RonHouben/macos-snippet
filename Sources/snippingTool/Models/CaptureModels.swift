@@ -172,7 +172,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         case .select:
             return "Selection"
         case .ocr:
-            return "OCR"
+            return nil
         case .eraser:
             return "Eraser"
         case .rectangle:
@@ -189,7 +189,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         case .select:
             return "Click or drag to select • drag to move • press Delete to remove"
         case .ocr:
-            return "Drag to select text • switch tools to annotate"
+            return nil
         case .eraser:
             return "Remove annotations"
         case .rectangle:
