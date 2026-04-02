@@ -1,6 +1,30 @@
 import Foundation
 import SwiftUI
 
+struct EditorViewportTelemetry: Equatable {
+    var imageWidth: CGFloat = 0
+    var imageHeight: CGFloat = 0
+    var visibleMinX: CGFloat = 0
+    var visibleMinY: CGFloat = 0
+    var visibleMaxX: CGFloat = 0
+    var visibleMaxY: CGFloat = 0
+    var panRangeX: CGFloat = 0
+    var panRangeY: CGFloat = 0
+
+    var accessibilitySummary: String {
+        [
+            "imageWidth=\(imageWidth)",
+            "imageHeight=\(imageHeight)",
+            "visibleMinX=\(visibleMinX)",
+            "visibleMinY=\(visibleMinY)",
+            "visibleMaxX=\(visibleMaxX)",
+            "visibleMaxY=\(visibleMaxY)",
+            "panRangeX=\(panRangeX)",
+            "panRangeY=\(panRangeY)"
+        ].joined(separator: ";")
+    }
+}
+
 struct SnippetEditorView: View {
     @Environment(CaptureCoordinator.self) private var captureCoordinator
     @Environment(RecentCaptureStore.self) private var recentCaptureStore
@@ -12,6 +36,8 @@ struct SnippetEditorView: View {
     @State private var exportMessage: String?
     @State private var editorZoomScale: CGFloat = 1
     @State private var editorPanOffset: CGSize = .zero
+    @State private var editorPanBounds: CGSize = .zero
+    @State private var viewportTelemetry = EditorViewportTelemetry()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,7 +61,9 @@ struct SnippetEditorView: View {
                     annotationStore: annotationStore,
                     capturedSnippet: capture,
                     zoomScale: $editorZoomScale,
-                    panOffset: $editorPanOffset
+                    panOffset: $editorPanOffset,
+                    panBounds: $editorPanBounds,
+                    viewportTelemetry: $viewportTelemetry
                 )
 
                 if let footerMessage {
@@ -57,13 +85,23 @@ struct SnippetEditorView: View {
         }
         .accessibilityIdentifier(AppAutomationIdentifiers.editorRoot)
         .overlay(alignment: .topLeading) {
-            Color.clear
-                .frame(width: 1, height: 1)
-                .accessibilityElement(children: .ignore)
-                .accessibilityIdentifier(AppAutomationIdentifiers.editorShapeSummary)
-                .accessibilityLabel(uiTestShapeSummary)
-                .accessibilityValue(uiTestShapeSummary)
-                .allowsHitTesting(false)
+            VStack(spacing: 0) {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier(AppAutomationIdentifiers.editorShapeSummary)
+                    .accessibilityLabel(uiTestShapeSummary)
+                    .accessibilityValue(uiTestShapeSummary)
+                    .allowsHitTesting(false)
+
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier(AppAutomationIdentifiers.editorViewportSummary)
+                    .accessibilityLabel(viewportTelemetry.accessibilitySummary)
+                    .accessibilityValue(viewportTelemetry.accessibilitySummary)
+                    .allowsHitTesting(false)
+            }
         }
         .navigationTitle("Editor")
         .onAppear {

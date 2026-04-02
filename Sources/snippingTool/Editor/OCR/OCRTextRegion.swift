@@ -38,14 +38,7 @@ struct OCRTextRegion: Identifiable, Equatable, Sendable {
 // MARK: - Coordinate Mapping
 
 extension OCRTextRegion {
-    /// Converts the normalized bounding box to view coordinates.
-    ///
-    /// Vision returns coordinates with origin at bottom-left, normalized to 0-1.
-    /// NSView (when flipped) has origin at top-left in pixel coordinates.
-    ///
-    /// - Parameter viewSize: The size of the view to map coordinates into.
-    /// - Returns: The bounding box in view coordinates.
-    func viewFrame(in viewSize: CGSize) -> CGRect {
+    private func viewFrame(for boundingBox: CGRect, in viewSize: CGSize) -> CGRect {
         let origin = CGPoint(
             x: boundingBox.minX * viewSize.width,
             y: (1 - boundingBox.maxY) * viewSize.height
@@ -55,6 +48,17 @@ extension OCRTextRegion {
             height: boundingBox.height * viewSize.height
         )
         return CGRect(origin: origin, size: size)
+    }
+
+    /// Converts the normalized bounding box to view coordinates.
+    ///
+    /// Vision returns coordinates with origin at bottom-left, normalized to 0-1.
+    /// NSView (when flipped) has origin at top-left in pixel coordinates.
+    ///
+    /// - Parameter viewSize: The size of the view to map coordinates into.
+    /// - Returns: The bounding box in view coordinates.
+    func viewFrame(in viewSize: CGSize) -> CGRect {
+        viewFrame(for: boundingBox, in: viewSize)
     }
 
     /// Returns a view frame with padding for better visual appearance and hit testing.
@@ -70,6 +74,23 @@ extension OCRTextRegion {
         verticalPadding: CGFloat = 8
     ) -> CGRect {
         viewFrame(in: viewSize)
+            .insetBy(dx: -horizontalPadding, dy: -verticalPadding)
+            .integral
+    }
+
+    /// Converts a word bounding box into view coordinates.
+    func wordFrame(for word: OCRWord, in viewSize: CGSize) -> CGRect {
+        viewFrame(for: word.boundingBox, in: viewSize)
+    }
+
+    /// Returns a word frame with padding for easier hit testing and rendering.
+    func paddedWordFrame(
+        for word: OCRWord,
+        in viewSize: CGSize,
+        horizontalPadding: CGFloat = 6,
+        verticalPadding: CGFloat = 8
+    ) -> CGRect {
+        wordFrame(for: word, in: viewSize)
             .insetBy(dx: -horizontalPadding, dy: -verticalPadding)
             .integral
     }
@@ -89,11 +110,89 @@ extension OCRTextRegion {
         paddedViewFrame(in: viewSize, horizontalPadding: padding, verticalPadding: padding)
             .contains(point)
     }
+
+    /// Finds the word directly at a given point.
+    func word(at point: CGPoint, in viewSize: CGSize, padding: CGFloat = 4) -> OCRWord? {
+        words.first { word in
+            paddedWordFrame(
+                for: word,
+                in: viewSize,
+                horizontalPadding: padding,
+                verticalPadding: padding
+            ).contains(point)
+        }
+    }
+
+    /// Finds the nearest word on this line for a drag point.
+    ///
+    /// The point may be in whitespace between words or slightly outside the line horizontally.
+    /// This allows drag selection to snap cleanly from word to word.
+    func nearestWord(to point: CGPoint, in viewSize: CGSize) -> OCRWord? {
+        guard !words.isEmpty else {
+            return nil
+        }
+
+        if let hitWord = word(at: point, in: viewSize) {
+            return hitWord
+        }
+
+        let verticalBounds = paddedViewFrame(
+            in: viewSize,
+            horizontalPadding: 20,
+            verticalPadding: 12
+        )
+        guard point.y >= verticalBounds.minY,
+              point.y <= verticalBounds.maxY else {
+            return nil
+        }
+
+        func horizontalDistance(to rect: CGRect) -> CGFloat {
+            if point.x < rect.minX {
+                return rect.minX - point.x
+            }
+
+            if point.x > rect.maxX {
+                return point.x - rect.maxX
+            }
+
+            return 0
+        }
+
+        return words.min { lhs, rhs in
+            let lhsDistance = horizontalDistance(to: wordFrame(for: lhs, in: viewSize))
+            let rhsDistance = horizontalDistance(to: wordFrame(for: rhs, in: viewSize))
+            if lhsDistance == rhsDistance {
+                return lhs.range.location < rhs.range.location
+            }
+            return lhsDistance < rhsDistance
+        }
+    }
 }
 
 // MARK: - Text Selection
 
 extension OCRTextRegion {
+    /// Returns the word selections intersecting a given text range.
+    func words(in selectedRange: NSRange) -> [OCRWord] {
+        words.filter { word in
+            NSIntersectionRange(word.range, selectedRange).length > 0
+        }
+    }
+
+    /// Combines two word ranges into a single contiguous text range.
+    func selectionRange(from anchorRange: NSRange, to targetRange: NSRange) -> NSRange {
+        let lowerBound = min(anchorRange.location, targetRange.location)
+        let upperBound = max(anchorRange.location + anchorRange.length, targetRange.location + targetRange.length)
+        return NSRange(location: lowerBound, length: upperBound - lowerBound)
+    }
+
+    /// Returns padded frames for the words intersecting a selected range.
+    func selectionFrames(for selectedRange: NSRange, in viewSize: CGSize) -> [CGRect] {
+        words(in: selectedRange).map { word in
+            paddedWordFrame(for: word, in: viewSize)
+        }
+    }
+
     /// Returns the substring of text for a given range.
     ///
     /// - Parameter range: The range to extract.

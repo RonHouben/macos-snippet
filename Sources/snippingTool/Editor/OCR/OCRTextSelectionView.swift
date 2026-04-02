@@ -44,6 +44,11 @@ final class OCRTextSelectionView: NSView {
         case dark
     }
 
+    private enum DragSelectionSource {
+        case marquee
+        case word(regionID: UUID, anchor: OCRWord)
+    }
+
     // MARK: - State
 
     let selectionState = OCRSelectionState()
@@ -52,6 +57,9 @@ final class OCRTextSelectionView: NSView {
     private var activeCaptureID: UUID?
     private var analyzedImage: CGImage?
     private var accessibilityTextViews: [OCRAccessibilityTextView] = []
+    private let accessibilitySummaryView = OCRAccessibilityTextView(frame: .zero)
+    private var dragSelectionSource: DragSelectionSource?
+    private var dragAddsToSelection = false
 
     /// Callback invoked when selection changes.
     var selectionDidChange: (() -> Void)?
@@ -96,6 +104,7 @@ final class OCRTextSelectionView: NSView {
 
     override func layout() {
         super.layout()
+        accessibilitySummaryView.frame = bounds
         layoutAccessibilityTextViews()
     }
 
@@ -106,6 +115,17 @@ final class OCRTextSelectionView: NSView {
         layer?.backgroundColor = NSColor.clear.cgColor
         setAccessibilityIdentifier(AppAutomationIdentifiers.editorOCRRoot)
         setAccessibilityLabel("OCR Text Selection")
+
+        accessibilitySummaryView.drawsBackground = false
+        accessibilitySummaryView.isEditable = false
+        accessibilitySummaryView.isSelectable = false
+        accessibilitySummaryView.textColor = .clear
+        accessibilitySummaryView.frame = bounds
+        accessibilitySummaryView.setAccessibilityIdentifier(AppAutomationIdentifiers.editorOCRSelectionSummary)
+        accessibilitySummaryView.setAccessibilityLabel("OCR Selection Summary")
+        addSubview(accessibilitySummaryView)
+
+        updateAccessibilityValue()
     }
 
     // MARK: - Public API
@@ -133,6 +153,9 @@ final class OCRTextSelectionView: NSView {
 
     /// Clears selection state.
     func clearSelection() {
+        dragSelectionSource = nil
+        dragAddsToSelection = false
+        selectionState.endDragSelection()
         selectionState.clearSelection()
         needsDisplay = true
         updateAccessibilityValue()
@@ -144,6 +167,9 @@ final class OCRTextSelectionView: NSView {
         accessibilityTextViews.forEach { $0.removeFromSuperview() }
         accessibilityTextViews.removeAll()
         analyzedImage = nil
+        dragSelectionSource = nil
+        dragAddsToSelection = false
+        selectionState.endDragSelection()
         selectionState.regions = []
         selectionState.clearSelection()
         needsDisplay = true
@@ -157,17 +183,19 @@ final class OCRTextSelectionView: NSView {
 
         let point = convert(event.locationInWindow, from: nil)
         let isAdditive = event.modifierFlags.contains(.shift)
+        dragAddsToSelection = isAdditive
 
-        if let region = selectionState.region(at: point, viewSize: bounds.size) {
-            // Clicked on a recognized text region
-            if isAdditive {
-                selectionState.addRegionToSelection(region.id)
-            } else {
-                selectionState.selectRegion(region.id)
+        if let region = selectionState.region(at: point, viewSize: bounds.size),
+           let anchorWord = region.nearestWord(to: point, in: bounds.size) {
+            if !isAdditive {
+                selectionState.clearSelection()
             }
+
+            dragSelectionSource = .word(regionID: region.id, anchor: anchorWord)
             selectionState.beginDragSelection(at: point)
         } else {
             // Clicked on empty space
+            dragSelectionSource = .marquee
             if !isAdditive {
                 selectionState.clearSelection()
             }
@@ -183,10 +211,21 @@ final class OCRTextSelectionView: NSView {
         let point = convert(event.locationInWindow, from: nil)
         selectionState.updateDragSelection(to: point)
 
-        // Update selection based on drag rectangle
-        if let dragRect = selectionState.dragSelectionRect {
-            let intersectingRegions = selectionState.regions(intersecting: dragRect, viewSize: bounds.size)
-            selectionState.selectRegions(intersectingRegions.map(\.id))
+        switch dragSelectionSource {
+        case let .word(regionID, anchorWord):
+            guard let region = selectionState.regions.first(where: { $0.id == regionID }),
+                  let targetWord = region.nearestWord(to: point, in: bounds.size) else {
+                break
+            }
+
+            let selectedRange = region.selectionRange(from: anchorWord.range, to: targetWord.range)
+            selectionState.selectRange(selectedRange, in: regionID, additive: dragAddsToSelection)
+
+        case .marquee, .none:
+            if let dragRect = selectionState.dragSelectionRect {
+                let intersectingRegions = selectionState.regions(intersecting: dragRect, viewSize: bounds.size)
+                selectionState.selectRegions(intersectingRegions.map(\.id))
+            }
         }
 
         needsDisplay = true
@@ -196,6 +235,8 @@ final class OCRTextSelectionView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         selectionState.endDragSelection()
+        dragSelectionSource = nil
+        dragAddsToSelection = false
         needsDisplay = true
         updateAccessibilityValue()
         selectionDidChange?()
@@ -281,13 +322,21 @@ final class OCRTextSelectionView: NSView {
                 continue
             }
 
-            let regionFrame = region.paddedViewFrame(in: viewSize)
-            let highlightFrame = visualHighlightFrame(for: regionFrame)
-            guard highlightFrame.intersects(dirtyRect) else {
-                continue
+            let highlightFrames: [CGRect]
+            if let selectedRange = selection.range {
+                let wordFrames = region.selectionFrames(for: selectedRange, in: viewSize)
+                if wordFrames.isEmpty {
+                    highlightFrames = [region.paddedViewFrame(in: viewSize)]
+                } else {
+                    highlightFrames = wordFrames
+                }
+            } else {
+                highlightFrames = [region.paddedViewFrame(in: viewSize)]
             }
 
-            drawSelectionHighlight(rect: highlightFrame, isDragging: selectionState.isDragging)
+            for highlightFrame in highlightFrames.map(visualHighlightFrame(for:)) where highlightFrame.intersects(dirtyRect) {
+                drawSelectionHighlight(rect: highlightFrame, isDragging: selectionState.isDragging)
+            }
         }
     }
 
@@ -403,8 +452,17 @@ final class OCRTextSelectionView: NSView {
         let selectedText = selectionState.selectedText
         let hasSelection = selectionState.hasSelection
         let selectedCount = selectionState.selections.count
+        let selectedRange = selectionState.selections
+            .compactMap(\.range)
+            .map { "\($0.location),\($0.length)" }
+            .joined(separator: "|")
 
-        setAccessibilityValue("selectedCount=\(selectedCount);hasSelection=\(hasSelection ? 1 : 0);text=\(selectedText)")
+        setAccessibilityValue(
+            "selectedCount=\(selectedCount);hasSelection=\(hasSelection ? 1 : 0);selectedRange=\(selectedRange);text=\(selectedText)"
+        )
+
+        accessibilitySummaryView.string = accessibilityValue() as? String ?? ""
+        accessibilitySummaryView.setAccessibilityValue(accessibilitySummaryView.string)
     }
 
     // MARK: - Text Recognition
@@ -414,9 +472,13 @@ final class OCRTextSelectionView: NSView {
             return
         }
 
+        dragSelectionSource = nil
+        dragAddsToSelection = false
+        selectionState.endDragSelection()
         selectionState.regions = regions
         selectionState.clearSelection()
         needsDisplay = true
+        updateAccessibilityValue()
         updateAccessibilityLabels()
     }
 
@@ -479,15 +541,86 @@ final class OCRTextSelectionView: NSView {
                 return nil
             }
 
-            let text = candidate.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            let rawText = candidate.string
+            let text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else {
                 return nil
             }
 
+            let words = recognizedWords(
+                in: text,
+                rawText: rawText,
+                candidate: candidate,
+                regionBoundingBox: observation.boundingBox
+            )
+
             return OCRTextRegion(
                 text: text,
-                boundingBox: observation.boundingBox
+                boundingBox: observation.boundingBox,
+                words: words
             )
         }
+    }
+
+    nonisolated private static func recognizedWords(
+        in text: String,
+        rawText: String,
+        candidate: VNRecognizedText,
+        regionBoundingBox: CGRect
+    ) -> [OCRWord] {
+        let trimmedRangeInRaw = rawText.range(of: text)
+
+        return enumeratedWordRanges(in: text).map { wordText, textRange in
+            let selectedRange = NSRange(textRange, in: text)
+            let rawRange = trimmedRangeInRaw.map { rangeInRaw in
+                let lowerOffset = text.distance(from: text.startIndex, to: textRange.lowerBound)
+                let upperOffset = text.distance(from: text.startIndex, to: textRange.upperBound)
+                let rawLowerBound = rawText.index(rangeInRaw.lowerBound, offsetBy: lowerOffset)
+                let rawUpperBound = rawText.index(rangeInRaw.lowerBound, offsetBy: upperOffset)
+                return rawLowerBound..<rawUpperBound
+            }
+            let recognizedObservation = rawRange.flatMap { range in
+                try? candidate.boundingBox(for: range)
+            }
+
+            let resolvedBoundingBox = recognizedObservation?.boundingBox
+                ?? approximateWordBoundingBox(
+                    for: selectedRange,
+                    in: text,
+                    regionBoundingBox: regionBoundingBox
+                )
+
+            return OCRWord(text: wordText, boundingBox: resolvedBoundingBox, range: selectedRange)
+        }
+    }
+
+    nonisolated private static func enumeratedWordRanges(in text: String) -> [(String, Range<String.Index>)] {
+        var ranges: [(String, Range<String.Index>)] = []
+
+        text.enumerateSubstrings(
+            in: text.startIndex..<text.endIndex,
+            options: [.byWords, .substringNotRequired]
+        ) { _, range, _, _ in
+            ranges.append((String(text[range]), range))
+        }
+
+        return ranges
+    }
+
+    nonisolated private static func approximateWordBoundingBox(
+        for wordRange: NSRange,
+        in text: String,
+        regionBoundingBox: CGRect
+    ) -> CGRect {
+        let fullLength = max((text as NSString).length, 1)
+        let startRatio = CGFloat(wordRange.location) / CGFloat(fullLength)
+        let endRatio = CGFloat(wordRange.location + wordRange.length) / CGFloat(fullLength)
+
+        return CGRect(
+            x: regionBoundingBox.minX + (regionBoundingBox.width * startRatio),
+            y: regionBoundingBox.minY,
+            width: max(regionBoundingBox.width * (endRatio - startRatio), 0.0025),
+            height: regionBoundingBox.height
+        )
     }
 }

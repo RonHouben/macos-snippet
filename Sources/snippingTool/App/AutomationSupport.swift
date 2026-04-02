@@ -140,6 +140,13 @@ enum AppAutomationIdentifiers {
     static let editorSaveButton = "editor.save"
     static let editorFooterMessage = "editor.footer-message"
     static let editorOCRRoot = "editor.ocr-root"
+    static let editorOCRSelectionSummary = "editor.ocr-summary"
+    static let editorViewportSummary = "editor.viewport-summary"
+    static let editorTestZoomMaxButton = "editor.test.zoom-max"
+    static let editorTestPanLeftButton = "editor.test.pan-left"
+    static let editorTestPanRightButton = "editor.test.pan-right"
+    static let editorTestPanTopButton = "editor.test.pan-top"
+    static let editorTestPanBottomButton = "editor.test.pan-bottom"
 
     static let overlayRoot = "overlay.root"
     static let overlayToolbar = "overlay.toolbar"

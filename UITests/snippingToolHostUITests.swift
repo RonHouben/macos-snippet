@@ -162,6 +162,50 @@ final class SnippingToolHostUITests: XCTestCase {
         )
     }
 
+    func testZoomedViewportCanReachAllCaptureEdges() throws {
+        openEditorWithSampleCaptureIfNeeded()
+
+        app.typeKey("9", modifierFlags: [.command, .option])
+
+        app.typeKey("h", modifierFlags: [.command, .option])
+        _ = waitForViewportSummary(timeout: 5) { summary in
+            guard let minX = doubleValue(for: "visibleMinX", in: summary) else {
+                return false
+            }
+
+            return abs(minX) <= 1.0
+        }
+
+        app.typeKey("l", modifierFlags: [.command, .option])
+        _ = waitForViewportSummary(timeout: 5) { summary in
+            guard let imageWidth = doubleValue(for: "imageWidth", in: summary),
+                  let maxX = doubleValue(for: "visibleMaxX", in: summary) else {
+                return false
+            }
+
+            return abs(imageWidth - maxX) <= 1.0
+        }
+
+        app.typeKey("k", modifierFlags: [.command, .option])
+        _ = waitForViewportSummary(timeout: 5) { summary in
+            guard let minY = doubleValue(for: "visibleMinY", in: summary) else {
+                return false
+            }
+
+            return abs(minY) <= 1.0
+        }
+
+        app.typeKey("j", modifierFlags: [.command, .option])
+        _ = waitForViewportSummary(timeout: 5) { summary in
+            guard let imageHeight = doubleValue(for: "imageHeight", in: summary),
+                  let maxY = doubleValue(for: "visibleMaxY", in: summary) else {
+                return false
+            }
+
+            return abs(imageHeight - maxY) <= 1.0
+        }
+    }
+
     func testCanSelectAndCopyRecognizedLineTextFromSampleCapture() throws {
         NSPasteboard.general.clearContents()
 
@@ -198,6 +242,70 @@ final class SnippingToolHostUITests: XCTestCase {
             resolvedText,
             SampleCaptureText.primaryLine,
             "Expected the sample capture line to expose the recognized text after drag selection, using the pasteboard when the UI host supports it."
+        )
+    }
+
+    func testCanDragSelectSpecificWordsFromRecognizedLine() throws {
+        NSPasteboard.general.clearContents()
+
+        openEditorWithSampleCaptureIfNeeded()
+        selectEditorTool(named: "OCR")
+
+        let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
+        XCTAssertTrue(
+            firstRecognizedLine.waitForExistence(timeout: 15),
+            "Expected the recognized sample text line overlay to exist for the sample capture."
+        )
+
+        let start = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.36, dy: 0.5))
+        let end = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: 0.5))
+        start.press(forDuration: 0.1, thenDragTo: end)
+
+        _ = waitForOCRSelectionSummary(timeout: 3) { summary in
+            summary["selectedCount"] == "1"
+                && summary["hasSelection"] == "1"
+                && summary["selectedRange"] == "6,10"
+        }
+
+        app.typeKey("c", modifierFlags: .command)
+
+        var copiedText = waitForCopiedString(timeout: 2)
+        if copiedText == nil {
+            firstRecognizedLine.typeKey("c", modifierFlags: .command)
+            copiedText = waitForCopiedString(timeout: 2)
+        }
+
+        XCTAssertEqual(
+            copiedText?.trimmingCharacters(in: .whitespacesAndNewlines),
+            "Beta Gamma",
+            "Expected dragging within the recognized line to copy only the selected words."
+        )
+    }
+
+    func testClickingRecognizedLineDoesNotImmediatelySelectText() throws {
+        NSPasteboard.general.clearContents()
+
+        openEditorWithSampleCaptureIfNeeded()
+        selectEditorTool(named: "OCR")
+
+        let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
+        XCTAssertTrue(
+            firstRecognizedLine.waitForExistence(timeout: 15),
+            "Expected the recognized sample text line overlay to exist for the sample capture."
+        )
+
+        firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.40, dy: 0.5)).click()
+
+        _ = waitForOCRSelectionSummary(timeout: 2) { summary in
+            summary["selectedCount"] == "0" && summary["hasSelection"] == "0"
+        }
+
+        app.typeKey("c", modifierFlags: .command)
+
+        let copiedText = waitForCopiedString(timeout: 1)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertTrue(
+            copiedText == nil || copiedText?.isEmpty == true,
+            "Expected clicking recognized text to place an anchor only, without immediately copying the full line."
         )
     }
 
@@ -834,6 +942,26 @@ final class SnippingToolHostUITests: XCTestCase {
         return finalSummary
     }
 
+    private func waitForOCRSelectionSummary(
+        timeout: TimeInterval,
+        predicate: ([String: String]) -> Bool
+    ) -> [String: String] {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        repeat {
+            let summary = currentOCRSelectionSummary()
+            if predicate(summary) {
+                return summary
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        } while Date() < deadline
+
+        let finalSummary = currentOCRSelectionSummary()
+        XCTFail("Timed out waiting for OCR selection summary to match expected state. Last summary: \(finalSummary)")
+        return finalSummary
+    }
+
     private func currentShapeSummary() -> [String: String] {
         let summaryElement = app.descendants(matching: .any)[AppAutomationIdentifiers.editorShapeSummary]
         XCTAssertTrue(summaryElement.waitForExistence(timeout: 5), "Expected the shape summary automation element to exist.")
@@ -842,6 +970,72 @@ final class SnippingToolHostUITests: XCTestCase {
         let rawSummary = rawSummaryCandidates
             .compactMap { $0 }
             .first(where: { $0.contains("count=") })
+            ?? ""
+
+        return Dictionary(
+            uniqueKeysWithValues: rawSummary
+                .split(separator: ";")
+                .compactMap { entry -> (String, String)? in
+                    let pieces = entry.split(separator: "=", maxSplits: 1).map(String.init)
+                    guard pieces.count == 2 else { return nil }
+                    return (pieces[0], pieces[1])
+                }
+        )
+    }
+
+    private func currentOCRSelectionSummary() -> [String: String] {
+        let summaryElement = app.descendants(matching: .any)
+            .matching(identifier: AppAutomationIdentifiers.editorOCRSelectionSummary)
+            .firstMatch
+        XCTAssertTrue(summaryElement.waitForExistence(timeout: 5), "Expected the OCR selection automation element to exist.")
+
+        let rawSummaryCandidates = [summaryElement.value as? String, summaryElement.label]
+        let rawSummary = rawSummaryCandidates
+            .compactMap { $0 }
+            .first(where: { $0.contains("selectedCount=") })
+            ?? ""
+
+        return Dictionary(
+            uniqueKeysWithValues: rawSummary
+                .split(separator: ";", omittingEmptySubsequences: false)
+                .compactMap { entry -> (String, String)? in
+                    let pieces = entry
+                        .split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                        .map(String.init)
+                    guard pieces.count == 2 else { return nil }
+                    return (pieces[0], pieces[1])
+                }
+        )
+    }
+
+    private func waitForViewportSummary(
+        timeout: TimeInterval,
+        predicate: ([String: String]) -> Bool
+    ) -> [String: String] {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        repeat {
+            let summary = currentViewportSummary()
+            if predicate(summary) {
+                return summary
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        } while Date() < deadline
+
+        let finalSummary = currentViewportSummary()
+        XCTFail("Timed out waiting for viewport summary to match expected state. Last summary: \(finalSummary)")
+        return finalSummary
+    }
+
+    private func currentViewportSummary() -> [String: String] {
+        let summaryElement = app.descendants(matching: .any)[AppAutomationIdentifiers.editorViewportSummary]
+        XCTAssertTrue(summaryElement.waitForExistence(timeout: 5), "Expected the viewport summary automation element to exist.")
+
+        let rawSummaryCandidates = [summaryElement.value as? String, summaryElement.label]
+        let rawSummary = rawSummaryCandidates
+            .compactMap { $0 }
+            .first(where: { $0.contains("visibleMinX=") })
             ?? ""
 
         return Dictionary(

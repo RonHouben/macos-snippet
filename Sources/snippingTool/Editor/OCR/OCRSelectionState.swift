@@ -83,8 +83,13 @@ final class OCRSelectionState {
     // MARK: - Selection Actions
 
     /// Selects an entire region, replacing any existing selection.
-    func selectRegion(_ regionID: UUID) {
-        selections = [.entireRegion(regionID)]
+    func selectRegion(_ regionID: UUID, additive: Bool = false) {
+        applySelection(.entireRegion(regionID), additive: additive)
+    }
+
+    /// Selects a specific range within a region.
+    func selectRange(_ range: NSRange, in regionID: UUID, additive: Bool = false) {
+        applySelection(.range(range, in: regionID), additive: additive)
     }
 
     /// Selects multiple regions, replacing any existing selection.
@@ -112,6 +117,15 @@ final class OCRSelectionState {
     /// Clears all selections.
     func clearSelection() {
         selections = []
+    }
+
+    private func applySelection(_ selection: OCRRegionSelection, additive: Bool) {
+        if additive {
+            selections.removeAll { $0.regionID == selection.regionID }
+            selections.append(selection)
+        } else {
+            selections = [selection]
+        }
     }
 
     // MARK: - Drag Selection

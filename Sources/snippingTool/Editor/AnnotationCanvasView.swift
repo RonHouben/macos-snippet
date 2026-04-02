@@ -45,6 +45,8 @@ struct AnnotationCanvasView: View {
     let capturedSnippet: CapturedSnippet
     @Binding var zoomScale: CGFloat
     @Binding var panOffset: CGSize
+    @Binding var panBounds: CGSize
+    @Binding var viewportTelemetry: EditorViewportTelemetry
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -66,6 +68,24 @@ struct AnnotationCanvasView: View {
     private let minZoomScale: CGFloat = 1.0
     private let maxZoomScale: CGFloat = 3.0
     private let panScrollSensitivity: CGFloat = 0.85
+
+    private var isUITestingAutomationEnabled: Bool {
+        let processInfo = ProcessInfo.processInfo
+        let arguments = Set(processInfo.arguments)
+        let environment = processInfo.environment
+
+        if arguments.contains(AppLaunchConfiguration.uiTestingArgument) {
+            return true
+        }
+
+        if let value = environment["SNIPPING_TOOL_UI_TESTING"] {
+            if value == "1" || value.caseInsensitiveCompare("true") == .orderedSame {
+                return true
+            }
+        }
+
+        return environment["XCTestConfigurationFilePath"] != nil
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -119,6 +139,15 @@ struct AnnotationCanvasView: View {
             .onChange(of: isDraggingSelectionOrText) { _, _ in
                 updateCursor()
             }
+            .onChange(of: zoomScale) { _, _ in
+                updateViewportTelemetry(containerSize: geometry.size, imageSize: imageSize)
+            }
+            .onChange(of: panOffset) { _, _ in
+                updateViewportTelemetry(containerSize: geometry.size, imageSize: imageSize)
+            }
+            .onChange(of: geometry.size) { _, _ in
+                updateViewportTelemetry(containerSize: geometry.size, imageSize: imageSize)
+            }
             .onAppear {
                 guard localKeyMonitor == nil else {
                     return
@@ -126,6 +155,37 @@ struct AnnotationCanvasView: View {
 
                 localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                     let relevantModifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+                    if isUITestingAutomationEnabled,
+                       relevantModifiers == [.command, .option],
+                       let key = event.charactersIgnoringModifiers?.lowercased() {
+                        switch key {
+                        case "9":
+                            zoomScale = maxZoomScale
+                            panOffset = clampedPanOffset(
+                                panOffset,
+                                containerSize: geometry.size,
+                                imageSize: imageSize,
+                                zoomScale: zoomScale
+                            )
+                            return nil
+                        case "h":
+                            panOffset.width = panBounds.width
+                            return nil
+                        case "l":
+                            panOffset.width = -panBounds.width
+                            return nil
+                        case "k":
+                            panOffset.height = panBounds.height
+                            return nil
+                        case "j":
+                            panOffset.height = -panBounds.height
+                            return nil
+                        default:
+                            break
+                        }
+                    }
+
                     guard relevantModifiers.isEmpty else {
                         return event
                     }
@@ -143,20 +203,24 @@ struct AnnotationCanvasView: View {
                 }
 
                 localScrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
-                    guard zoomScale > 1 else {
+                    guard zoomScale > 1,
+                          pointerCanvasPoint != nil else {
                         return event
                     }
 
-                    let horizontalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaX : event.deltaX
-                    let verticalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY
+                    let rawHorizontalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaX : event.deltaX
+                    let rawVerticalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY
+                    let directionMultiplier: CGFloat = event.isDirectionInvertedFromDevice ? -1 : 1
+                    let horizontalDelta = rawHorizontalDelta * directionMultiplier
+                    let verticalDelta = rawVerticalDelta * directionMultiplier
 
                     guard horizontalDelta != 0 || verticalDelta != 0 else {
                         return event
                     }
 
                     let proposedPan = CGSize(
-                        width: panOffset.width - (horizontalDelta * panScrollSensitivity),
-                        height: panOffset.height - (verticalDelta * panScrollSensitivity)
+                        width: panOffset.width + (horizontalDelta * panScrollSensitivity),
+                        height: panOffset.height + (verticalDelta * panScrollSensitivity)
                     )
                     panOffset = clampedPanOffset(
                         proposedPan,
@@ -167,6 +231,8 @@ struct AnnotationCanvasView: View {
 
                     return nil
                 }
+
+                updateViewportTelemetry(containerSize: geometry.size, imageSize: imageSize)
             }
             .onDisappear {
                 if let localKeyMonitor {
@@ -452,6 +518,46 @@ struct AnnotationCanvasView: View {
         )
     }
 
+    private func updateViewportTelemetry(containerSize: CGSize, imageSize: CGSize) {
+        let baseImageFrame = AnnotationCoordinateMapper.imageFrame(containerSize: containerSize, imageSize: imageSize)
+        let imageFrame = transformedImageFrame(baseImageFrame: baseImageFrame)
+        let bounds = panRange(containerSize: containerSize, imageSize: imageSize, zoomScale: zoomScale)
+        panBounds = bounds
+
+        let containerRect = CGRect(origin: .zero, size: containerSize)
+        let visibleCanvasRect = containerRect.intersection(imageFrame)
+
+        if visibleCanvasRect.isNull || imageFrame.width <= 0 || imageFrame.height <= 0 || imageSize.width <= 0 || imageSize.height <= 0 {
+            viewportTelemetry = EditorViewportTelemetry(
+                imageWidth: imageSize.width,
+                imageHeight: imageSize.height,
+                visibleMinX: 0,
+                visibleMinY: 0,
+                visibleMaxX: 0,
+                visibleMaxY: 0,
+                panRangeX: bounds.width,
+                panRangeY: bounds.height
+            )
+            return
+        }
+
+        let minX = ((visibleCanvasRect.minX - imageFrame.minX) / imageFrame.width) * imageSize.width
+        let minY = ((visibleCanvasRect.minY - imageFrame.minY) / imageFrame.height) * imageSize.height
+        let maxX = ((visibleCanvasRect.maxX - imageFrame.minX) / imageFrame.width) * imageSize.width
+        let maxY = ((visibleCanvasRect.maxY - imageFrame.minY) / imageFrame.height) * imageSize.height
+
+        viewportTelemetry = EditorViewportTelemetry(
+            imageWidth: imageSize.width,
+            imageHeight: imageSize.height,
+            visibleMinX: min(max(minX, 0), imageSize.width),
+            visibleMinY: min(max(minY, 0), imageSize.height),
+            visibleMaxX: min(max(maxX, 0), imageSize.width),
+            visibleMaxY: min(max(maxY, 0), imageSize.height),
+            panRangeX: bounds.width,
+            panRangeY: bounds.height
+        )
+    }
+
     private func handleMagnificationChanged(_ value: CGFloat, containerSize: CGSize, imageSize: CGSize) {
         let baseImageFrame = AnnotationCoordinateMapper.imageFrame(containerSize: containerSize, imageSize: imageSize)
 
@@ -514,6 +620,15 @@ struct AnnotationCanvasView: View {
     }
 
     private func clampedPanOffset(_ offset: CGSize, containerSize: CGSize, imageSize: CGSize, zoomScale: CGFloat) -> CGSize {
+        let range = panRange(containerSize: containerSize, imageSize: imageSize, zoomScale: zoomScale)
+
+        return CGSize(
+            width: min(max(offset.width, -range.width), range.width),
+            height: min(max(offset.height, -range.height), range.height)
+        )
+    }
+
+    private func panRange(containerSize: CGSize, imageSize: CGSize, zoomScale: CGFloat) -> CGSize {
         let baseImageFrame = AnnotationCoordinateMapper.imageFrame(containerSize: containerSize, imageSize: imageSize)
         let zoomedWidth = baseImageFrame.width * zoomScale
         let zoomedHeight = baseImageFrame.height * zoomScale
@@ -521,10 +636,7 @@ struct AnnotationCanvasView: View {
         let horizontalRange = max(0, (zoomedWidth - containerSize.width) / 2)
         let verticalRange = max(0, (zoomedHeight - containerSize.height) / 2)
 
-        return CGSize(
-            width: min(max(offset.width, -horizontalRange), horizontalRange),
-            height: min(max(offset.height, -verticalRange), verticalRange)
-        )
+        return CGSize(width: horizontalRange, height: verticalRange)
     }
 
     private func render(stroke: AnnotationStroke, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {

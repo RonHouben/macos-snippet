@@ -1,6 +1,13 @@
 import AppKit
 import SwiftUI
 
+enum EditorPanEdge {
+    case left
+    case right
+    case top
+    case bottom
+}
+
 struct AnnotationToolbarView: View {
     @Bindable var annotationStore: AnnotationStore
     let zoomScale: CGFloat
