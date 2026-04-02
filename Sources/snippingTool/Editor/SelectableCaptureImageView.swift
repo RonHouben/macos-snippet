@@ -19,9 +19,17 @@ struct SelectableCaptureImageView: NSViewRepresentable {
 @MainActor
 final class SelectableCapturePlatformView: NSView {
     private final class OCRSelectionHighlightView: NSView {
-        private let selectionHighlightColor = NSColor.selectedTextBackgroundColor.withAlphaComponent(0.45)
+        struct HighlightDescriptor {
+            let rect: NSRect
+            let text: String
+            let font: NSFont
+        }
 
-        var highlightRects: [NSRect] = [] {
+        private let selectionHighlightColor = NSColor.systemBlue.withAlphaComponent(0.82)
+        private let selectionBorderColor = NSColor.white.withAlphaComponent(0.9)
+        private let selectionShadowColor = NSColor.black.withAlphaComponent(0.28)
+
+        var highlights: [HighlightDescriptor] = [] {
             didSet {
                 needsDisplay = true
             }
@@ -31,24 +39,106 @@ final class SelectableCapturePlatformView: NSView {
             false
         }
 
+        override var isFlipped: Bool {
+            true
+        }
+
         override func hitTest(_ point: NSPoint) -> NSView? {
             nil
         }
 
         override func draw(_ dirtyRect: NSRect) {
-            guard highlightRects.isEmpty == false else {
+            guard highlights.isEmpty == false else {
                 return
             }
 
-            selectionHighlightColor.setFill()
+            for highlight in highlights where highlight.rect.intersects(dirtyRect) {
+                let rect = highlight.rect
+                let radius = min(10, rect.height / 2.4)
+                let shadow = NSShadow()
+                shadow.shadowColor = selectionShadowColor
+                shadow.shadowOffset = NSSize(width: 0, height: -1)
+                shadow.shadowBlurRadius = 6
 
-            for rect in highlightRects where rect.intersects(dirtyRect) {
-                NSBezierPath(
-                    roundedRect: rect,
-                    xRadius: min(4, rect.height / 3),
-                    yRadius: min(4, rect.height / 3)
-                ).fill()
+                let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+
+                NSGraphicsContext.saveGraphicsState()
+                shadow.set()
+                selectionHighlightColor.setFill()
+                path.fill()
+                NSGraphicsContext.restoreGraphicsState()
+
+                selectionBorderColor.setStroke()
+                path.lineWidth = 2
+                path.stroke()
+
+                let paragraphStyle = NSMutableParagraphStyle()
+                paragraphStyle.alignment = .left
+                paragraphStyle.lineBreakMode = .byTruncatingTail
+
+                let textInsetX = max(10, rect.height * 0.28)
+                let textRect = rect.insetBy(dx: textInsetX, dy: max(3, rect.height * 0.14))
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: highlight.font,
+                    .foregroundColor: NSColor.white,
+                    .paragraphStyle: paragraphStyle
+                ]
+
+                highlight.text.draw(in: textRect, withAttributes: attributes)
             }
+
+            if let primaryHighlight = highlights.first {
+                drawSelectionBanner(text: primaryHighlight.text, in: dirtyRect)
+            }
+        }
+
+        private func drawSelectionBanner(text: String, in dirtyRect: NSRect) {
+            let bannerRect = NSRect(x: 16, y: 16, width: min(bounds.width - 32, 520), height: 56)
+            guard bannerRect.intersects(dirtyRect) else {
+                return
+            }
+
+            let shadow = NSShadow()
+            shadow.shadowColor = selectionShadowColor
+            shadow.shadowOffset = NSSize(width: 0, height: 2)
+            shadow.shadowBlurRadius = 10
+
+            let path = NSBezierPath(roundedRect: bannerRect, xRadius: 14, yRadius: 14)
+
+            NSGraphicsContext.saveGraphicsState()
+            shadow.set()
+            NSColor.black.withAlphaComponent(0.78).setFill()
+            path.fill()
+            NSGraphicsContext.restoreGraphicsState()
+
+            selectionBorderColor.setStroke()
+            path.lineWidth = 1.5
+            path.stroke()
+
+            let captionStyle = NSMutableParagraphStyle()
+            captionStyle.lineBreakMode = .byTruncatingTail
+
+            let captionAttributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
+                .foregroundColor: NSColor.white.withAlphaComponent(0.82),
+                .paragraphStyle: captionStyle
+            ]
+
+            let textAttributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 18, weight: .bold),
+                .foregroundColor: NSColor.white,
+                .paragraphStyle: captionStyle
+            ]
+
+            "OCR selection".draw(
+                in: NSRect(x: bannerRect.minX + 14, y: bannerRect.minY + 8, width: bannerRect.width - 28, height: 14),
+                withAttributes: captionAttributes
+            )
+
+            text.draw(
+                in: NSRect(x: bannerRect.minX + 14, y: bannerRect.minY + 22, width: bannerRect.width - 28, height: 24),
+                withAttributes: textAttributes
+            )
         }
     }
 
@@ -56,6 +146,11 @@ final class SelectableCapturePlatformView: NSView {
         private var dragStartPoint: NSPoint?
         fileprivate var hasDragSelection = false
         fileprivate var selectionStateDidChange: (() -> Void)?
+
+        private var showsSelectedOCRText: Bool {
+            let selectedRange = selectedRange()
+            return selectedRange.length > 0 || hasDragSelection
+        }
 
         override var acceptsFirstResponder: Bool {
             true
@@ -176,49 +271,24 @@ final class SelectableCapturePlatformView: NSView {
             invalidateSelectionAppearance()
         }
 
-        fileprivate func selectionHighlightRects(in containerView: NSView) -> [CGRect] {
+        fileprivate func selectionHighlightDescriptor(in containerView: NSView) -> OCRSelectionHighlightView.HighlightDescriptor? {
             let selectedRange = effectiveSelectedRange
             guard selectedRange.length > 0 else {
-                return []
+                return nil
             }
 
-            guard let layoutManager,
-                  let textContainer else {
-                return [convert(bounds.insetBy(dx: 1, dy: 1), to: containerView).integral]
-            }
+            let fullLineRect = convert(bounds.insetBy(dx: -8, dy: -4), to: containerView).integral
+            let displayFont = font ?? .systemFont(ofSize: max(13, bounds.height * 0.7), weight: .semibold)
 
-            let glyphRange = layoutManager.glyphRange(forCharacterRange: selectedRange, actualCharacterRange: nil)
-            guard glyphRange.length > 0 else {
-                return [convert(bounds.insetBy(dx: 1, dy: 1), to: containerView).integral]
-            }
-
-            var rects: [CGRect] = []
-            let textOrigin = textContainerOrigin
-
-            layoutManager.enumerateEnclosingRects(
-                forGlyphRange: glyphRange,
-                withinSelectedGlyphRange: glyphRange,
-                in: textContainer
-            ) { [weak self] rect, _ in
-                guard let self else {
-                    return
-                }
-
-                let translatedRect = rect
-                    .offsetBy(dx: textOrigin.x, dy: textOrigin.y)
-                    .insetBy(dx: -1, dy: 0)
-                    .integral
-                rects.append(self.convert(translatedRect, to: containerView))
-            }
-
-            if rects.isEmpty {
-                rects.append(convert(bounds.insetBy(dx: 1, dy: 1), to: containerView).integral)
-            }
-
-            return rects
+            return OCRSelectionHighlightView.HighlightDescriptor(
+                rect: fullLineRect,
+                text: string,
+                font: displayFont
+            )
         }
 
         private func invalidateSelectionAppearance() {
+            updateTextVisibility()
             setAccessibilityValue(accessibilityValueDescription)
             selectionStateDidChange?()
         }
@@ -257,6 +327,15 @@ final class SelectableCapturePlatformView: NSView {
 
             hasDragSelection = true
             invalidateSelectionAppearance()
+        }
+
+        fileprivate func configureInitialAppearance() {
+            updateTextVisibility()
+            setAccessibilityValue(accessibilityValueDescription)
+        }
+
+        private func updateTextVisibility() {
+            textColor = .clear
         }
     }
 
@@ -383,6 +462,15 @@ final class SelectableCapturePlatformView: NSView {
         layoutSubtreeIfNeeded()
     }
 
+    private func bringSelectionHighlightToFront() {
+        guard selectionHighlightView.superview === self else {
+            return
+        }
+
+        selectionHighlightView.removeFromSuperviewWithoutNeedingDisplay()
+        addSubview(selectionHighlightView, positioned: .above, relativeTo: subviews.last)
+    }
+
     private var selectedLineTextView: RecognizedLineTextView? {
         lineTextViews.first(where: { $0.selectedRange.length > 0 || $0.hasDragSelection })
     }
@@ -450,8 +538,8 @@ final class SelectableCapturePlatformView: NSView {
             textView.textColor = .clear
             textView.insertionPointColor = .clear
             textView.selectedTextAttributes = [
-                .backgroundColor: NSColor.selectedTextBackgroundColor.withAlphaComponent(0.45),
-                .foregroundColor: NSColor.clear
+                .backgroundColor: NSColor.clear,
+                .foregroundColor: NSColor.selectedTextColor
             ]
             textView.selectionStateDidChange = { [weak self, weak textView] in
                 guard let self,
@@ -464,10 +552,12 @@ final class SelectableCapturePlatformView: NSView {
             textView.setAccessibilityIdentifier(AppAutomationIdentifiers.editorOCRLine(index))
             textView.setAccessibilityLabel(line.text)
             textView.isHidden = isOCREnabled == false
+            textView.configureInitialAppearance()
             addSubview(textView)
             return textView
         }
 
+        bringSelectionHighlightToFront()
         updateSelectionHighlightOverlay()
     }
 
@@ -515,16 +605,16 @@ final class SelectableCapturePlatformView: NSView {
     private func updateSelectionHighlightOverlay() {
         guard isOCREnabled else {
             selectionHighlightView.isHidden = true
-            selectionHighlightView.highlightRects = []
+            selectionHighlightView.highlights = []
             return
         }
 
-        let highlightRects = lineTextViews.flatMap { textView in
-            textView.selectionHighlightRects(in: selectionHighlightView)
+        let highlights = lineTextViews.compactMap { textView in
+            textView.selectionHighlightDescriptor(in: selectionHighlightView)
         }
 
-        selectionHighlightView.isHidden = highlightRects.isEmpty
-        selectionHighlightView.highlightRects = highlightRects
+        selectionHighlightView.isHidden = highlights.isEmpty
+        selectionHighlightView.highlights = highlights
     }
 
     private func frame(for normalizedBoundingBox: CGRect, in bounds: CGRect) -> CGRect {
@@ -538,7 +628,7 @@ final class SelectableCapturePlatformView: NSView {
         )
 
         return CGRect(origin: origin, size: size)
-            .insetBy(dx: -4, dy: -2)
+            .insetBy(dx: -12, dy: -8)
             .integral
     }
 
