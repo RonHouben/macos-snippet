@@ -203,24 +203,20 @@ struct AnnotationCanvasView: View {
                 }
 
                 localScrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
-                    guard zoomScale > 1,
-                          pointerCanvasPoint != nil else {
+                    guard zoomScale > 1 else {
                         return event
                     }
 
-                    let rawHorizontalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaX : event.deltaX
-                    let rawVerticalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY
-                    let directionMultiplier: CGFloat = event.isDirectionInvertedFromDevice ? -1 : 1
-                    let horizontalDelta = rawHorizontalDelta * directionMultiplier
-                    let verticalDelta = rawVerticalDelta * directionMultiplier
+                    let horizontalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaX : event.deltaX
+                    let verticalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY
 
                     guard horizontalDelta != 0 || verticalDelta != 0 else {
                         return event
                     }
 
                     let proposedPan = CGSize(
-                        width: panOffset.width + (horizontalDelta * panScrollSensitivity),
-                        height: panOffset.height + (verticalDelta * panScrollSensitivity)
+                        width: panOffset.width - (horizontalDelta * panScrollSensitivity),
+                        height: panOffset.height - (verticalDelta * panScrollSensitivity)
                     )
                     panOffset = clampedPanOffset(
                         proposedPan,
@@ -265,11 +261,12 @@ struct AnnotationCanvasView: View {
         ZStack(alignment: .topLeading) {
             SelectableCaptureImageView(
                 capturedSnippet: capturedSnippet,
-                isOCREnabled: annotationStore.selectedTool.isOCRTool
+                isOCREnabled: annotationStore.selectedTool.isOCRTool,
+                viewportSize: containerSize,
+                imageFrame: imageFrame
             )
-                .frame(width: imageFrame.width, height: imageFrame.height)
-                .offset(x: imageFrame.minX, y: imageFrame.minY)
-                .clipped()
+                .frame(width: containerSize.width, height: containerSize.height)
+                .allowsHitTesting(annotationStore.selectedTool.isOCRTool)
                 .accessibilityIdentifier(AppAutomationIdentifiers.editorOCRRoot)
 
             annotationOverlay(containerSize: containerSize, imageFrame: imageFrame, imageSize: imageSize)

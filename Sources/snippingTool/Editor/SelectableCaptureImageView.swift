@@ -5,13 +5,57 @@ import SwiftUI
 struct SelectableCaptureImageView: NSViewRepresentable {
     let capturedSnippet: CapturedSnippet
     let isOCREnabled: Bool
+    let viewportSize: CGSize
+    let imageFrame: CGRect
 
-    func makeNSView(context: Context) -> SelectableCapturePlatformView {
-        SelectableCapturePlatformView()
+    func makeNSView(context: Context) -> SelectableCaptureViewportContainerView {
+        SelectableCaptureViewportContainerView()
     }
 
-    func updateNSView(_ nsView: SelectableCapturePlatformView, context: Context) {
-        nsView.update(capturedSnippet: capturedSnippet, isOCREnabled: isOCREnabled)
+    func updateNSView(_ nsView: SelectableCaptureViewportContainerView, context: Context) {
+        nsView.update(
+            capturedSnippet: capturedSnippet,
+            isOCREnabled: isOCREnabled,
+            viewportSize: viewportSize,
+            imageFrame: imageFrame
+        )
+    }
+}
+
+@MainActor
+final class SelectableCaptureViewportContainerView: NSView {
+    private let captureView = SelectableCapturePlatformView()
+
+    override var isFlipped: Bool {
+        true
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+
+        wantsLayer = true
+        layer?.masksToBounds = true
+        addSubview(captureView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard bounds.contains(point) else {
+            return nil
+        }
+
+        return super.hitTest(point)
+    }
+
+    func update(capturedSnippet: CapturedSnippet, isOCREnabled: Bool, viewportSize: CGSize, imageFrame: CGRect) {
+        frame = CGRect(origin: .zero, size: viewportSize)
+        captureView.frame = imageFrame
+        captureView.update(capturedSnippet: capturedSnippet, isOCREnabled: isOCREnabled)
+        needsLayout = true
     }
 }
 
