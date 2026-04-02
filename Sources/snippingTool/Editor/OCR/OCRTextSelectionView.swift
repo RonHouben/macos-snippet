@@ -234,6 +234,15 @@ final class OCRTextSelectionView: NSView {
     private var highlightAnimationTargetFrames: [CGRect] = []
     private var highlightAnimationStartTime: TimeInterval?
     private var highlightAnimationTimer: Timer?
+    var isTextSelectionCursorEnabled = false {
+        didSet {
+            guard oldValue != isTextSelectionCursorEnabled else {
+                return
+            }
+
+            invalidateTextSelectionCursorRects()
+        }
+    }
 
     /// Callback invoked when selection changes.
     var selectionDidChange: (() -> Void)?
@@ -285,6 +294,11 @@ final class OCRTextSelectionView: NSView {
         accessibilitySummaryView.frame = bounds
         layoutAccessibilityTextViews()
         refreshSelectionHighlights(animated: false)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        invalidateTextSelectionCursorRects()
     }
 
     // MARK: - Setup
@@ -564,8 +578,17 @@ final class OCRTextSelectionView: NSView {
 
     // MARK: - Cursor
 
+    private func invalidateTextSelectionCursorRects() {
+        discardCursorRects()
+        window?.invalidateCursorRects(for: self)
+    }
+
     override func resetCursorRects() {
         discardCursorRects()
+        guard isTextSelectionCursorEnabled, isHidden == false else {
+            return
+        }
+
         addCursorRect(bounds, cursor: .iBeam)
     }
 

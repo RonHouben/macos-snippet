@@ -136,6 +136,7 @@ final class SelectableCapturePlatformView: NSView {
 
         // Update OCR selection view visibility
         ocrSelectionView.isHidden = !isOCREnabled
+        ocrSelectionView.isTextSelectionCursorEnabled = isOCREnabled
 
         if !isOCREnabled {
             ocrSelectionView.clearSelection()
