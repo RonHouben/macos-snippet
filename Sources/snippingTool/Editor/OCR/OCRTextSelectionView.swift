@@ -32,10 +32,17 @@ private final class OCRAccessibilityTextView: NSTextView {
 final class OCRTextSelectionView: NSView {
     // MARK: - Configuration
 
-    private let selectionHighlightColor = NSColor.systemBlue.withAlphaComponent(0.82)
-    private let selectionBorderColor = NSColor.white.withAlphaComponent(0.9)
-    private let selectionShadowColor = NSColor.black.withAlphaComponent(0.28)
-    private let bannerBackgroundColor = NSColor.black.withAlphaComponent(0.78)
+    private let settledLightHighlightColor = NSColor.white.withAlphaComponent(0.15)
+    private let draggingLightHighlightColor = NSColor.white.withAlphaComponent(0.24)
+    private let settledDarkHighlightColor = NSColor.black.withAlphaComponent(0.15)
+    private let draggingDarkHighlightColor = NSColor.black.withAlphaComponent(0.24)
+    private let lightHighlightShadowColor = NSColor.black.withAlphaComponent(0.10)
+    private let darkHighlightShadowColor = NSColor.white.withAlphaComponent(0.10)
+
+    private enum BackgroundTone {
+        case light
+        case dark
+    }
 
     // MARK: - State
 
@@ -43,6 +50,7 @@ final class OCRTextSelectionView: NSView {
 
     private var analysisTask: Task<Void, Never>?
     private var activeCaptureID: UUID?
+    private var analyzedImage: CGImage?
     private var accessibilityTextViews: [OCRAccessibilityTextView] = []
 
     /// Callback invoked when selection changes.
@@ -106,6 +114,7 @@ final class OCRTextSelectionView: NSView {
     func analyze(cgImage: CGImage, captureID: UUID) {
         analysisTask?.cancel()
         activeCaptureID = captureID
+        analyzedImage = cgImage
 
         analysisTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -134,6 +143,7 @@ final class OCRTextSelectionView: NSView {
     func clearRecognizedRegions() {
         accessibilityTextViews.forEach { $0.removeFromSuperview() }
         accessibilityTextViews.removeAll()
+        analyzedImage = nil
         selectionState.regions = []
         selectionState.clearSelection()
         needsDisplay = true
@@ -264,7 +274,6 @@ final class OCRTextSelectionView: NSView {
         }
 
         let viewSize = bounds.size
-        var drawnHighlights: [(rect: CGRect, text: String)] = []
 
         // Draw selection highlights for each selected region
         for selection in selectionState.selections {
@@ -273,122 +282,119 @@ final class OCRTextSelectionView: NSView {
             }
 
             let regionFrame = region.paddedViewFrame(in: viewSize)
-            guard regionFrame.intersects(dirtyRect) else {
+            let highlightFrame = visualHighlightFrame(for: regionFrame)
+            guard highlightFrame.intersects(dirtyRect) else {
                 continue
             }
 
-            drawSelectionHighlight(
-                rect: regionFrame,
-                text: region.text,
-                font: fontForRegion(region)
-            )
-
-            drawnHighlights.append((regionFrame, region.text))
-        }
-
-        // Draw selection banner if we have selections
-        if !drawnHighlights.isEmpty {
-            drawSelectionBanner(text: selectionState.selectedText, in: dirtyRect)
+            drawSelectionHighlight(rect: highlightFrame, isDragging: selectionState.isDragging)
         }
     }
 
-    private func drawSelectionHighlight(rect: CGRect, text: String, font: NSFont) {
-        let radius = min(10, rect.height / 2.4)
+    private func visualHighlightFrame(for rect: CGRect) -> CGRect {
+        let insetX = min(5, max(2, rect.height * 0.22))
+        let insetY = min(3, max(1, rect.height * 0.12))
+        let insetRect = rect.insetBy(dx: insetX, dy: insetY)
+
+        guard insetRect.width > 0, insetRect.height > 0 else {
+            return rect
+        }
+
+        return insetRect.integral
+    }
+
+    private func drawSelectionHighlight(rect: CGRect, isDragging: Bool) {
+        let radius = min(6, rect.height / 3.2)
+        let backgroundTone = highlightBackgroundTone(for: rect)
+        let highlightColor: NSColor
+        let shadowColor: NSColor
+
+        switch (backgroundTone, isDragging) {
+        case (.dark, false):
+            highlightColor = settledLightHighlightColor
+            shadowColor = lightHighlightShadowColor
+        case (.dark, true):
+            highlightColor = draggingLightHighlightColor
+            shadowColor = lightHighlightShadowColor
+        case (.light, false):
+            highlightColor = settledDarkHighlightColor
+            shadowColor = darkHighlightShadowColor
+        case (.light, true):
+            highlightColor = draggingDarkHighlightColor
+            shadowColor = darkHighlightShadowColor
+        }
 
         // Shadow
         let shadow = NSShadow()
-        shadow.shadowColor = selectionShadowColor
+        shadow.shadowColor = shadowColor
         shadow.shadowOffset = NSSize(width: 0, height: -1)
-        shadow.shadowBlurRadius = 6
+        shadow.shadowBlurRadius = isDragging ? 2 : 1
 
         let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
 
         // Fill with shadow
         NSGraphicsContext.saveGraphicsState()
         shadow.set()
-        selectionHighlightColor.setFill()
+        highlightColor.setFill()
         path.fill()
         NSGraphicsContext.restoreGraphicsState()
-
-        // Border
-        selectionBorderColor.setStroke()
-        path.lineWidth = 2
-        path.stroke()
-
-        // Text
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = .left
-        paragraphStyle.lineBreakMode = .byTruncatingTail
-
-        let textInsetX = max(10, rect.height * 0.28)
-        let textRect = rect.insetBy(dx: textInsetX, dy: max(3, rect.height * 0.14))
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor.white,
-            .paragraphStyle: paragraphStyle
-        ]
-
-        text.draw(in: textRect, withAttributes: attributes)
     }
 
-    private func drawSelectionBanner(text: String, in dirtyRect: NSRect) {
-        let bannerRect = CGRect(x: 16, y: 16, width: min(bounds.width - 32, 520), height: 56)
-        guard bannerRect.intersects(dirtyRect) else {
-            return
+    private func highlightBackgroundTone(for rect: CGRect) -> BackgroundTone {
+        guard let luminance = averageLuminance(in: rect) else {
+            return .dark
         }
 
-        // Shadow
-        let shadow = NSShadow()
-        shadow.shadowColor = selectionShadowColor
-        shadow.shadowOffset = NSSize(width: 0, height: 2)
-        shadow.shadowBlurRadius = 10
-
-        let path = NSBezierPath(roundedRect: bannerRect, xRadius: 14, yRadius: 14)
-
-        // Fill with shadow
-        NSGraphicsContext.saveGraphicsState()
-        shadow.set()
-        bannerBackgroundColor.setFill()
-        path.fill()
-        NSGraphicsContext.restoreGraphicsState()
-
-        // Border
-        selectionBorderColor.setStroke()
-        path.lineWidth = 1.5
-        path.stroke()
-
-        // Caption
-        let captionStyle = NSMutableParagraphStyle()
-        captionStyle.lineBreakMode = .byTruncatingTail
-
-        let captionAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
-            .foregroundColor: NSColor.white.withAlphaComponent(0.82),
-            .paragraphStyle: captionStyle
-        ]
-
-        "OCR selection".draw(
-            in: CGRect(x: bannerRect.minX + 14, y: bannerRect.minY + 8, width: bannerRect.width - 28, height: 14),
-            withAttributes: captionAttributes
-        )
-
-        // Selected text preview
-        let textAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 18, weight: .bold),
-            .foregroundColor: NSColor.white,
-            .paragraphStyle: captionStyle
-        ]
-
-        let previewText = text.components(separatedBy: .newlines).first ?? text
-        previewText.draw(
-            in: CGRect(x: bannerRect.minX + 14, y: bannerRect.minY + 22, width: bannerRect.width - 28, height: 24),
-            withAttributes: textAttributes
-        )
+        return luminance >= 0.6 ? .light : .dark
     }
 
-    private func fontForRegion(_ region: OCRTextRegion) -> NSFont {
-        let regionFrame = region.paddedViewFrame(in: bounds.size)
-        return .systemFont(ofSize: max(13, regionFrame.height * 0.7), weight: .semibold)
+    private func averageLuminance(in rect: CGRect) -> CGFloat? {
+        guard let analyzedImage,
+              bounds.width > 0,
+              bounds.height > 0 else {
+            return nil
+        }
+
+        let scaleX = CGFloat(analyzedImage.width) / bounds.width
+        let scaleY = CGFloat(analyzedImage.height) / bounds.height
+        let imageRect = CGRect(
+            x: rect.minX * scaleX,
+            y: (bounds.height - rect.maxY) * scaleY,
+            width: rect.width * scaleX,
+            height: rect.height * scaleY
+        )
+        .integral
+        .intersection(CGRect(x: 0, y: 0, width: analyzedImage.width, height: analyzedImage.height))
+
+        guard imageRect.width > 0,
+              imageRect.height > 0,
+              let croppedImage = analyzedImage.cropping(to: imageRect) else {
+            return nil
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        var pixel = [UInt8](repeating: 0, count: 4)
+
+        guard let context = CGContext(
+            data: &pixel,
+            width: 1,
+            height: 1,
+            bitsPerComponent: 8,
+            bytesPerRow: 4,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return nil
+        }
+
+        context.interpolationQuality = .low
+        context.draw(croppedImage, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+
+        let red = CGFloat(pixel[0]) / 255
+        let green = CGFloat(pixel[1]) / 255
+        let blue = CGFloat(pixel[2]) / 255
+
+        return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
     }
 
     // MARK: - Accessibility

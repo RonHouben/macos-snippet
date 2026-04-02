@@ -54,13 +54,18 @@ struct AnnotationCanvasView: View {
     @State private var selectionGestureState: SelectionGestureState?
     @State private var draftShapeAnnotation: ShapeAnnotation?
     @State private var localKeyMonitor: Any?
+    @State private var localScrollMonitor: Any?
     @State private var hoveredTextAnnotationID: UUID?
     @State private var hoveredSelectableAnnotation: AnnotationSelection?
     @State private var pinchStartZoomScale: CGFloat?
+    @State private var pinchAnchorCanvasPoint: CGPoint?
+    @State private var pinchAnchorNormalizedPoint: CGPoint?
+    @State private var pointerCanvasPoint: CGPoint?
     @FocusState private var isTextFieldFocused: Bool
 
-    private let minZoomScale: CGFloat = 0.5
+    private let minZoomScale: CGFloat = 1.0
     private let maxZoomScale: CGFloat = 3.0
+    private let panScrollSensitivity: CGFloat = 0.85
 
     var body: some View {
         GeometryReader { geometry in
@@ -136,22 +141,54 @@ struct AnnotationCanvasView: View {
 
                     return event
                 }
+
+                localScrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                    guard zoomScale > 1 else {
+                        return event
+                    }
+
+                    let horizontalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaX : event.deltaX
+                    let verticalDelta = event.hasPreciseScrollingDeltas ? event.scrollingDeltaY : event.deltaY
+
+                    guard horizontalDelta != 0 || verticalDelta != 0 else {
+                        return event
+                    }
+
+                    let proposedPan = CGSize(
+                        width: panOffset.width - (horizontalDelta * panScrollSensitivity),
+                        height: panOffset.height - (verticalDelta * panScrollSensitivity)
+                    )
+                    panOffset = clampedPanOffset(
+                        proposedPan,
+                        containerSize: geometry.size,
+                        imageSize: imageSize,
+                        zoomScale: zoomScale
+                    )
+
+                    return nil
+                }
             }
             .onDisappear {
                 if let localKeyMonitor {
                     NSEvent.removeMonitor(localKeyMonitor)
                     self.localKeyMonitor = nil
                 }
+                if let localScrollMonitor {
+                    NSEvent.removeMonitor(localScrollMonitor)
+                    self.localScrollMonitor = nil
+                }
+                pointerCanvasPoint = nil
                 NSCursor.arrow.set()
             }
             .gesture(
                 MagnificationGesture()
                     .onChanged { value in
-                        handleMagnificationChanged(value)
+                        handleMagnificationChanged(value, containerSize: geometry.size, imageSize: imageSize)
                     }
                     .onEnded { _ in
                         pinchStartZoomScale = nil
-                        panOffset = .zero
+                        pinchAnchorCanvasPoint = nil
+                        pinchAnchorNormalizedPoint = nil
                     }
             )
         }
@@ -209,6 +246,14 @@ struct AnnotationCanvasView: View {
         }
         .frame(width: containerSize.width, height: containerSize.height)
         .clipped()
+        .onContinuousHover(coordinateSpace: .local) { phase in
+            switch phase {
+            case .active(let location):
+                pointerCanvasPoint = location
+            case .ended:
+                pointerCanvasPoint = nil
+            }
+        }
         .accessibilityIdentifier(AppAutomationIdentifiers.editorCanvas)
     }
 
@@ -390,31 +435,96 @@ struct AnnotationCanvasView: View {
     }
 
     private func transformedImageFrame(baseImageFrame: CGRect) -> CGRect {
+        transformedImageFrame(baseImageFrame: baseImageFrame, zoomScale: zoomScale, panOffset: panOffset)
+    }
+
+    private func transformedImageFrame(baseImageFrame: CGRect, zoomScale: CGFloat, panOffset: CGSize) -> CGRect {
         let zoomedWidth = baseImageFrame.width * zoomScale
         let zoomedHeight = baseImageFrame.height * zoomScale
         let centeredOriginX = baseImageFrame.midX - (zoomedWidth / 2)
         let centeredOriginY = baseImageFrame.midY - (zoomedHeight / 2)
 
         return CGRect(
-            x: centeredOriginX,
-            y: centeredOriginY,
+            x: centeredOriginX + panOffset.width,
+            y: centeredOriginY + panOffset.height,
             width: zoomedWidth,
             height: zoomedHeight
         )
     }
 
-    private func handleMagnificationChanged(_ value: CGFloat) {
+    private func handleMagnificationChanged(_ value: CGFloat, containerSize: CGSize, imageSize: CGSize) {
+        let baseImageFrame = AnnotationCoordinateMapper.imageFrame(containerSize: containerSize, imageSize: imageSize)
+
         if pinchStartZoomScale == nil {
             pinchStartZoomScale = zoomScale
+
+            let fallbackPoint = CGPoint(x: containerSize.width / 2, y: containerSize.height / 2)
+            let resolvedAnchorCanvasPoint = pointerCanvasPoint ?? fallbackPoint
+            pinchAnchorCanvasPoint = resolvedAnchorCanvasPoint
+
+            let startFrame = transformedImageFrame(
+                baseImageFrame: baseImageFrame,
+                zoomScale: zoomScale,
+                panOffset: panOffset
+            )
+
+            if startFrame.width > 0,
+               startFrame.height > 0,
+               startFrame.contains(resolvedAnchorCanvasPoint) {
+                pinchAnchorNormalizedPoint = CGPoint(
+                    x: (resolvedAnchorCanvasPoint.x - startFrame.minX) / startFrame.width,
+                    y: (resolvedAnchorCanvasPoint.y - startFrame.minY) / startFrame.height
+                )
+            } else {
+                pinchAnchorNormalizedPoint = CGPoint(x: 0.5, y: 0.5)
+            }
         }
 
-        guard let pinchStartZoomScale else {
+                guard let pinchStartZoomScale,
+              let pinchAnchorCanvasPoint,
+              let pinchAnchorNormalizedPoint else {
             return
         }
 
         let updatedZoomScale = min(max(pinchStartZoomScale * value, minZoomScale), maxZoomScale)
         zoomScale = updatedZoomScale
-        panOffset = .zero
+
+        let clampedAnchorNormalizedPoint = CGPoint(
+            x: min(max(pinchAnchorNormalizedPoint.x, 0), 1),
+            y: min(max(pinchAnchorNormalizedPoint.y, 0), 1)
+        )
+
+        let updatedFrameWithoutPan = transformedImageFrame(
+            baseImageFrame: baseImageFrame,
+            zoomScale: updatedZoomScale,
+            panOffset: .zero
+        )
+
+        let anchoredPanOffset = CGSize(
+            width: pinchAnchorCanvasPoint.x - (updatedFrameWithoutPan.minX + (clampedAnchorNormalizedPoint.x * updatedFrameWithoutPan.width)),
+            height: pinchAnchorCanvasPoint.y - (updatedFrameWithoutPan.minY + (clampedAnchorNormalizedPoint.y * updatedFrameWithoutPan.height))
+        )
+
+        panOffset = clampedPanOffset(
+            anchoredPanOffset,
+            containerSize: containerSize,
+            imageSize: imageSize,
+            zoomScale: updatedZoomScale
+        )
+    }
+
+    private func clampedPanOffset(_ offset: CGSize, containerSize: CGSize, imageSize: CGSize, zoomScale: CGFloat) -> CGSize {
+        let baseImageFrame = AnnotationCoordinateMapper.imageFrame(containerSize: containerSize, imageSize: imageSize)
+        let zoomedWidth = baseImageFrame.width * zoomScale
+        let zoomedHeight = baseImageFrame.height * zoomScale
+
+        let horizontalRange = max(0, (zoomedWidth - containerSize.width) / 2)
+        let verticalRange = max(0, (zoomedHeight - containerSize.height) / 2)
+
+        return CGSize(
+            width: min(max(offset.width, -horizontalRange), horizontalRange),
+            height: min(max(offset.height, -verticalRange), verticalRange)
+        )
     }
 
     private func render(stroke: AnnotationStroke, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
