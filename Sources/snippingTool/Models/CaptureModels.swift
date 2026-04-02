@@ -49,6 +49,67 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var systemImage: String {
+        switch self {
+        case .select:
+            "cursorarrow"
+        case .ocr:
+            "text.viewfinder"
+        case .pen:
+            "pencil.tip"
+        case .highlighter:
+            "highlighter"
+        case .eraser:
+            "eraser"
+        case .text:
+            "textformat"
+        case .rectangle:
+            "square"
+        case .arrow:
+            "arrow.up.right"
+        }
+    }
+
+    var shortHint: String {
+        switch self {
+        case .select:
+            "select, move, and delete annotations"
+        case .ocr:
+            "drag to select recognized text"
+        case .pen:
+            "drag to draw freehand ink"
+        case .highlighter:
+            "drag to add translucent emphasis"
+        case .eraser:
+            "drag to remove annotations"
+        case .text:
+            "click to place text, drag to move it"
+        case .rectangle:
+            "drag to draw a rectangle"
+        case .arrow:
+            "drag to draw an arrow"
+        }
+    }
+
+    var helpText: String {
+        "\(title) — \(shortHint)"
+    }
+
+    var accessibilityHint: String? {
+        shortHint
+    }
+
+    var idleCursor: NSCursor {
+        switch self {
+        case .select:
+            .arrow
+        case .ocr, .text:
+            .iBeam
+        case .pen, .highlighter, .eraser, .rectangle, .arrow:
+            .crosshair
+        }
+    }
+
     var usesStrokeWidth: Bool {
         switch self {
         case .pen, .highlighter, .eraser, .rectangle, .arrow:

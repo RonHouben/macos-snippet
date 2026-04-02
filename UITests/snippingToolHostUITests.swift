@@ -126,6 +126,30 @@ final class SnippingToolHostUITests: XCTestCase {
         )
     }
 
+    func testEditorToolButtonsExposeStableIdentifiersAndLabels() throws {
+        openEditorWithSampleCaptureIfNeeded()
+
+        let expectedTools: [(rawValue: String, title: String)] = [
+            ("select", "Select"),
+            ("ocr", "OCR"),
+            ("pen", "Pen"),
+            ("highlighter", "Highlight"),
+            ("eraser", "Eraser"),
+            ("text", "Text"),
+            ("rectangle", "Rectangle"),
+            ("arrow", "Arrow")
+        ]
+
+        for tool in expectedTools {
+            let button = app.buttons[AppAutomationIdentifiers.editorToolButton(named: tool.rawValue)]
+            XCTAssertTrue(
+                button.waitForExistence(timeout: 2),
+                "Expected the \(tool.title) tool button to exist by stable identifier."
+            )
+            XCTAssertEqual(button.label, tool.title, "Expected the \(tool.title) tool button to expose its accessibility label.")
+        }
+    }
+
     func testCanSelectAndCopyRecognizedLineTextFromSampleCapture() throws {
         NSPasteboard.general.clearContents()
 
@@ -152,8 +176,8 @@ final class SnippingToolHostUITests: XCTestCase {
 
         let resolvedText = [
             copiedText,
-            firstRecognizedLine.value as? String,
-            firstRecognizedLine.label
+            normalizedOCRText(firstRecognizedLine.value as? String),
+            normalizedOCRText(firstRecognizedLine.label)
         ]
         .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
         .first(where: { $0.isEmpty == false })
@@ -871,6 +895,29 @@ final class SnippingToolHostUITests: XCTestCase {
         } while Date() < deadline
 
         return NSPasteboard.general.string(forType: .string)
+    }
+
+    private func normalizedOCRText(_ rawValue: String?) -> String? {
+        guard let rawValue,
+              rawValue.isEmpty == false else {
+            return nil
+        }
+
+        guard rawValue.contains("selectedRange=") || rawValue.hasPrefix("text=") else {
+            return rawValue
+        }
+
+        let state = Dictionary(
+            uniqueKeysWithValues: rawValue
+                .split(separator: ";")
+                .compactMap { entry -> (String, String)? in
+                    let pieces = entry.split(separator: "=", maxSplits: 1).map(String.init)
+                    guard pieces.count == 2 else { return nil }
+                    return (pieces[0], pieces[1])
+                }
+        )
+
+        return state["text"]
     }
 
     private func sampledColors(in image: NSImage, atImagePoint point: CGPoint) throws -> [NSColor] {

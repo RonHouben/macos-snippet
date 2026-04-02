@@ -217,17 +217,18 @@ private struct SettingsRecorderActivationOverlay: View {
 
     var body: some View {
         Button {
-                guard isEnabled else {
-                    return
-                }
+            guard isEnabled else {
+                return
+            }
 
-                isRecording = true
+            isRecording = true
         } label: {
             Rectangle()
-                .fill(.clear)
+                .fill(Color.primary.opacity(0.001))
                 .contentShape(Rectangle())
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .buttonStyle(.plain)
         .disabled(isEnabled == false)
         .accessibilityLabel(label)

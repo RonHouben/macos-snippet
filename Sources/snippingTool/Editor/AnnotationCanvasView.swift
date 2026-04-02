@@ -53,6 +53,7 @@ struct AnnotationCanvasView: View {
     @State private var draftShapeAnnotation: ShapeAnnotation?
     @State private var localKeyMonitor: Any?
     @State private var hoveredTextAnnotationID: UUID?
+    @State private var hoveredSelectableAnnotation: AnnotationSelection?
     @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
@@ -85,21 +86,27 @@ struct AnnotationCanvasView: View {
                 shapeDragState = nil
                 selectionGestureState = nil
                 draftShapeAnnotation = nil
-                if annotationStore.selectedTool.isTextAnnotationTool == false {
-                    hoveredTextAnnotationID = nil
-                }
+                hoveredTextAnnotationID = nil
+                hoveredSelectableAnnotation = nil
                 updateCursor()
             }
             .onChange(of: annotationStore.pendingTextAnchor) { _, _ in
                 if annotationStore.pendingTextAnchor != nil {
                     hoveredTextAnnotationID = nil
+                    hoveredSelectableAnnotation = nil
                 }
                 updateCursor()
             }
             .onChange(of: hoveredTextAnnotationID) { _, _ in
                 updateCursor()
             }
+            .onChange(of: hoveredSelectableAnnotation) { _, _ in
+                updateCursor()
+            }
             .onChange(of: textDragState?.annotationID) { _, _ in
+                updateCursor()
+            }
+            .onChange(of: isDraggingSelectionOrText) { _, _ in
                 updateCursor()
             }
             .onAppear {
@@ -249,10 +256,10 @@ struct AnnotationCanvasView: View {
         .contentShape(Rectangle())
         .allowsHitTesting(annotationStore.selectedTool.isOCRTool == false)
         .onContinuousHover(coordinateSpace: .local) { phase in
-            guard annotationStore.selectedTool.isTextAnnotationTool,
-                  annotationStore.pendingTextAnchor == nil,
-                  textDragState == nil else {
-                hoveredTextAnnotationID = nil
+                        guard annotationStore.pendingTextAnchor == nil,
+                                    textDragState == nil else {
+                                hoveredTextAnnotationID = nil
+                                hoveredSelectableAnnotation = nil
                 return
             }
 
@@ -264,12 +271,29 @@ struct AnnotationCanvasView: View {
                     imageSize: imageSize
                 ) else {
                     hoveredTextAnnotationID = nil
+                    hoveredSelectableAnnotation = nil
                     return
                 }
 
-                hoveredTextAnnotationID = hitTextAnnotation(at: imagePoint)?.id
+                if annotationStore.selectedTool.isTextAnnotationTool,
+                   let hoveredTextAnnotation = hitTextAnnotation(at: imagePoint) {
+                    hoveredTextAnnotationID = hoveredTextAnnotation.id
+                    hoveredSelectableAnnotation = .text(hoveredTextAnnotation.id)
+                } else if annotationStore.selectedTool.isAnnotationSelectionTool,
+                          let hoveredSelectableAnnotation = hitSelectableAnnotation(at: imagePoint, imageFrame: localImageFrame, imageSize: imageSize) {
+                    self.hoveredSelectableAnnotation = hoveredSelectableAnnotation
+                    if case .text(let textID) = hoveredSelectableAnnotation {
+                        hoveredTextAnnotationID = textID
+                    } else {
+                        hoveredTextAnnotationID = nil
+                    }
+                } else {
+                    hoveredTextAnnotationID = nil
+                    hoveredSelectableAnnotation = nil
+                }
             case .ended:
                 hoveredTextAnnotationID = nil
+                hoveredSelectableAnnotation = nil
             }
         }
         .gesture(
@@ -958,16 +982,27 @@ struct AnnotationCanvasView: View {
     }
 
     private func updateCursor() {
-        if textDragState != nil || isMovingSelection {
+        if isDraggingSelectionOrText {
             NSCursor.closedHand.set()
-        } else if annotationStore.selectedTool.isOCRTool {
-            NSCursor.iBeam.set()
-        } else if annotationStore.selectedTool.isTextAnnotationTool,
-                  annotationStore.pendingTextAnchor == nil,
-                  hoveredTextAnnotationID != nil {
+        } else if isHoveringDraggableAnnotation {
             NSCursor.openHand.set()
         } else {
-            NSCursor.arrow.set()
+            annotationStore.selectedTool.idleCursor.set()
+        }
+    }
+
+    private var isDraggingSelectionOrText: Bool {
+        textDragState != nil || isMovingSelection
+    }
+
+    private var isHoveringDraggableAnnotation: Bool {
+        switch annotationStore.selectedTool {
+        case .select:
+            return hoveredSelectableAnnotation != nil
+        case .text:
+            return hoveredTextAnnotationID != nil && annotationStore.pendingTextAnchor == nil
+        default:
+            return false
         }
     }
 

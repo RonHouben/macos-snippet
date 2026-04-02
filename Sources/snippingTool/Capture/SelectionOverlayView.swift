@@ -319,6 +319,7 @@ private struct CaptureModeToolbarButton: View {
             accessibilityLabel: mode.overlayToolbarAccessibilityLabel,
             automationIdentifier: AppAutomationIdentifiers.overlayModeButton(for: mode),
             helpText: mode.title,
+            accessibilityHint: nil,
             shortcutLabel: mode.overlayToolbarShortcutLabel,
             isActive: isActive,
             isHovered: isHovered,
@@ -354,97 +355,6 @@ private struct CancelToolbarButton: View {
         .onHover { hovering in
             isHovered = hovering
         }
-    }
-}
-
-private struct ToolbarIconButton: View {
-    let systemImage: String
-    let accessibilityLabel: String
-    let automationIdentifier: String
-    let helpText: String
-    let shortcutLabel: String?
-    var isActive = false
-    var isHovered = false
-    let action: () -> Void
-
-    private var foregroundColor: Color {
-        if isActive {
-            return .white
-        }
-
-        return isHovered ? .white.opacity(0.95) : .primary
-    }
-
-    private var backgroundColor: Color {
-        if isActive {
-            return Color.accentColor
-        }
-
-        return isHovered ? Color.white.opacity(0.12) : Color.clear
-    }
-
-    private var shortcutForegroundColor: Color {
-        if isActive {
-            return Color.primary.opacity(0.88)
-        }
-
-        return .white.opacity(isHovered ? 0.94 : 0.86)
-    }
-
-    private var shortcutBackgroundStyle: AnyShapeStyle {
-        if isActive {
-            return AnyShapeStyle(.regularMaterial)
-        }
-
-        return AnyShapeStyle(Color.black.opacity(isHovered ? 0.18 : 0.14))
-    }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 18, weight: .semibold))
-                    .frame(width: 38, height: 38)
-                    .foregroundStyle(foregroundColor)
-                    .background {
-                        RoundedRectangle(cornerRadius: 11)
-                            .fill(backgroundColor)
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 11)
-                            .strokeBorder(.white.opacity(isActive ? 0.0 : (isHovered ? 0.14 : 0.08)), lineWidth: 1)
-                    }
-                    .shadow(color: isActive ? Color.accentColor.opacity(0.35) : .clear, radius: 8)
-
-                if let shortcutLabel {
-                    Text(shortcutLabel)
-                        .font(.system(size: 9, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(shortcutForegroundColor)
-                        .frame(minWidth: 15)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2.5)
-                        .background {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(shortcutBackgroundStyle)
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                        .strokeBorder(
-                                            isActive ? Color.black.opacity(0.08) : Color.white.opacity(0.12),
-                                            lineWidth: 0.8
-                                        )
-                                }
-                        }
-                        .shadow(color: .black.opacity(isActive ? 0.08 : 0.06), radius: 3, y: 1)
-                        .allowsHitTesting(false)
-                }
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 11))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityIdentifier(automationIdentifier)
-        .help(shortcutLabel.map { "\(helpText) (\($0))" } ?? helpText)
     }
 }
 
