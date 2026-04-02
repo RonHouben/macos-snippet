@@ -3,6 +3,8 @@ import SwiftUI
 
 struct AnnotationToolbarView: View {
     @Bindable var annotationStore: AnnotationStore
+    let zoomScale: CGFloat
+    let onResetZoom: () -> Void
     let onCopy: () -> Void
     let onCopyAndClose: () -> Void
     let onSave: () -> Void
@@ -26,6 +28,17 @@ struct AnnotationToolbarView: View {
             }
             .disabled(!annotationStore.canRedo)
             .accessibilityIdentifier(AppAutomationIdentifiers.editorRedoButton)
+
+            Button(action: onResetZoom) {
+                Label("100%", systemImage: "scope")
+            }
+            .disabled(isZoomAtDefault)
+            .accessibilityIdentifier(AppAutomationIdentifiers.editorResetZoomButton)
+
+            Text(zoomPercentageLabel)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier(AppAutomationIdentifiers.editorZoomValueLabel)
 
             Button(action: onCopy) {
                 Label("Copy", systemImage: "doc.on.doc")
@@ -127,6 +140,14 @@ struct AnnotationToolbarView: View {
             }
         }
         .frame(minWidth: 150, alignment: .leading)
+    }
+
+    private var isZoomAtDefault: Bool {
+        abs(zoomScale - 1) < 0.001
+    }
+
+    private var zoomPercentageLabel: String {
+        "\(Int((zoomScale * 100).rounded()))%"
     }
 }
 

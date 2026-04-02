@@ -133,6 +133,8 @@ enum AppAutomationIdentifiers {
     static let editorPendingTextField = "editor.pending-text"
     static let editorUndoButton = "editor.undo"
     static let editorRedoButton = "editor.redo"
+    static let editorResetZoomButton = "editor.reset-zoom"
+    static let editorZoomValueLabel = "editor.zoom-value"
     static let editorCopyButton = "editor.copy"
     static let editorCopyAndCloseButton = "editor.copy-and-close"
     static let editorSaveButton = "editor.save"

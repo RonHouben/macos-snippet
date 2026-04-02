@@ -150,6 +150,18 @@ final class SnippingToolHostUITests: XCTestCase {
         }
     }
 
+    func testEditorZoomControlsShowDefaultState() throws {
+        openEditorWithSampleCaptureIfNeeded()
+
+        let zoomIndicator = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label == %@", "100%"))
+            .firstMatch
+        XCTAssertTrue(
+            zoomIndicator.waitForExistence(timeout: 5),
+            "Expected the editor toolbar to show the default 100% zoom indicator."
+        )
+    }
+
     func testCanSelectAndCopyRecognizedLineTextFromSampleCapture() throws {
         NSPasteboard.general.clearContents()
 

@@ -10,12 +10,16 @@ struct SnippetEditorView: View {
     @State private var annotationStore = AnnotationStore()
     @State private var exportService = ExportService()
     @State private var exportMessage: String?
+    @State private var editorZoomScale: CGFloat = 1
+    @State private var editorPanOffset: CGSize = .zero
 
     var body: some View {
         VStack(spacing: 0) {
             if let capture = captureCoordinator.currentCapture {
                 AnnotationToolbarView(
                     annotationStore: annotationStore,
+                    zoomScale: editorZoomScale,
+                    onResetZoom: resetEditorZoom,
                     onCopy: {
                         copyCapture(capture)
                     },
@@ -27,7 +31,12 @@ struct SnippetEditorView: View {
                     }
                 )
 
-                AnnotationCanvasView(annotationStore: annotationStore, capturedSnippet: capture)
+                AnnotationCanvasView(
+                    annotationStore: annotationStore,
+                    capturedSnippet: capture,
+                    zoomScale: $editorZoomScale,
+                    panOffset: $editorPanOffset
+                )
 
                 if let footerMessage {
                     Text(footerMessage)
@@ -59,10 +68,12 @@ struct SnippetEditorView: View {
         .navigationTitle("Editor")
         .onAppear {
             exportMessage = nil
+            resetEditorZoom()
         }
         .onChange(of: captureCoordinator.currentCapture?.id) { _, _ in
             annotationStore = AnnotationStore()
             exportMessage = nil
+            resetEditorZoom()
         }
     }
 
@@ -86,6 +97,11 @@ struct SnippetEditorView: View {
             exportMessage = error.localizedDescription
             return false
         }
+    }
+
+    private func resetEditorZoom() {
+        editorZoomScale = 1
+        editorPanOffset = .zero
     }
 
     private func copyAndCloseCapture(_ capture: CapturedSnippet) {

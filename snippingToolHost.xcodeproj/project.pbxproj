@@ -25,14 +25,17 @@
 		8DD090BC73B39783FE16A56C /* AutomationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */; };
 		91102F0EA94DE734BB27C534 /* snippingToolCore in Frameworks */ = {isa = PBXBuildFile; productRef = C184FDE7151A4CF5EBE0A3A2 /* snippingToolCore */; };
 		930A076CA474959DE2D11106 /* SelectionOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 804B6FAA86DCA84687912502 /* SelectionOverlayView.swift */; };
+		9377A7D59D4B2712AA635A3C /* OCRTextSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE14CC0A94C3D4B5B627A304 /* OCRTextSelectionView.swift */; };
 		9730BB71C9619DA749081A56 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387AE152230447688959BCCF /* ExportService.swift */; };
 		9768635D44FADB88A1A885B4 /* GlobalHotkeyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20213997E05DED07B646DF2E /* GlobalHotkeyMonitor.swift */; };
+		AB1FC0E77629F779CD5317BA /* OCRSelectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008298ACBF43FDA33418933C /* OCRSelectionState.swift */; };
 		BBA106CFEC1E8A7E92C8BBD5 /* AnnotationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A5951650119B5C7C4C4CB3 /* AnnotationStore.swift */; };
 		D7CFFE4A8406FEA212AFA192 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E0AAB858489BDF030913C28 /* AppDelegate.swift */; };
 		DA7D5DE3EE0802B8EA745D18 /* snippingToolCore in Frameworks */ = {isa = PBXBuildFile; productRef = D6C1981219670D3E50C55721 /* snippingToolCore */; };
 		DA999529CFB1FDCFC67EADC7 /* RecorderTextFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA6F5BCCB815D3996FC97C1 /* RecorderTextFieldTests.swift */; };
 		E0D287DCE0B7A9CE824C9C44 /* KeybindingRecorderField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 135816870D06929AB24BF0C2 /* KeybindingRecorderField.swift */; };
 		E0DB200BCCBF1A9E50E07D5C /* SnippetEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0518AAB8774416E64059E241 /* SnippetEditorView.swift */; };
+		E21163248718705A0E12E734 /* OCRTextRegion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27787B3236F7404C1F4C9812 /* OCRTextRegion.swift */; };
 		E34907864C51D33972020EFA /* CaptureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54935EFE6D9992AA3AED0514 /* CaptureModels.swift */; };
 		EAC9C991CB9B81ED3D8C2584 /* AnnotationCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0697ADC30E1E75D1F559129B /* AnnotationCanvasView.swift */; };
 		EF457E3095A0C8DFD75A980B /* WindowSelectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 522C4FDF4AEB4C541610BB94 /* WindowSelectionService.swift */; };
@@ -63,6 +66,7 @@
 
 /* Begin PBXFileReference section */
 		0027E39A3666E076F297294B /* WindowManagers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManagers.swift; sourceTree = "<group>"; };
+		008298ACBF43FDA33418933C /* OCRSelectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRSelectionState.swift; sourceTree = "<group>"; };
 		04FD1AC18C9BEF63591D2EA2 /* SnippingToolApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippingToolApp.swift; sourceTree = "<group>"; };
 		0518AAB8774416E64059E241 /* SnippetEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetEditorView.swift; sourceTree = "<group>"; };
 		0697ADC30E1E75D1F559129B /* AnnotationCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCanvasView.swift; sourceTree = "<group>"; };
@@ -71,15 +75,16 @@
 		164CBA7C01DDFF2F7C1F00D5 /* RecentCaptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentCaptureStore.swift; sourceTree = "<group>"; };
 		20213997E05DED07B646DF2E /* GlobalHotkeyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkeyMonitor.swift; sourceTree = "<group>"; };
 		202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationSupport.swift; sourceTree = "<group>"; };
+		27787B3236F7404C1F4C9812 /* OCRTextRegion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRTextRegion.swift; sourceTree = "<group>"; };
 		2CC1E1850293C7581F75C99C /* UITestSampleCaptureFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestSampleCaptureFactory.swift; sourceTree = "<group>"; };
 		2E0AAB858489BDF030913C28 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		34E783B8F426985FC47A828A /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		387AE152230447688959BCCF /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
-		38C1F5FD365B4DABE4479192 /* snippingTool */ = {isa = PBXFileReference; lastKnownFileType = folder; name = snippingTool; path = .; sourceTree = SOURCE_ROOT; };
 		44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationToolbarView.swift; sourceTree = "<group>"; };
 		522C4FDF4AEB4C541610BB94 /* WindowSelectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSelectionService.swift; sourceTree = "<group>"; };
 		54935EFE6D9992AA3AED0514 /* CaptureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureModels.swift; sourceTree = "<group>"; };
 		55BEB2F2B864565A972118DE /* AnnotationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationStoreTests.swift; sourceTree = "<group>"; };
+		5EF09F92D45221DEBA57A7CE /* copilot-worktree-2026-04-02T09-25-47 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "copilot-worktree-2026-04-02T09-25-47"; path = .; sourceTree = SOURCE_ROOT; };
 		626EE4F8768D2FE6C6643502 /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContentView.swift; sourceTree = "<group>"; };
 		68609BA7AFCD4A6F142F5D34 /* snippingToolHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = snippingToolHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		72DF3076A5E95E802F6411F0 /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
@@ -90,6 +95,7 @@
 		9D67D790E3CFE686BBF11EAD /* CaptureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureCoordinator.swift; sourceTree = "<group>"; };
 		A058F45AA666B9C2355748B7 /* HotkeyEventMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyEventMapping.swift; sourceTree = "<group>"; };
 		A92BEE8747A45F16C7D991FD /* snippingToolHostTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = snippingToolHostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AE14CC0A94C3D4B5B627A304 /* OCRTextSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRTextSelectionView.swift; sourceTree = "<group>"; };
 		BEA6F5BCCB815D3996FC97C1 /* RecorderTextFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderTextFieldTests.swift; sourceTree = "<group>"; };
 		C32DD835B08D04D693297B56 /* snippingToolHostUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = snippingToolHostUITests.swift; sourceTree = "<group>"; };
 		CB35A6903E9F6A9DA8688E76 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -155,6 +161,7 @@
 				DC822FBA93D0AE6F2B76FC28 /* SelectableCaptureImageView.swift */,
 				7DD2B78AA767B41CFEA2F735 /* ShapeAnnotationRenderer.swift */,
 				0518AAB8774416E64059E241 /* SnippetEditorView.swift */,
+				963E4FAF851E39B8E4EA37C3 /* OCR */,
 			);
 			path = Editor;
 			sourceTree = "<group>";
@@ -203,6 +210,16 @@
 			path = Permissions;
 			sourceTree = "<group>";
 		};
+		963E4FAF851E39B8E4EA37C3 /* OCR */ = {
+			isa = PBXGroup;
+			children = (
+				008298ACBF43FDA33418933C /* OCRSelectionState.swift */,
+				27787B3236F7404C1F4C9812 /* OCRTextRegion.swift */,
+				AE14CC0A94C3D4B5B627A304 /* OCRTextSelectionView.swift */,
+			);
+			path = OCR;
+			sourceTree = "<group>";
+		};
 		A1011271675396838E5FE256 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -221,7 +238,7 @@
 		A11F0B984B8AA5A1262624EA /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				38C1F5FD365B4DABE4479192 /* snippingTool */,
+				5EF09F92D45221DEBA57A7CE /* copilot-worktree-2026-04-02T09-25-47 */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -424,6 +441,9 @@
 				040291A6444BCAB4F56D9F75 /* HotkeyEventMapping.swift in Sources */,
 				E0D287DCE0B7A9CE824C9C44 /* KeybindingRecorderField.swift in Sources */,
 				F2E2C5A5D53FA2E4C02356E5 /* MenuBarContentView.swift in Sources */,
+				AB1FC0E77629F779CD5317BA /* OCRSelectionState.swift in Sources */,
+				E21163248718705A0E12E734 /* OCRTextRegion.swift in Sources */,
+				9377A7D59D4B2712AA635A3C /* OCRTextSelectionView.swift in Sources */,
 				565062C6CC078E3C5038DDBC /* PermissionManager.swift in Sources */,
 				5E75DAB6EC2197347319D2A6 /* RecentCaptureStore.swift in Sources */,
 				39558C404B7B0D4A893AE5E6 /* ScreenCaptureService.swift in Sources */,
