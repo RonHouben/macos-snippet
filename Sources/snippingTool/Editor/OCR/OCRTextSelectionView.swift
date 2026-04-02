@@ -20,6 +20,120 @@ private final class OCRAccessibilityTextView: NSTextView {
     }
 }
 
+enum OCRHighlightBackgroundTone: Equatable {
+    case light
+    case dark
+
+    static let fallback: Self = .dark
+}
+
+enum OCRHighlightToneResolver {
+    static let luminanceThreshold: CGFloat = 0.6
+
+    static func resolvedBackgroundTone(for cgImage: CGImage?) -> OCRHighlightBackgroundTone {
+        backgroundTone(for: cgImage) ?? .fallback
+    }
+
+    static func backgroundTone(for cgImage: CGImage?) -> OCRHighlightBackgroundTone? {
+        guard let luminance = averageLuminance(for: cgImage) else {
+            return nil
+        }
+
+        return luminance >= luminanceThreshold ? .light : .dark
+    }
+
+    static func averageLuminance(for cgImage: CGImage?) -> CGFloat? {
+        guard let cgImage,
+              cgImage.width > 0,
+              cgImage.height > 0 else {
+            return nil
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        var pixel = [UInt8](repeating: 0, count: 4)
+
+        guard let context = CGContext(
+            data: &pixel,
+            width: 1,
+            height: 1,
+            bitsPerComponent: 8,
+            bytesPerRow: 4,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return nil
+        }
+
+        context.interpolationQuality = .low
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+
+        let red = CGFloat(pixel[0]) / 255
+        let green = CGFloat(pixel[1]) / 255
+        let blue = CGFloat(pixel[2]) / 255
+
+        return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
+    }
+}
+
+struct OCRHighlightPalette {
+    let fillColor: NSColor
+    let innerStrokeColor: NSColor
+    let outerStrokeColor: NSColor
+    let shadowColor: NSColor
+    let outerStrokeWidth: CGFloat
+    let innerStrokeWidth: CGFloat
+    let shadowBlurRadius: CGFloat
+    let shadowOffset: NSSize
+}
+
+enum OCRHighlightStyle {
+    static func palette(
+        backgroundTone: OCRHighlightBackgroundTone,
+        isDragging: Bool,
+        accentColor: NSColor
+    ) -> OCRHighlightPalette {
+        let resolvedAccentColor = accentColor.usingColorSpace(.deviceRGB) ?? accentColor
+        let fillAlpha: CGFloat
+        let innerStrokeAlpha: CGFloat
+        let outerStrokeAlpha: CGFloat
+        let shadowAlpha: CGFloat
+
+        switch (backgroundTone, isDragging) {
+        case (.dark, false):
+            fillAlpha = 0.36
+            innerStrokeAlpha = 0.32
+            outerStrokeAlpha = 0.26
+            shadowAlpha = 0.28
+        case (.dark, true):
+            fillAlpha = 0.44
+            innerStrokeAlpha = 0.38
+            outerStrokeAlpha = 0.30
+            shadowAlpha = 0.34
+        case (.light, false):
+            fillAlpha = 0.30
+            innerStrokeAlpha = 0.24
+            outerStrokeAlpha = 0.24
+            shadowAlpha = 0.24
+        case (.light, true):
+            fillAlpha = 0.38
+            innerStrokeAlpha = 0.30
+            outerStrokeAlpha = 0.28
+            shadowAlpha = 0.30
+        }
+
+        return OCRHighlightPalette(
+            fillColor: resolvedAccentColor.withAlphaComponent(fillAlpha),
+            innerStrokeColor: NSColor.white.withAlphaComponent(innerStrokeAlpha),
+            outerStrokeColor: NSColor.black.withAlphaComponent(outerStrokeAlpha),
+            shadowColor: NSColor.black.withAlphaComponent(shadowAlpha),
+            outerStrokeWidth: isDragging ? 1.4 : 1.2,
+            innerStrokeWidth: isDragging ? 1.0 : 0.9,
+            shadowBlurRadius: isDragging ? 3 : 2,
+            shadowOffset: NSSize(width: 0, height: -1)
+        )
+    }
+}
+
 /// A unified view for displaying OCR-recognized text and handling text selection.
 ///
 /// This view replaces the previous multi-view approach (RecognizedLineTextView + OCRSelectionHighlightView)
@@ -32,18 +146,6 @@ private final class OCRAccessibilityTextView: NSTextView {
 final class OCRTextSelectionView: NSView {
     // MARK: - Configuration
 
-    private let settledLightHighlightColor = NSColor.white.withAlphaComponent(0.15)
-    private let draggingLightHighlightColor = NSColor.white.withAlphaComponent(0.24)
-    private let settledDarkHighlightColor = NSColor.black.withAlphaComponent(0.15)
-    private let draggingDarkHighlightColor = NSColor.black.withAlphaComponent(0.24)
-    private let lightHighlightShadowColor = NSColor.black.withAlphaComponent(0.10)
-    private let darkHighlightShadowColor = NSColor.white.withAlphaComponent(0.10)
-
-    private enum BackgroundTone {
-        case light
-        case dark
-    }
-
     private enum DragSelectionSource {
         case marquee
         case word(regionID: UUID, anchor: OCRWord)
@@ -55,7 +157,7 @@ final class OCRTextSelectionView: NSView {
 
     private var analysisTask: Task<Void, Never>?
     private var activeCaptureID: UUID?
-    private var analyzedImage: CGImage?
+    private(set) var captureHighlightBackgroundTone: OCRHighlightBackgroundTone = .fallback
     private var accessibilityTextViews: [OCRAccessibilityTextView] = []
     private let accessibilitySummaryView = OCRAccessibilityTextView(frame: .zero)
     private var dragSelectionSource: DragSelectionSource?
@@ -134,7 +236,7 @@ final class OCRTextSelectionView: NSView {
     func analyze(cgImage: CGImage, captureID: UUID) {
         analysisTask?.cancel()
         activeCaptureID = captureID
-        analyzedImage = cgImage
+        refreshCaptureHighlightBackgroundTone(using: cgImage)
 
         analysisTask = Task.detached(priority: .userInitiated) { [weak self] in
             do {
@@ -162,11 +264,15 @@ final class OCRTextSelectionView: NSView {
         selectionDidChange?()
     }
 
+    func refreshCaptureHighlightBackgroundTone(using cgImage: CGImage?) {
+        captureHighlightBackgroundTone = OCRHighlightToneResolver.resolvedBackgroundTone(for: cgImage)
+    }
+
     /// Clears all recognized regions and selection.
     func clearRecognizedRegions() {
         accessibilityTextViews.forEach { $0.removeFromSuperview() }
         accessibilityTextViews.removeAll()
-        analyzedImage = nil
+        captureHighlightBackgroundTone = .fallback
         dragSelectionSource = nil
         dragAddsToSelection = false
         selectionState.endDragSelection()
@@ -421,96 +527,43 @@ final class OCRTextSelectionView: NSView {
 
     private func drawSelectionHighlight(rect: CGRect, isDragging: Bool) {
         let radius = min(6, rect.height / 3.2)
-        let backgroundTone = highlightBackgroundTone(for: rect)
-        let highlightColor: NSColor
-        let shadowColor: NSColor
+        let palette = OCRHighlightStyle.palette(
+            backgroundTone: captureHighlightBackgroundTone,
+            isDragging: isDragging,
+            accentColor: NSColor.controlAccentColor
+        )
 
-        switch (backgroundTone, isDragging) {
-        case (.dark, false):
-            highlightColor = settledLightHighlightColor
-            shadowColor = lightHighlightShadowColor
-        case (.dark, true):
-            highlightColor = draggingLightHighlightColor
-            shadowColor = lightHighlightShadowColor
-        case (.light, false):
-            highlightColor = settledDarkHighlightColor
-            shadowColor = darkHighlightShadowColor
-        case (.light, true):
-            highlightColor = draggingDarkHighlightColor
-            shadowColor = darkHighlightShadowColor
-        }
-
-        // Shadow
         let shadow = NSShadow()
-        shadow.shadowColor = shadowColor
-        shadow.shadowOffset = NSSize(width: 0, height: -1)
-        shadow.shadowBlurRadius = isDragging ? 2 : 1
+        shadow.shadowColor = palette.shadowColor
+        shadow.shadowOffset = palette.shadowOffset
+        shadow.shadowBlurRadius = palette.shadowBlurRadius
 
         let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+        path.lineJoinStyle = NSBezierPath.LineJoinStyle.round
+        path.lineCapStyle = NSBezierPath.LineCapStyle.round
 
-        // Fill with shadow
         NSGraphicsContext.saveGraphicsState()
         shadow.set()
-        highlightColor.setFill()
+        palette.fillColor.setFill()
         path.fill()
         NSGraphicsContext.restoreGraphicsState()
-    }
 
-    private func highlightBackgroundTone(for rect: CGRect) -> BackgroundTone {
-        guard let luminance = averageLuminance(in: rect) else {
-            return .dark
+        palette.outerStrokeColor.setStroke()
+        path.lineWidth = palette.outerStrokeWidth
+        path.stroke()
+
+        let innerInset = max(palette.outerStrokeWidth * 0.7, 0.6)
+        let innerRect = rect.insetBy(dx: innerInset, dy: innerInset)
+
+        if innerRect.width > 0, innerRect.height > 0 {
+            let innerRadius = max(radius - innerInset, 1)
+            let innerPath = NSBezierPath(roundedRect: innerRect, xRadius: innerRadius, yRadius: innerRadius)
+            innerPath.lineJoinStyle = NSBezierPath.LineJoinStyle.round
+            innerPath.lineCapStyle = NSBezierPath.LineCapStyle.round
+            innerPath.lineWidth = palette.innerStrokeWidth
+            palette.innerStrokeColor.setStroke()
+            innerPath.stroke()
         }
-
-        return luminance >= 0.6 ? .light : .dark
-    }
-
-    private func averageLuminance(in rect: CGRect) -> CGFloat? {
-        guard let analyzedImage,
-              bounds.width > 0,
-              bounds.height > 0 else {
-            return nil
-        }
-
-        let scaleX = CGFloat(analyzedImage.width) / bounds.width
-        let scaleY = CGFloat(analyzedImage.height) / bounds.height
-        let imageRect = CGRect(
-            x: rect.minX * scaleX,
-            y: (bounds.height - rect.maxY) * scaleY,
-            width: rect.width * scaleX,
-            height: rect.height * scaleY
-        )
-        .integral
-        .intersection(CGRect(x: 0, y: 0, width: analyzedImage.width, height: analyzedImage.height))
-
-        guard imageRect.width > 0,
-              imageRect.height > 0,
-              let croppedImage = analyzedImage.cropping(to: imageRect) else {
-            return nil
-        }
-
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        var pixel = [UInt8](repeating: 0, count: 4)
-
-        guard let context = CGContext(
-            data: &pixel,
-            width: 1,
-            height: 1,
-            bitsPerComponent: 8,
-            bytesPerRow: 4,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else {
-            return nil
-        }
-
-        context.interpolationQuality = .low
-        context.draw(croppedImage, in: CGRect(x: 0, y: 0, width: 1, height: 1))
-
-        let red = CGFloat(pixel[0]) / 255
-        let green = CGFloat(pixel[1]) / 255
-        let blue = CGFloat(pixel[2]) / 255
-
-        return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
     }
 
     // MARK: - Accessibility

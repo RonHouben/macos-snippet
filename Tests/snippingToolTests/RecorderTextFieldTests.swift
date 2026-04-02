@@ -105,6 +105,80 @@ private final class RecorderDelegateSpy: NSObject, RecorderTextFieldDelegate {
     func recorderDidReceiveUnsupportedInput(_ message: String) {}
 }
 
+final class OCRHighlightToneResolverTests: XCTestCase {
+    func testBackgroundToneUsesDarkHighlightPaletteForBrightCapture() throws {
+        let brightImage = try makeSolidImage(white: 0.92)
+
+        XCTAssertEqual(OCRHighlightToneResolver.backgroundTone(for: brightImage), .light)
+    }
+
+    func testBackgroundToneUsesLightHighlightPaletteForDarkCapture() throws {
+        let darkImage = try makeSolidImage(white: 0.12)
+
+        XCTAssertEqual(OCRHighlightToneResolver.backgroundTone(for: darkImage), .dark)
+    }
+
+    func testResolvedBackgroundToneFallsBackWhenImageIsMissing() {
+        XCTAssertEqual(OCRHighlightToneResolver.resolvedBackgroundTone(for: nil), .fallback)
+    }
+
+    func testAccentPaletteUsesProvidedAccentColorChannels() throws {
+        let accentColor = try XCTUnwrap(NSColor.systemPink.usingColorSpace(.deviceRGB))
+
+        let palette = OCRHighlightStyle.palette(
+            backgroundTone: .light,
+            isDragging: false,
+            accentColor: accentColor
+        )
+        let fillColor = try XCTUnwrap(palette.fillColor.usingColorSpace(.deviceRGB))
+
+        XCTAssertEqual(fillColor.redComponent, accentColor.redComponent, accuracy: 0.01)
+        XCTAssertEqual(fillColor.greenComponent, accentColor.greenComponent, accuracy: 0.01)
+        XCTAssertEqual(fillColor.blueComponent, accentColor.blueComponent, accuracy: 0.01)
+        XCTAssertGreaterThan(fillColor.alphaComponent, 0)
+    }
+
+    func testDraggingAccentPaletteStrengthensFillAndShadow() {
+        let settledPalette = OCRHighlightStyle.palette(
+            backgroundTone: .dark,
+            isDragging: false,
+            accentColor: .controlAccentColor
+        )
+        let draggingPalette = OCRHighlightStyle.palette(
+            backgroundTone: .dark,
+            isDragging: true,
+            accentColor: .controlAccentColor
+        )
+
+        XCTAssertGreaterThan(draggingPalette.fillColor.alphaComponent, settledPalette.fillColor.alphaComponent)
+        XCTAssertGreaterThan(draggingPalette.shadowColor.alphaComponent, settledPalette.shadowColor.alphaComponent)
+        XCTAssertGreaterThan(draggingPalette.shadowBlurRadius, settledPalette.shadowBlurRadius)
+    }
+
+    private func makeSolidImage(white: CGFloat, size: CGSize = CGSize(width: 32, height: 24)) throws -> CGImage {
+        let width = Int(size.width)
+        let height = Int(size.height)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+        let context = try XCTUnwrap(
+            CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        )
+
+        context.setFillColor(NSColor(white: white, alpha: 1).cgColor)
+        context.fill(CGRect(origin: .zero, size: size))
+
+        return try XCTUnwrap(context.makeImage())
+    }
+}
+
 @MainActor
 final class OCRSelectionStateTests: XCTestCase {
     private let viewSize = CGSize(width: 1200, height: 720)
@@ -235,6 +309,27 @@ final class OCRSelectionStateTests: XCTestCase {
         XCTAssertEqual(view.selectionState.selectedText, "Alpha Beta Gamma Delta\nEpsilon Zeta")
     }
 
+    func testRefreshingCaptureToneRecomputesForNewCapture() throws {
+        let view = OCRTextSelectionView(frame: CGRect(origin: .zero, size: viewSize))
+
+        view.refreshCaptureHighlightBackgroundTone(using: try makeSolidImage(white: 0.08))
+        XCTAssertEqual(view.captureHighlightBackgroundTone, .dark)
+
+        view.refreshCaptureHighlightBackgroundTone(using: try makeSolidImage(white: 0.9))
+        XCTAssertEqual(view.captureHighlightBackgroundTone, .light)
+    }
+
+    func testClearingRecognizedRegionsResetsCachedCaptureTone() throws {
+        let view = OCRTextSelectionView(frame: CGRect(origin: .zero, size: viewSize))
+
+        view.refreshCaptureHighlightBackgroundTone(using: try makeSolidImage(white: 0.9))
+        XCTAssertEqual(view.captureHighlightBackgroundTone, .light)
+
+        view.clearRecognizedRegions()
+
+        XCTAssertEqual(view.captureHighlightBackgroundTone, .fallback)
+    }
+
     private func makeSampleRegion() -> OCRTextRegion {
         OCRTextRegion(
             text: "Alpha Beta Gamma Delta",
@@ -255,5 +350,28 @@ final class OCRSelectionStateTests: XCTestCase {
         }
 
         return word
+    }
+
+    private func makeSolidImage(white: CGFloat, size: CGSize = CGSize(width: 32, height: 24)) throws -> CGImage {
+        let width = Int(size.width)
+        let height = Int(size.height)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+        let context = try XCTUnwrap(
+            CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            )
+        )
+
+        context.setFillColor(NSColor(white: white, alpha: 1).cgColor)
+        context.fill(CGRect(origin: .zero, size: size))
+
+        return try XCTUnwrap(context.makeImage())
     }
 }
