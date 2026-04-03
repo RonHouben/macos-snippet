@@ -89,18 +89,24 @@ struct SettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    HStack(spacing: SettingsLayout.buttonSpacing) {
-                        Button("Request Screen Recording") {
-                            captureCoordinator.requestScreenRecording()
-                        }
-                        .pointingHandCursor()
-                        .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestScreenRecordingButton)
+                    if captureCoordinator.needsAnyPermission {
+                        HStack(spacing: SettingsLayout.buttonSpacing) {
+                            if captureCoordinator.needsScreenRecordingPermission {
+                                Button("Request Screen Recording") {
+                                    captureCoordinator.requestScreenRecording()
+                                }
+                                .pointingHandCursor()
+                                .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestScreenRecordingButton)
+                            }
 
-                        Button("Request Accessibility") {
-                            captureCoordinator.requestAccessibility()
+                            if captureCoordinator.needsAccessibilityPermission {
+                                Button("Request Accessibility") {
+                                    captureCoordinator.requestAccessibility()
+                                }
+                                .pointingHandCursor()
+                                .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestAccessibilityButton)
+                            }
                         }
-                        .pointingHandCursor()
-                        .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestAccessibilityButton)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

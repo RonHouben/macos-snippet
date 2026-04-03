@@ -60,6 +60,18 @@ final class CaptureCoordinator {
         return "Screen Recording: \(screen) • Accessibility: \(access)"
     }
 
+    var needsScreenRecordingPermission: Bool {
+        permissionManager.screenRecordingStatus != .granted
+    }
+
+    var needsAccessibilityPermission: Bool {
+        permissionManager.accessibilityStatus != .granted
+    }
+
+    var needsAnyPermission: Bool {
+        needsScreenRecordingPermission || needsAccessibilityPermission
+    }
+
     func refreshPermissions() {
         permissionManager.refresh()
         statusMessage = permissionSummary
