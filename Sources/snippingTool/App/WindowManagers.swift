@@ -143,7 +143,7 @@ final class UITestControlWindowManager {
     }
 }
 
-private extension NSWindow {
+extension NSWindow {
     func apply(themePreference: AppThemePreference) {
         appearance = themePreference.nsAppearance
         contentViewController?.view.needsLayout = true

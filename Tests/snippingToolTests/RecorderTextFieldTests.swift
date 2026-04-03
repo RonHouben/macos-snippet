@@ -57,6 +57,34 @@ final class RecorderTextFieldTests: XCTestCase {
         XCTAssertEqual(receivedPreference, .light)
     }
 
+    func testOnboardingDefaultsToIncomplete() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+
+        XCTAssertFalse(appState.hasCompletedOnboarding)
+    }
+
+    func testCompletingOnboardingPersistsValue() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+
+        appState.completeOnboarding()
+
+        let restoredState = AppState(defaults: defaults)
+        XCTAssertTrue(restoredState.hasCompletedOnboarding)
+    }
+
+    func testResettingOnboardingClearsPersistedValue() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+        appState.completeOnboarding()
+
+        appState.resetOnboarding()
+
+        let restoredState = AppState(defaults: defaults)
+        XCTAssertFalse(restoredState.hasCompletedOnboarding)
+    }
+
     func testNewCaptureShortcutDefaultsToCommandShiftOne() {
         let defaults = makeDefaults(suiteName: #function)
         let appState = AppState(defaults: defaults)

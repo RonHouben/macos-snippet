@@ -123,6 +123,20 @@ enum AppAutomationIdentifiers {
     static let settingsRequestScreenRecordingButton = "settings.request-screen-recording"
     static let settingsRequestAccessibilityButton = "settings.request-accessibility"
 
+    static let onboardingWindow = "window.onboarding"
+    static let onboardingRoot = "onboarding.root"
+    static let onboardingNextButton = "onboarding.next"
+    static let onboardingBackButton = "onboarding.back"
+    static let onboardingCancelButton = "onboarding.cancel"
+    static let onboardingFinishButton = "onboarding.finish"
+    static let onboardingOpenSystemSettingsButton = "onboarding.open-system-settings"
+    static let onboardingRefreshPermissionsButton = "onboarding.refresh-permissions"
+    static let onboardingScreenRecordingButton = "onboarding.request-screen-recording"
+    static let onboardingAccessibilityButton = "onboarding.request-accessibility"
+    static let onboardingThemePicker = "onboarding.theme"
+    static let onboardingNewCaptureShortcutRecorder = "onboarding.new-capture-shortcut"
+    static let onboardingEditorCompletionModifierRecorder = "onboarding.editor-completion-modifier"
+
     static let editorWindow = "window.editor"
     static let editorRoot = "editor.root"
     static let editorToolbar = "editor.toolbar"
@@ -162,6 +176,8 @@ enum AppAutomationIdentifiers {
             "status-menu.new-capture"
         case .openEditor:
             "status-menu.open-editor"
+        case .continueSetup:
+            "status-menu.continue-setup"
         case .openSettings:
             "status-menu.open-settings"
         case .quit:

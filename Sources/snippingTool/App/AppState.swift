@@ -11,6 +11,7 @@ final class AppState {
         static let captureModeHotkeys = "captureModeHotkeys"
         static let newCaptureShortcut = "newCaptureShortcut"
         static let editorCompletionModifier = "editorCompletionModifier"
+        static let hasCompletedOnboarding = "hasCompletedOnboarding"
     }
 
     static let defaultNewCaptureShortcut = HotkeyShortcut(
@@ -73,6 +74,11 @@ final class AppState {
 
     var keybindingValidationMessage: String?
     var launchAtLogin = false
+    var hasCompletedOnboarding: Bool {
+        didSet {
+            defaults.set(hasCompletedOnboarding, forKey: StorageKeys.hasCompletedOnboarding)
+        }
+    }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -108,6 +114,12 @@ final class AppState {
             editorCompletionModifiers = storedEditorCompletionModifiers
         } else {
             editorCompletionModifiers = CaptureCompletionPolicy.defaultEditorModifier
+        }
+
+        if defaults.object(forKey: StorageKeys.hasCompletedOnboarding) != nil {
+            hasCompletedOnboarding = defaults.bool(forKey: StorageKeys.hasCompletedOnboarding)
+        } else {
+            hasCompletedOnboarding = false
         }
     }
 
@@ -146,6 +158,14 @@ final class AppState {
 
     func clearKeybindingValidationMessage() {
         keybindingValidationMessage = nil
+    }
+
+    func completeOnboarding() {
+        hasCompletedOnboarding = true
+    }
+
+    func resetOnboarding() {
+        hasCompletedOnboarding = false
     }
 
     private func persistCaptureModeHotkeys() {

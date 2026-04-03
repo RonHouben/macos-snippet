@@ -12,8 +12,11 @@ final class AppServices {
     let recentCaptureStore = RecentCaptureStore()
     private let exportService = ExportService()
 
+    var onOnboardingDismissed: (() -> Void)?
+
     lazy var editorWindowManager = EditorWindowManager(services: self)
     lazy var settingsWindowManager = SettingsWindowManager(services: self)
+    lazy var onboardingWindowManager = OnboardingWindowManager(services: self)
     lazy var uiTestControlWindowManager = UITestControlWindowManager(services: self)
 
     private init(configuration: AppLaunchConfiguration = .current) {
@@ -31,6 +34,7 @@ final class AppServices {
         appState.onThemePreferenceChanged = { [weak self] _ in
             self?.editorWindowManager.applyThemePreference()
             self?.settingsWindowManager.applyThemePreference()
+            self?.onboardingWindowManager.applyThemePreference()
         }
         appState.onEditorCompletionModifiersChanged = { [weak self] modifiers in
             self?.captureCoordinator.editorCompletionModifiers = modifiers
@@ -41,6 +45,11 @@ final class AppServices {
             self?.handleCompletedCapture(action)
         }
     }
+
+    var shouldShowOnboardingOnLaunch: Bool {
+        launchConfiguration.isUITesting == false && appState.hasCompletedOnboarding == false
+    }
+
     func startPreferredCapture() {
         captureCoordinator.startCapture(mode: appState.preferredCaptureMode)
     }
@@ -70,12 +79,30 @@ final class AppServices {
         appState.preferredCaptureMode = mode
     }
 
+    func completeOnboarding() {
+        appState.completeOnboarding()
+        onboardingWindowManager.close()
+        onOnboardingDismissed?()
+    }
+
+    func cancelOnboarding() {
+        onboardingWindowManager.close()
+        quit()
+    }
+
+    func reopenOnboarding() {
+        appState.resetOnboarding()
+        onboardingWindowManager.show()
+    }
+
     func performStatusMenuAction(_ action: StatusMenuAction) {
         switch action {
         case .newCapture:
             startPreferredCapture()
         case .openEditor:
             openEditor()
+        case .continueSetup:
+            reopenOnboarding()
         case .openSettings:
             openSettings()
         case .quit:

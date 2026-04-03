@@ -3,14 +3,41 @@ import SwiftUI
 import snippingToolCore
 
 @MainActor
-struct KeybindingRecorderField: NSViewRepresentable {
+struct HotkeyRecorderField: NSViewRepresentable {
     var shortcut: HotkeyShortcut?
+    var modifiers: HotkeyModifiers
+    var mode: RecorderTextField.RecordingMode
     var isEnabled: Bool
     @Binding var isRecording: Bool
     var accessibilityIdentifier: String?
     var accessibilityLabel: String?
     var onShortcutRecorded: (HotkeyShortcut) -> Bool
+    var onModifiersRecorded: (HotkeyModifiers) -> Bool
     var onUnsupportedKey: (String) -> Void
+
+    init(
+        shortcut: HotkeyShortcut? = nil,
+        modifiers: HotkeyModifiers = [],
+        mode: RecorderTextField.RecordingMode,
+        isEnabled: Bool,
+        isRecording: Binding<Bool>,
+        accessibilityIdentifier: String? = nil,
+        accessibilityLabel: String? = nil,
+        onShortcutRecorded: @escaping (HotkeyShortcut) -> Bool = { _ in false },
+        onModifiersRecorded: @escaping (HotkeyModifiers) -> Bool = { _ in false },
+        onUnsupportedKey: @escaping (String) -> Void
+    ) {
+        self.shortcut = shortcut
+        self.modifiers = modifiers
+        self.mode = mode
+        self.isEnabled = isEnabled
+        _isRecording = isRecording
+        self.accessibilityIdentifier = accessibilityIdentifier
+        self.accessibilityLabel = accessibilityLabel
+        self.onShortcutRecorded = onShortcutRecorded
+        self.onModifiersRecorded = onModifiersRecorded
+        self.onUnsupportedKey = onUnsupportedKey
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -21,8 +48,8 @@ struct KeybindingRecorderField: NSViewRepresentable {
         textField.recorderDelegate = context.coordinator
         textField.update(
             shortcut: shortcut,
-            modifiers: [],
-            mode: .shortcut,
+            modifiers: modifiers,
+            mode: mode,
             isEnabled: isEnabled,
             isRecording: isRecording,
             accessibilityIdentifier: accessibilityIdentifier,
@@ -36,8 +63,8 @@ struct KeybindingRecorderField: NSViewRepresentable {
         nsView.recorderDelegate = context.coordinator
         nsView.update(
             shortcut: shortcut,
-            modifiers: [],
-            mode: .shortcut,
+            modifiers: modifiers,
+            mode: mode,
             isEnabled: isEnabled,
             isRecording: isRecording,
             accessibilityIdentifier: accessibilityIdentifier,
@@ -47,9 +74,9 @@ struct KeybindingRecorderField: NSViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject, RecorderTextFieldDelegate {
-        var parent: KeybindingRecorderField
+        var parent: HotkeyRecorderField
 
-        init(_ parent: KeybindingRecorderField) {
+        init(_ parent: HotkeyRecorderField) {
             self.parent = parent
         }
 
@@ -63,79 +90,6 @@ struct KeybindingRecorderField: NSViewRepresentable {
 
         func recorderDidCaptureShortcut(_ shortcut: HotkeyShortcut) -> Bool {
             parent.onShortcutRecorded(shortcut)
-        }
-
-        func recorderDidCaptureModifiers(_ modifiers: HotkeyModifiers) -> Bool {
-            false
-        }
-
-        func recorderDidReceiveUnsupportedInput(_ message: String) {
-            parent.onUnsupportedKey(message)
-        }
-    }
-}
-
-@MainActor
-struct ModifierKeyRecorderField: NSViewRepresentable {
-    var modifiers: HotkeyModifiers
-    var isEnabled: Bool
-    @Binding var isRecording: Bool
-    var accessibilityIdentifier: String?
-    var accessibilityLabel: String?
-    var onModifiersRecorded: (HotkeyModifiers) -> Bool
-    var onUnsupportedKey: (String) -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    func makeNSView(context: Context) -> RecorderTextField {
-        let textField = RecorderTextField()
-        textField.recorderDelegate = context.coordinator
-        textField.update(
-            shortcut: nil,
-            modifiers: modifiers,
-            mode: .modifiersOnly,
-            isEnabled: isEnabled,
-            isRecording: isRecording,
-            accessibilityIdentifier: accessibilityIdentifier,
-            accessibilityLabel: accessibilityLabel
-        )
-        return textField
-    }
-
-    func updateNSView(_ nsView: RecorderTextField, context: Context) {
-        context.coordinator.parent = self
-        nsView.recorderDelegate = context.coordinator
-        nsView.update(
-            shortcut: nil,
-            modifiers: modifiers,
-            mode: .modifiersOnly,
-            isEnabled: isEnabled,
-            isRecording: isRecording,
-            accessibilityIdentifier: accessibilityIdentifier,
-            accessibilityLabel: accessibilityLabel
-        )
-    }
-
-    @MainActor
-    final class Coordinator: NSObject, RecorderTextFieldDelegate {
-        var parent: ModifierKeyRecorderField
-
-        init(_ parent: ModifierKeyRecorderField) {
-            self.parent = parent
-        }
-
-        func recorderDidBeginRecording() {
-            parent.isRecording = true
-        }
-
-        func recorderDidEndRecording() {
-            parent.isRecording = false
-        }
-
-        func recorderDidCaptureShortcut(_ shortcut: HotkeyShortcut) -> Bool {
-            false
         }
 
         func recorderDidCaptureModifiers(_ modifiers: HotkeyModifiers) -> Bool {
@@ -168,6 +122,7 @@ final class RecorderTextField: NSTextField {
         static let borderWidth: CGFloat = 1
         static let activeBorderWidth: CGFloat = 1.5
         static let disabledAlpha: CGFloat = 0.92
+        static let idleFillAlpha: CGFloat = 0.08
     }
 
     weak var recorderDelegate: RecorderTextFieldDelegate?
@@ -183,6 +138,7 @@ final class RecorderTextField: NSTextField {
     private var recorderAccessibilityLabel: String?
     private var modifierFlagsMonitor: Any?
     private var recordingRequested = false
+    private var hasInstalledAppearanceObservers = false
 
     override var acceptsFirstResponder: Bool { isRecorderEnabled }
     override var canBecomeKeyView: Bool { isRecorderEnabled }
@@ -209,11 +165,16 @@ final class RecorderTextField: NSTextField {
         wantsLayer = true
         layer?.cornerRadius = Appearance.cornerRadius
         layer?.masksToBounds = true
+        installAppearanceObservers()
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     func update(
@@ -301,6 +262,11 @@ final class RecorderTextField: NSTextField {
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
+        applyAppearance()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
         applyAppearance()
     }
 
@@ -492,7 +458,7 @@ final class RecorderTextField: NSTextField {
                     stringValue = previewModifiers.isEmpty ? "Type shortcut" : "\(previewModifiers.displayText)…"
                 }
             case .modifiersOnly:
-                stringValue = previewModifiers.isEmpty ? "Hold modifiers" : "\(previewModifiers.displayText)…"
+                stringValue = previewModifiers.isEmpty ? "Type shortcut" : "\(previewModifiers.displayText)…"
             }
             textColor = .labelColor
             placeholderString = nil
@@ -505,7 +471,7 @@ final class RecorderTextField: NSTextField {
             stringValue = currentShortcut?.displayText ?? "Click to record"
             textColor = currentShortcut == nil ? .secondaryLabelColor : .labelColor
         case .modifiersOnly:
-            stringValue = currentModifiers.isEmpty ? "Always open editor" : currentModifiers.displayText
+            stringValue = currentModifiers.isEmpty ? "Click to record" : currentModifiers.displayText
             textColor = currentModifiers.isEmpty ? .secondaryLabelColor : .labelColor
         }
         placeholderString = nil
@@ -530,13 +496,49 @@ final class RecorderTextField: NSTextField {
             alphaValue = 1
         } else {
             borderColor = .separatorColor.withAlphaComponent(0.55)
-            fillColor = .textBackgroundColor
+            fillColor = .quaternaryLabelColor.withAlphaComponent(Appearance.idleFillAlpha)
             alphaValue = 1
         }
 
         layer?.borderWidth = isRecordingActive ? Appearance.activeBorderWidth : Appearance.borderWidth
         layer?.borderColor = borderColor.cgColor
         layer?.backgroundColor = fillColor.cgColor
+    }
+
+    private func installAppearanceObservers() {
+        guard hasInstalledAppearanceObservers == false else {
+            return
+        }
+
+        let notificationCenter = NotificationCenter.default
+        let names: [Notification.Name] = [
+            NSApplication.didBecomeActiveNotification,
+            NSApplication.didResignActiveNotification,
+            NSWindow.didBecomeKeyNotification,
+            NSWindow.didResignKeyNotification,
+            NSWindow.didChangeOcclusionStateNotification
+        ]
+
+        names.forEach { name in
+            notificationCenter.addObserver(
+                self,
+                selector: #selector(handleAppearanceRefreshNotification(_:)),
+                name: name,
+                object: nil
+            )
+        }
+
+        hasInstalledAppearanceObservers = true
+    }
+
+    @objc
+    private func handleAppearanceRefreshNotification(_ notification: Notification) {
+        if let window = notification.object as? NSWindow,
+           window != self.window {
+            return
+        }
+
+        applyAppearance()
     }
 }
 

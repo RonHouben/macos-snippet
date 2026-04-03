@@ -9,11 +9,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(services.launchConfiguration.isUITesting ? .regular : .accessory)
-        configureStatusItem()
+        services.onOnboardingDismissed = { [weak self] in
+            self?.configureStatusItemIfNeeded()
+        }
+
+        if services.shouldShowOnboardingOnLaunch {
+            services.onboardingWindowManager.show()
+        } else {
+            configureStatusItemIfNeeded()
+        }
+
         if services.launchConfiguration.isUITesting {
             services.uiTestControlWindowManager.show()
             NSApp.activate(ignoringOtherApps: true)
         }
+    }
+
+    func configureStatusItemIfNeeded() {
+        guard statusItem == nil else {
+            return
+        }
+
+        configureStatusItem()
     }
 
     private func configureStatusItem() {
@@ -37,7 +54,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let snapshot = StatusMenuBuilder.build(
             preferredCaptureMode: services.appState.preferredCaptureMode,
-            statusMessage: services.captureCoordinator.statusMessage
+            statusMessage: services.captureCoordinator.statusMessage,
+            showContinueSetup: services.appState.hasCompletedOnboarding == false
         )
 
         for entry in snapshot.entries {
@@ -86,6 +104,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             #selector(startCapture)
         case .openEditor:
             #selector(openEditor)
+        case .continueSetup:
+            #selector(continueSetup)
         case .openSettings:
             #selector(openSettings)
         case .quit:
@@ -122,6 +142,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc
     private func openEditor() {
         services.performStatusMenuAction(.openEditor)
+    }
+
+    @objc
+    private func continueSetup() {
+        services.performStatusMenuAction(.continueSetup)
     }
 
     @objc

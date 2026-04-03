@@ -276,8 +276,9 @@ private struct EditorCompletionModifierRow: View {
                     isEnabled: true,
                     isRecording: $isRecording
                 ) {
-                    ModifierKeyRecorderField(
+                    HotkeyRecorderField(
                         modifiers: appState.editorCompletionModifiers,
+                        mode: .modifiersOnly,
                         isEnabled: true,
                         isRecording: $isRecording,
                         accessibilityIdentifier: AppAutomationIdentifiers.settingsEditorCompletionModifierRecorder,
@@ -294,14 +295,14 @@ private struct EditorCompletionModifierRow: View {
                 }
                 .frame(width: SettingsLayout.fieldColumnWidth, height: SettingsLayout.controlHeight)
 
-                Button("Clear") {
+                Button("Reset") {
                     recorderMessage = nil
-                    appState.editorCompletionModifiers = []
+                    appState.editorCompletionModifiers = CaptureCompletionPolicy.defaultEditorModifier
                     isRecording = false
                 }
                 .frame(width: SettingsLayout.actionColumnWidth)
                 .controlSize(.regular)
-                .disabled(appState.editorCompletionModifiers.isEmpty)
+                .disabled(appState.editorCompletionModifiers == CaptureCompletionPolicy.defaultEditorModifier)
                 .pointingHandCursor()
                 .accessibilityIdentifier(AppAutomationIdentifiers.settingsEditorCompletionModifierClearButton)
 
@@ -309,7 +310,7 @@ private struct EditorCompletionModifierRow: View {
             }
 
             if isRecording {
-                SettingsHelpText("Hold one or more modifier keys, then release them to save. Press Escape to cancel.")
+                SettingsHelpText("Press Escape to cancel.")
                     .font(.caption)
                     .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
             } else if appState.editorCompletionModifiers.isEmpty {
@@ -335,12 +336,12 @@ private struct EditorCompletionModifierRow: View {
     private var editorModifierDisplayValue: String {
         if isRecording {
             return appState.editorCompletionModifiers.isEmpty
-                ? "Hold modifiers"
+                ? "Type shortcut"
                 : "\(appState.editorCompletionModifiers.displayText)…"
         }
 
         return appState.editorCompletionModifiers.isEmpty
-            ? "Always open editor"
+            ? "Click to record"
             : appState.editorCompletionModifiers.displayText
     }
 
@@ -366,8 +367,9 @@ private struct NewCaptureShortcutRow: View {
                     isEnabled: true,
                     isRecording: $isRecording
                 ) {
-                    KeybindingRecorderField(
+                    HotkeyRecorderField(
                         shortcut: appState.newCaptureShortcut,
+                        mode: .shortcut,
                         isEnabled: true,
                         isRecording: $isRecording,
                         accessibilityIdentifier: AppAutomationIdentifiers.settingsNewCaptureShortcutRecorder,
@@ -456,8 +458,9 @@ private struct CaptureModeHotkeyRow: View {
                     isEnabled: isShortcutEnabled,
                     isRecording: $isRecording
                 ) {
-                    KeybindingRecorderField(
+                    HotkeyRecorderField(
                         shortcut: appState.shortcut(for: mode),
+                        mode: .shortcut,
                         isEnabled: isShortcutEnabled,
                         isRecording: $isRecording,
                         accessibilityIdentifier: AppAutomationIdentifiers.settingsHotkeyRecorder(for: mode),

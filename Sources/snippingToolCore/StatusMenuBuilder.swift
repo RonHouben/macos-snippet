@@ -3,6 +3,7 @@ import Foundation
 public enum StatusMenuAction: Sendable, Equatable {
     case newCapture
     case openEditor
+    case continueSetup
     case openSettings
     case quit
 }
@@ -33,7 +34,11 @@ public struct StatusMenuSnapshot: Sendable, Equatable {
 }
 
 public enum StatusMenuBuilder {
-    public static func build(preferredCaptureMode: CaptureMode, statusMessage: String?) -> StatusMenuSnapshot {
+    public static func build(
+        preferredCaptureMode: CaptureMode,
+        statusMessage: String?,
+        showContinueSetup: Bool = false
+    ) -> StatusMenuSnapshot {
         var entries: [StatusMenuEntry] = [
             .action(title: "New Capture", action: .newCapture),
             .action(title: "Open Editor", action: .openEditor),
@@ -51,6 +56,11 @@ public enum StatusMenuBuilder {
         }
 
         entries.append(.separator)
+
+        if showContinueSetup {
+            entries.append(.action(title: "Continue Setup", action: .continueSetup))
+        }
+
         entries.append(.action(title: "Settings", action: .openSettings))
         entries.append(.action(title: "Quit snippingTool", action: .quit))
 
