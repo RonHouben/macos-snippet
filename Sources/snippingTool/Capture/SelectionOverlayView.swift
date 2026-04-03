@@ -109,6 +109,11 @@ struct SelectionOverlayView: View {
                 }
 
                 if coordinator.overlayCaptureMode == .rectangular {
+                    CaptureCrosshairCursorRegion()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+
                     Color.clear
                         .contentShape(Rectangle())
                         .ignoresSafeArea()
@@ -397,5 +402,50 @@ private struct SelectionCornerGuides: View {
         path.move(to: start)
         path.addLine(to: CGPoint(x: start.x, y: start.y + (vertical * length)))
         return path
+    }
+}
+
+@MainActor
+private struct CaptureCrosshairCursorRegion: NSViewRepresentable {
+    func makeNSView(context: Context) -> CaptureCrosshairCursorNSView {
+        CaptureCrosshairCursorNSView()
+    }
+
+    func updateNSView(_ nsView: CaptureCrosshairCursorNSView, context: Context) {
+        nsView.invalidateCrosshairCursorRects()
+    }
+}
+
+@MainActor
+private final class CaptureCrosshairCursorNSView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        translatesAutoresizingMaskIntoConstraints = false
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func resetCursorRects() {
+        discardCursorRects()
+        addCursorRect(bounds, cursor: .crosshair)
+        super.resetCursorRects()
+    }
+
+    override func layout() {
+        super.layout()
+        invalidateCrosshairCursorRects()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        invalidateCrosshairCursorRects()
+    }
+
+    func invalidateCrosshairCursorRects() {
+        discardCursorRects()
+        window?.invalidateCursorRects(for: self)
     }
 }
