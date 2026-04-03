@@ -104,6 +104,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             #selector(startCapture)
         case .openEditor:
             #selector(openEditor)
+        case .openLibrary:
+            #selector(openLibrary)
         case .continueSetup:
             #selector(continueSetup)
         case .openSettings:
@@ -118,6 +120,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .newCapture:
             item.keyEquivalent = menuKeyEquivalent(for: services.appState.newCaptureShortcut)
             item.keyEquivalentModifierMask = services.appState.newCaptureShortcut.modifiers.eventModifierFlags
+        case .openLibrary:
+            item.keyEquivalent = menuKeyEquivalent(for: services.appState.libraryShortcut)
+            item.keyEquivalentModifierMask = services.appState.libraryShortcut.modifiers.eventModifierFlags
         case .openSettings:
             item.keyEquivalent = ","
             item.keyEquivalentModifierMask = [.command]
@@ -142,6 +147,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc
     private func openEditor() {
         services.performStatusMenuAction(.openEditor)
+    }
+
+    @objc
+    private func openLibrary() {
+        services.performStatusMenuAction(.openLibrary)
     }
 
     @objc

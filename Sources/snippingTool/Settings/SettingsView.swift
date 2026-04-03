@@ -142,6 +142,13 @@ struct SettingsView: View {
                     }
                 }
 
+                Text("Capture Library")
+                    .font(.headline)
+
+                SettingsHelpText("Choose the shortcut for opening the capture library.")
+
+                LibraryShortcutRow()
+
                 if let validationMessage = appState.keybindingValidationMessage {
                     Label(validationMessage, systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
@@ -557,4 +564,88 @@ private struct CaptureModeHotkeyRow: View {
         return appState.shortcut(for: mode)?.displayText ?? "Click to record"
     }
 
+}
+
+private struct LibraryShortcutRow: View {
+    @Environment(AppState.self) private var appState
+    @State private var isRecording = false
+    @State private var recorderMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SettingsLayout.helpTextSpacing) {
+            HStack(alignment: .center, spacing: SettingsLayout.columnSpacing) {
+                SettingsFieldLabel("Open library")
+
+                Spacer()
+                    .frame(width: SettingsLayout.toggleColumnWidth)
+
+                SettingsRecorderFieldContainer(
+                    label: "Library shortcut",
+                    value: shortcutDisplayValue,
+                    identifier: AppAutomationIdentifiers.settingsLibraryShortcutRecorder,
+                    isEnabled: true,
+                    isRecording: $isRecording
+                ) {
+                    HotkeyRecorderField(
+                        shortcut: appState.libraryShortcut,
+                        mode: .shortcut,
+                        isEnabled: true,
+                        isRecording: $isRecording,
+                        accessibilityIdentifier: AppAutomationIdentifiers.settingsLibraryShortcutRecorder,
+                        accessibilityLabel: "Library shortcut",
+                        onShortcutRecorded: { shortcut in
+                            recorderMessage = nil
+                            appState.clearKeybindingValidationMessage()
+                            return appState.updateLibraryShortcut(shortcut)
+                        },
+                        onUnsupportedKey: { message in
+                            appState.clearKeybindingValidationMessage()
+                            recorderMessage = message
+                        }
+                    )
+                }
+                .frame(width: SettingsLayout.fieldColumnWidth, height: SettingsLayout.controlHeight)
+
+                Button("Reset") {
+                    recorderMessage = nil
+                    appState.resetLibraryShortcut()
+                    isRecording = false
+                }
+                .frame(width: SettingsLayout.actionColumnWidth)
+                .controlSize(.regular)
+                .disabled(appState.libraryShortcut == AppState.defaultLibraryShortcut)
+                .pointingHandCursor()
+                .accessibilityIdentifier(AppAutomationIdentifiers.settingsLibraryShortcutResetButton)
+
+                Spacer(minLength: 0)
+            }
+
+            if isRecording {
+                SettingsHelpText("Press Escape to cancel.")
+                    .font(.caption)
+                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
+            }
+
+            if let recorderMessage {
+                SettingsHelpText(recorderMessage)
+                    .font(.caption)
+                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: isRecording) { _, newValue in
+            if newValue {
+                recorderMessage = nil
+                appState.clearKeybindingValidationMessage()
+            }
+        }
+    }
+
+    private var shortcutDisplayValue: String {
+        if isRecording {
+            return "\(appState.libraryShortcut.displayText)…"
+        }
+
+        return appState.libraryShortcut.displayText
+    }
 }

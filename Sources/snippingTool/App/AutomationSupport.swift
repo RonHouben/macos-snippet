@@ -120,6 +120,8 @@ enum AppAutomationIdentifiers {
     static let settingsNewCaptureShortcutResetButton = "settings.new-capture-shortcut.reset"
     static let settingsEditorCompletionModifierRecorder = "settings.editor-completion-modifier"
     static let settingsEditorCompletionModifierClearButton = "settings.editor-completion-modifier.clear"
+    static let settingsLibraryShortcutRecorder = "settings.library-shortcut"
+    static let settingsLibraryShortcutResetButton = "settings.library-shortcut.reset"
     static let settingsRequestScreenRecordingButton = "settings.request-screen-recording"
     static let settingsRequestAccessibilityButton = "settings.request-accessibility"
 
@@ -168,6 +170,9 @@ enum AppAutomationIdentifiers {
     static let capturePreviewWindow = "window.capture-preview"
     static let capturePreviewRoot = "capture-preview.root"
 
+    static let libraryWindow = "window.library"
+    static let libraryRoot = "library.root"
+
     static let overlayRoot = "overlay.root"
     static let overlayToolbar = "overlay.toolbar"
     static let overlayCancelButton = "overlay.cancel"
@@ -178,6 +183,8 @@ enum AppAutomationIdentifiers {
             "status-menu.new-capture"
         case .openEditor:
             "status-menu.open-editor"
+        case .openLibrary:
+            "status-menu.open-library"
         case .continueSetup:
             "status-menu.continue-setup"
         case .openSettings:

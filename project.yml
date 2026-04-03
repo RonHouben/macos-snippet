@@ -3,7 +3,7 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    MACOSX_DEPLOYMENT_TARGET: '14.0'
+    MACOSX_DEPLOYMENT_TARGET: '26.0'
     SWIFT_VERSION: '6.0'
 packages:
   snippingToolPackage:
@@ -12,12 +12,16 @@ targets:
   snippingToolHost:
     type: application
     platform: macOS
-    deploymentTarget: '14.0'
+    deploymentTarget: '26.0'
     sources:
       - path: Sources/snippingTool
     dependencies:
       - package: snippingToolPackage
         product: snippingToolCore
+      - package: snippingToolPackage
+        product: MLXLMCommon
+      - package: snippingToolPackage
+        product: MLXVLM
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ronhouben.snippingtool.host
@@ -32,7 +36,7 @@ targets:
   snippingToolHostUITests:
     type: bundle.ui-testing
     platform: macOS
-    deploymentTarget: '14.0'
+    deploymentTarget: '26.0'
     sources:
       - path: UITests
       - path: Sources/snippingTool/App/AutomationSupport.swift
@@ -49,7 +53,7 @@ targets:
   snippingToolHostTests:
     type: bundle.unit-test
     platform: macOS
-    deploymentTarget: '14.0'
+    deploymentTarget: '26.0'
     sources:
       - path: Tests/snippingToolTests
     dependencies:

@@ -3,6 +3,7 @@ import Foundation
 public enum StatusMenuAction: Sendable, Equatable {
     case newCapture
     case openEditor
+    case openLibrary
     case continueSetup
     case openSettings
     case quit
@@ -42,6 +43,7 @@ public enum StatusMenuBuilder {
         var entries: [StatusMenuEntry] = [
             .action(title: "New Capture", action: .newCapture),
             .action(title: "Open Editor", action: .openEditor),
+            .action(title: "Capture Library", action: .openLibrary),
             .captureModes(
                 title: "Capture Mode",
                 items: CaptureMode.allCases.map { mode in

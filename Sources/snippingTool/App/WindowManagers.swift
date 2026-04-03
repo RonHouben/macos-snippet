@@ -38,6 +38,7 @@ final class EditorWindowManager {
         })
             .environment(services.captureCoordinator)
             .environment(services.recentCaptureStore)
+            .environment(services.libraryStore)
 
         let hostingController = NSHostingController(rootView: rootView)
         hostingController.view.setAccessibilityIdentifier(AppAutomationIdentifiers.editorRoot)
@@ -313,6 +314,56 @@ final class CapturePreviewWindowManager {
             x: screenFrame.maxX - size.width - screenMargin,
             y: screenFrame.minY + screenMargin
         )
+    }
+}
+
+@MainActor
+final class LibraryWindowManager {
+    private let services: AppServices
+    private var windowController: NSWindowController?
+
+    init(services: AppServices) {
+        self.services = services
+    }
+
+    func show() {
+        let controller = windowController ?? makeWindowController()
+        windowController = controller
+        applyThemePreference()
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func close() {
+        windowController?.close()
+    }
+
+    func applyThemePreference() {
+        windowController?.window?.apply(themePreference: services.appState.themePreference)
+    }
+
+    private func makeWindowController() -> NSWindowController {
+        let rootView = LibraryView(
+            onOpenInEditor: { [weak services] item in
+                services?.openLibraryItemInEditor(item)
+            },
+            onCopyToClipboard: { [weak services] item in
+                services?.copyLibraryItemToClipboard(item)
+            }
+        )
+        .environment(services.libraryStore)
+
+        let hostingController = NSHostingController(rootView: rootView)
+        hostingController.view.setAccessibilityIdentifier(AppAutomationIdentifiers.libraryRoot)
+        let window = NSWindow(contentViewController: hostingController)
+        window.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.libraryWindow)
+        window.title = "Capture Library"
+        window.setContentSize(NSSize(width: 1000, height: 600))
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.isReleasedWhenClosed = false
+        window.apply(themePreference: services.appState.themePreference)
+        return NSWindowController(window: window)
     }
 }
 

@@ -149,7 +149,7 @@ final class CaptureCoordinator {
             }
 
             do {
-                currentCapture = try screenCaptureService.capture(rect: captureRect)
+                currentCapture = try await screenCaptureService.capture(rect: captureRect)
                 completeCapture(
                     status: "Captured \(Int(captureRect.width))×\(Int(captureRect.height)) selection.",
                     hasOverlay: false,
@@ -237,18 +237,20 @@ final class CaptureCoordinator {
     }
 
     private func captureFullScreen(activeModifiers: HotkeyModifiers) {
-        do {
-            currentCapture = try screenCaptureService.captureMainDisplay()
-            completeCapture(
-                status: "Captured the main display.",
-                hasOverlay: false,
-                activeModifiers: activeModifiers
-            )
-        } catch {
-            dismissOverlayIfNeeded()
-            isCaptureInProgress = false
-            lastError = error.localizedDescription
-            statusMessage = error.localizedDescription
+        Task { @MainActor in
+            do {
+                currentCapture = try await screenCaptureService.captureMainDisplay()
+                completeCapture(
+                    status: "Captured the main display.",
+                    hasOverlay: false,
+                    activeModifiers: activeModifiers
+                )
+            } catch {
+                dismissOverlayIfNeeded()
+                isCaptureInProgress = false
+                lastError = error.localizedDescription
+                statusMessage = error.localizedDescription
+            }
         }
     }
 

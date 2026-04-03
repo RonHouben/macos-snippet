@@ -10,7 +10,9 @@ final class AppServices {
     let appState: AppState
     let captureCoordinator: CaptureCoordinator
     let recentCaptureStore = RecentCaptureStore()
+    let libraryStore = LibraryStore()
     private let exportService = ExportService()
+    private var libraryHotkeyMonitor: Any?
 
     var onOnboardingDismissed: (() -> Void)?
 
@@ -18,6 +20,7 @@ final class AppServices {
     lazy var settingsWindowManager = SettingsWindowManager(services: self)
     lazy var onboardingWindowManager = OnboardingWindowManager(services: self)
     lazy var uiTestControlWindowManager = UITestControlWindowManager(services: self)
+    lazy var libraryWindowManager = LibraryWindowManager(services: self)
     lazy var capturePreviewWindowManager: CapturePreviewWindowManager = {
         let manager = CapturePreviewWindowManager(services: self)
         manager.onOpen = { [weak self] in self?.openEditor() }
@@ -41,6 +44,7 @@ final class AppServices {
             self?.settingsWindowManager.applyThemePreference()
             self?.onboardingWindowManager.applyThemePreference()
             self?.capturePreviewWindowManager.applyThemePreference()
+            self?.libraryWindowManager.applyThemePreference()
         }
         appState.onEditorCompletionModifiersChanged = { [weak self] modifiers in
             self?.captureCoordinator.editorCompletionModifiers = modifiers
@@ -50,6 +54,11 @@ final class AppServices {
         captureCoordinator.onCaptureCompleted = { [weak self] action in
             self?.handleCompletedCapture(action)
         }
+
+        appState.onLibraryShortcutChanged = { [weak self] shortcut in
+            self?.configureLibraryHotkey(shortcut)
+        }
+        configureLibraryHotkey(appState.libraryShortcut)
     }
 
     var shouldShowOnboardingOnLaunch: Bool {
@@ -67,6 +76,38 @@ final class AppServices {
 
     func openSettings() {
         settingsWindowManager.show()
+    }
+
+    func openLibrary() {
+        libraryWindowManager.show()
+    }
+
+    func openLibraryItemInEditor(_ item: LibraryItem) {
+        let snippet = CapturedSnippet(
+            id: item.id,
+            createdAt: item.createdAt,
+            cgImage: item.fullImage,
+            sourceRect: CGRect(origin: .zero, size: item.dimensions)
+        )
+        captureCoordinator.currentCapture = snippet
+        openEditor()
+    }
+
+    func copyLibraryItemToClipboard(_ item: LibraryItem) {
+        let snippet = CapturedSnippet(
+            cgImage: item.fullImage,
+            sourceRect: CGRect(origin: .zero, size: item.dimensions)
+        )
+        do {
+            try exportService.copyToPasteboard(
+                capturedSnippet: snippet,
+                strokes: [],
+                textAnnotations: [],
+                shapeAnnotations: []
+            )
+        } catch {
+            captureCoordinator.statusMessage = error.localizedDescription
+        }
     }
 
     func loadUITestSampleCapture() {
@@ -108,6 +149,8 @@ final class AppServices {
             startPreferredCapture()
         case .openEditor:
             openEditor()
+        case .openLibrary:
+            openLibrary()
         case .continueSetup:
             reopenOnboarding()
         case .openSettings:
@@ -117,7 +160,38 @@ final class AppServices {
         }
     }
 
+    private func configureLibraryHotkey(_ shortcut: HotkeyShortcut) {
+        if let monitor = libraryHotkeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            libraryHotkeyMonitor = nil
+        }
+
+        guard launchConfiguration.disablesGlobalHotkeys == false else {
+            return
+        }
+
+        libraryHotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let normalizedModifiers = event.modifierFlags.hotkeyRelevantModifiers
+            guard shortcut.key.keyCode == event.keyCode,
+                  shortcut.modifiers.eventModifierFlags == normalizedModifiers else {
+                return
+            }
+
+            Task { @MainActor in
+                self?.openLibrary()
+            }
+        }
+    }
+
     private func handleCompletedCapture(_ action: CaptureCompletionAction) {
+        if let capture = captureCoordinator.currentCapture {
+            libraryStore.add(
+                id: capture.id,
+                image: capture.cgImage,
+                captureMode: captureCoordinator.overlayCaptureMode
+            )
+        }
+
         switch action {
         case .dismissOverlay:
             return

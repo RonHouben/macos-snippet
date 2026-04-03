@@ -4,12 +4,15 @@ import PackageDescription
 let package = Package(
     name: "snippingTool",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v26)
     ],
     products: [
         .library(name: "snippingToolCore", targets: ["snippingToolCore"]),
         .executable(name: "snippingTool", targets: ["snippingTool"]),
         .executable(name: "snippingToolTDD", targets: ["snippingToolTDD"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm", from: "2.31.3"),
     ],
     targets: [
         .target(
@@ -18,7 +21,11 @@ let package = Package(
         ),
         .executableTarget(
             name: "snippingTool",
-            dependencies: ["snippingToolCore"],
+            dependencies: [
+                "snippingToolCore",
+                .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+                .product(name: "MLXVLM", package: "mlx-swift-lm"),
+            ],
             path: "Sources/snippingTool"
         ),
         .executableTarget(

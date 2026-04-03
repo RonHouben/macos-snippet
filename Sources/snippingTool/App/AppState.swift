@@ -12,10 +12,16 @@ final class AppState {
         static let newCaptureShortcut = "newCaptureShortcut"
         static let editorCompletionModifier = "editorCompletionModifier"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
+        static let libraryShortcut = "libraryShortcut"
     }
 
     static let defaultNewCaptureShortcut = HotkeyShortcut(
         key: .one,
+        modifiers: [.command, .shift]
+    )
+
+    static let defaultLibraryShortcut = HotkeyShortcut(
+        key: .l,
         modifiers: [.command, .shift]
     )
 
@@ -36,6 +42,9 @@ final class AppState {
 
     @ObservationIgnored
     var onThemePreferenceChanged: ((AppThemePreference) -> Void)?
+
+    @ObservationIgnored
+    var onLibraryShortcutChanged: ((HotkeyShortcut) -> Void)?
 
     var themePreference: AppThemePreference {
         didSet {
@@ -80,6 +89,14 @@ final class AppState {
         }
     }
 
+    var libraryShortcut: HotkeyShortcut {
+        didSet {
+            persistLibraryShortcut()
+            keybindingValidationMessage = nil
+            onLibraryShortcutChanged?(libraryShortcut)
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -121,6 +138,12 @@ final class AppState {
         } else {
             hasCompletedOnboarding = false
         }
+
+        if let shortcut = Self.restoreLibraryShortcut(from: defaults, decoder: decoder) {
+            libraryShortcut = shortcut
+        } else {
+            libraryShortcut = Self.defaultLibraryShortcut
+        }
     }
 
     func shortcut(for mode: CaptureMode) -> HotkeyShortcut? {
@@ -149,6 +172,22 @@ final class AppState {
 
         newCaptureShortcut = shortcut
         return true
+    }
+
+    @discardableResult
+    func updateLibraryShortcut(_ shortcut: HotkeyShortcut) -> Bool {
+        if let error = validationError(forLibraryShortcut: shortcut) {
+            keybindingValidationMessage = error
+            return false
+        }
+
+        libraryShortcut = shortcut
+        return true
+    }
+
+    func resetLibraryShortcut() {
+        keybindingValidationMessage = nil
+        libraryShortcut = Self.defaultLibraryShortcut
     }
 
     func resetNewCaptureShortcut() {
@@ -184,9 +223,37 @@ final class AppState {
         defaults.set(data, forKey: StorageKeys.newCaptureShortcut)
     }
 
+    private func persistLibraryShortcut() {
+        guard let data = try? encoder.encode(libraryShortcut) else {
+            return
+        }
+
+        defaults.set(data, forKey: StorageKeys.libraryShortcut)
+    }
+
     private func validationError(forNewCaptureShortcut shortcut: HotkeyShortcut) -> String? {
         guard shortcut.isValid else {
             return "Shortcuts must include at least one modifier key."
+        }
+
+        if captureModeHotkeys.activeBindings.contains(where: { $0.shortcut == shortcut }) {
+            return "\(shortcut.displayText) is already assigned to a capture mode shortcut."
+        }
+
+        if shortcut == libraryShortcut {
+            return "\(shortcut.displayText) is already assigned to the library shortcut."
+        }
+
+        return nil
+    }
+
+    private func validationError(forLibraryShortcut shortcut: HotkeyShortcut) -> String? {
+        guard shortcut.isValid else {
+            return "Shortcuts must include at least one modifier key."
+        }
+
+        if shortcut == newCaptureShortcut {
+            return "\(shortcut.displayText) is already assigned to the new capture shortcut."
         }
 
         if captureModeHotkeys.activeBindings.contains(where: { $0.shortcut == shortcut }) {
@@ -198,6 +265,14 @@ final class AppState {
 
     private static func restoreNewCaptureShortcut(from defaults: UserDefaults, decoder: JSONDecoder) -> HotkeyShortcut? {
         guard let data = defaults.data(forKey: StorageKeys.newCaptureShortcut) else {
+            return nil
+        }
+
+        return try? decoder.decode(HotkeyShortcut.self, from: data)
+    }
+
+    private static func restoreLibraryShortcut(from defaults: UserDefaults, decoder: JSONDecoder) -> HotkeyShortcut? {
+        guard let data = defaults.data(forKey: StorageKeys.libraryShortcut) else {
             return nil
         }
 

@@ -1,9 +1,7 @@
 import AppKit
 import CoreGraphics
 import Foundation
-#if canImport(ScreenCaptureKit)
 @preconcurrency import ScreenCaptureKit
-#endif
 import snippingToolCore
 
 struct ScreenCaptureService {
@@ -30,7 +28,7 @@ struct ScreenCaptureService {
         }
     }
 
-    func capture(rect: CGRect) throws -> CapturedSnippet {
+    func capture(rect: CGRect) async throws -> CapturedSnippet {
         let normalized = rect.standardized.integral
 
         guard normalized.width > 1, normalized.height > 1 else {
@@ -42,10 +40,11 @@ struct ScreenCaptureService {
         }
 
         guard let screen = screen(containing: normalized),
-              let displayID = screen.displayID,
-              let fullDisplayImage = CGDisplayCreateImage(displayID) else {
+              let displayID = screen.displayID else {
             throw CaptureError.screenUnavailable
         }
+
+        let fullDisplayImage = try await captureDisplayImage(displayID: displayID)
 
         let cropRect = ScreenSelectionCropMapper.cropRect(
             for: normalized,
@@ -60,13 +59,13 @@ struct ScreenCaptureService {
         return CapturedSnippet(cgImage: image, sourceRect: normalized)
     }
 
-    func captureMainDisplay() throws -> CapturedSnippet {
+    func captureMainDisplay() async throws -> CapturedSnippet {
         guard let screen = NSScreen.main,
-              let displayID = screen.displayID,
-              let image = CGDisplayCreateImage(displayID) else {
+              let displayID = screen.displayID else {
             throw CaptureError.screenUnavailable
         }
 
+        let image = try await captureDisplayImage(displayID: displayID)
         return CapturedSnippet(cgImage: image, sourceRect: screen.frame)
     }
 
@@ -84,8 +83,17 @@ struct ScreenCaptureService {
         NSScreen.screens.first { $0.frame.intersects(rect) }
     }
 
-#if canImport(ScreenCaptureKit)
-    @available(macOS 14.0, *)
+    private func captureDisplayImage(displayID: CGDirectDisplayID) async throws -> CGImage {
+        let shareableContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        guard let display = shareableContent.displays.first(where: { $0.displayID == displayID }) else {
+            throw CaptureError.screenUnavailable
+        }
+
+        let contentFilter = SCContentFilter(display: display, excludingWindows: [])
+        let configuration = screenshotConfiguration(for: contentFilter)
+        return try await SCScreenshotManager.captureImage(contentFilter: contentFilter, configuration: configuration)
+    }
+
     private func captureWindowImage(windowID: CGWindowID) async throws -> CGImage {
         let shareableContent = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let window = shareableContent.windows.first(where: { $0.windowID == windowID }) else {
@@ -97,7 +105,6 @@ struct ScreenCaptureService {
         return try await SCScreenshotManager.captureImage(contentFilter: contentFilter, configuration: configuration)
     }
 
-    @available(macOS 14.0, *)
     private func screenshotConfiguration(for contentFilter: SCContentFilter) -> SCStreamConfiguration {
         let configuration = SCStreamConfiguration()
         let scale = max(CGFloat(contentFilter.pointPixelScale), 1)
@@ -111,12 +118,6 @@ struct ScreenCaptureService {
 
         return configuration
     }
-#else
-    private func captureWindowImage(windowID: CGWindowID) async throws -> CGImage {
-        _ = windowID
-        throw CaptureError.windowUnavailable
-    }
-#endif
 }
 
 private extension NSScreen {

@@ -28,6 +28,7 @@ struct EditorViewportTelemetry: Equatable {
 struct SnippetEditorView: View {
     @Environment(CaptureCoordinator.self) private var captureCoordinator
     @Environment(RecentCaptureStore.self) private var recentCaptureStore
+    @Environment(LibraryStore.self) private var libraryStore
 
     let onCloseEditor: () -> Void
 
@@ -142,6 +143,7 @@ struct SnippetEditorView: View {
                 shapeAnnotations: annotationStore.shapeAnnotations
             )
             exportMessage = "Copied capture to the clipboard."
+            updateLibraryItem(for: capture)
             return true
         } catch {
             exportMessage = error.localizedDescription
@@ -176,10 +178,25 @@ struct SnippetEditorView: View {
                 return
             }
             recentCaptureStore.add(ExportedCapture(id: UUID(), fileURL: url, createdAt: .now))
+            updateLibraryItem(for: capture, fileURL: url)
             exportMessage = "Saved to \(url.lastPathComponent)."
         } catch {
             exportMessage = error.localizedDescription
         }
+    }
+
+    private func updateLibraryItem(for capture: CapturedSnippet, fileURL: URL? = nil) {
+        guard let rendered = try? exportService.renderImage(
+            capturedSnippet: capture,
+            strokes: annotationStore.strokes,
+            textAnnotations: annotationStore.textAnnotations,
+            shapeAnnotations: annotationStore.shapeAnnotations
+        ),
+        let cgImage = rendered.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return
+        }
+
+        libraryStore.update(id: capture.id, image: cgImage, fileURL: fileURL)
     }
 
     private var uiTestShapeSummary: String {
