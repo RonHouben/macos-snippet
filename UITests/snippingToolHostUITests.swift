@@ -721,6 +721,56 @@ final class SnippingToolHostUITests: XCTestCase {
         }
     }
 
+    func testCanSelectExistingTextAndChangeItsFontSizeInEditor() throws {
+        openEditorWithSampleCaptureIfNeeded()
+
+        let canvas = editorDrawingSurface()
+        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+
+        selectEditorTool(named: "Text")
+        tap(on: canvas, atImagePoint: CGPoint(x: 700, y: 460))
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["selectedTool"] == "text" && summary["pendingTextActive"] == "1"
+        }
+
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        app.typeText("Resizable note")
+        app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
+
+        let createdSummary = waitForShapeSummary(timeout: 5) { summary in
+            summary["textCount"] == "1"
+                && summary["lastTextValue"] == "Resizable note"
+        }
+
+        let textX = try XCTUnwrap(doubleValue(for: "lastTextX", in: createdSummary), "Expected the text summary to include an x-position.")
+        let textY = try XCTUnwrap(doubleValue(for: "lastTextY", in: createdSummary), "Expected the text summary to include a y-position.")
+        let initialFontSize = try XCTUnwrap(doubleValue(for: "lastTextFontSize", in: createdSummary), "Expected the text summary to include a font size.")
+
+        selectEditorTool(named: "Select")
+        tap(on: canvas, atImagePoint: CGPoint(x: textX + 60, y: textY + 20))
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["selectedTool"] == "select"
+                && summary["selectedTextCount"] == "1"
+                && approximatelyEquals(key: "currentTextFontSize", expected: 28, in: summary, tolerance: 1.0)
+        }
+
+        adjustTextFontSlider(to: 44)
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            guard let currentTextFontSize = doubleValue(for: "currentTextFontSize", in: summary),
+                  let lastTextFontSize = doubleValue(for: "lastTextFontSize", in: summary) else {
+                return false
+            }
+
+            return summary["selectedTool"] == "select"
+                && summary["selectedTextCount"] == "1"
+                && currentTextFontSize > initialFontSize + 10
+                && abs(lastTextFontSize - currentTextFontSize) <= 1.0
+        }
+    }
+
     func testCanDrawConfigureTransformAndDeleteRectangleInEditor() throws {
         openEditorWithSampleCaptureIfNeeded()
 
@@ -1049,6 +1099,10 @@ final class SnippingToolHostUITests: XCTestCase {
 
     private func adjustStrokeSlider(to value: Double, maximum: Double = 16) {
         adjustSlider(identifier: AppAutomationIdentifiers.editorInspectorSizeSlider, value: value, minimum: 1, maximum: maximum)
+    }
+
+    private func adjustTextFontSlider(to value: Double) {
+        adjustSlider(identifier: AppAutomationIdentifiers.editorInspectorSizeSlider, value: value, minimum: 12, maximum: 96)
     }
 
     private func adjustSlider(identifier: String, value: Double, minimum: Double, maximum: Double) {

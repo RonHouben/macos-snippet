@@ -10,15 +10,21 @@ private struct AnnotationSnapshot {
 
 @Observable
 final class AnnotationStore {
-    private var isSyncingShapeInspectorState = false
+    private var isSyncingInspectorState = false
 
     var selectedTool: AnnotationTool = .ocr {
         didSet {
-            guard oldValue != selectedTool, selectedTool.isTextAnnotationTool == false else { return }
+            guard oldValue != selectedTool else { return }
+
+            if selectedTool.isTextAnnotationTool {
+                syncInspectorStateFromSelectionIfNeeded()
+                return
+            }
+
             finalizePendingTextIfNeeded()
             if selectedTool.isAnnotationSelectionTool {
                 clampLineWidthToSelectedToolRangeIfNeeded()
-                syncInspectorStateFromSelectedShapeIfNeeded()
+                syncInspectorStateFromSelectionIfNeeded()
                 return
             }
 
@@ -32,7 +38,7 @@ final class AnnotationStore {
                 }
 
                 clampLineWidthToSelectedToolRangeIfNeeded()
-                syncInspectorStateFromSelectedShapeIfNeeded()
+                syncInspectorStateFromSelectionIfNeeded()
                 return
             }
 
@@ -42,23 +48,29 @@ final class AnnotationStore {
     }
     var selectedColor: NSColor = .systemRed {
         didSet {
-            guard isSyncingShapeInspectorState == false else { return }
+            guard isSyncingInspectorState == false else { return }
             applyInspectorStateToSelectedShapeIfNeeded(changedColor: oldValue != selectedColor)
+            applyInspectorStateToSelectedTextIfNeeded(changedColor: oldValue != selectedColor)
         }
     }
     var lineWidth: CGFloat = 4 {
         didSet {
-            guard isSyncingShapeInspectorState == false else { return }
+            guard isSyncingInspectorState == false else { return }
             applyInspectorStateToSelectedShapeIfNeeded(changedLineWidth: oldValue != lineWidth)
         }
     }
     var rectangleFillMode: RectangleFillMode = .outline {
         didSet {
-            guard isSyncingShapeInspectorState == false else { return }
+            guard isSyncingInspectorState == false else { return }
             applyInspectorStateToSelectedShapeIfNeeded(changedFillMode: oldValue != rectangleFillMode)
         }
     }
-    var textFontSize: CGFloat = 28
+    var textFontSize: CGFloat = 28 {
+        didSet {
+            guard isSyncingInspectorState == false else { return }
+            applyInspectorStateToSelectedTextIfNeeded(changedFontSize: oldValue != textFontSize)
+        }
+    }
     var strokes: [AnnotationStroke] = []
     var textAnnotations: [TextAnnotation] = []
     var shapeAnnotations: [ShapeAnnotation] = []
@@ -74,6 +86,35 @@ final class AnnotationStore {
     var isEditingText: Bool { pendingTextAnchor != nil }
     var hasSelection: Bool { !selectedAnnotationSelections.isEmpty }
     var selectedAnnotationCount: Int { selectedAnnotationSelections.count }
+    var hasExclusiveTextSelection: Bool {
+        selectedTextAnnotationIDs.isEmpty == false && selectedShapeAnnotationIDs.isEmpty
+    }
+    var isEditingSelectedTextInInspector: Bool {
+        selectedTool.isAnnotationSelectionTool && hasExclusiveTextSelection
+    }
+    var inspectorShowsColorControl: Bool {
+        selectedTool.usesColor || isEditingSelectedTextInInspector
+    }
+    var inspectorShowsSizeControl: Bool {
+        selectedTool.showsSizeControl || isEditingSelectedTextInInspector
+    }
+    var inspectorUsesStrokeWidthControl: Bool {
+        selectedTool.usesStrokeWidth
+    }
+    var inspectorTitle: String? {
+        if selectedTool.isTextAnnotationTool || isEditingSelectedTextInInspector {
+            return "Font"
+        }
+
+        return selectedTool.inspectorTitle
+    }
+    var inspectorMessage: String? {
+        if isEditingSelectedTextInInspector {
+            return nil
+        }
+
+        return selectedTool.inspectorMessage
+    }
     var selectedTextAnnotationIDs: Set<UUID> {
         Set(selectedAnnotationSelections.compactMap {
             if case .text(let id) = $0 {
@@ -174,7 +215,7 @@ final class AnnotationStore {
 
     func replaceSelection(with selections: Set<AnnotationSelection>) {
         selectedAnnotationSelections = validSelections(from: selections)
-        syncInspectorStateFromSelectedShapeIfNeeded()
+        syncInspectorStateFromSelectionIfNeeded()
     }
 
     func toggleSelection(_ selection: AnnotationSelection) {
@@ -194,7 +235,7 @@ final class AnnotationStore {
         }
 
         selectedAnnotationSelections.removeAll()
-        syncInspectorStateFromSelectedShapeIfNeeded()
+        syncInspectorStateFromSelectionIfNeeded()
     }
 
     func selectShapeAnnotation(id: UUID?) {
@@ -207,7 +248,7 @@ final class AnnotationStore {
         updatedShapes[index] = updatedShape
         shapeAnnotations = updatedShapes
         if selectedShapeAnnotationIDs.contains(updatedShape.id) {
-            syncInspectorStateFromSelectedShapeIfNeeded()
+            syncInspectorStateFromSelectionIfNeeded()
         }
     }
 
@@ -230,7 +271,7 @@ final class AnnotationStore {
         textAnnotations.removeAll { selectedTextAnnotationIDs.contains($0.id) }
         shapeAnnotations.removeAll { selectedShapeAnnotationIDs.contains($0.id) }
         selectedAnnotationSelections.removeAll()
-        syncInspectorStateFromSelectedShapeIfNeeded()
+        syncInspectorStateFromSelectionIfNeeded()
     }
 
     func deleteTextAnnotation(id: UUID) {
@@ -241,7 +282,7 @@ final class AnnotationStore {
         beginMutation()
         textAnnotations.remove(at: index)
         selectedAnnotationSelections.remove(.text(id))
-        syncInspectorStateFromSelectedShapeIfNeeded()
+        syncInspectorStateFromSelectionIfNeeded()
     }
 
     func cancelTextEditing() {
@@ -281,7 +322,7 @@ final class AnnotationStore {
         textAnnotations = snapshot.textAnnotations
         shapeAnnotations = snapshot.shapeAnnotations
         selectedAnnotationSelections = validSelections(from: selectedAnnotationSelections)
-        syncInspectorStateFromSelectedShapeIfNeeded()
+        syncInspectorStateFromSelectionIfNeeded()
     }
 
     private func finalizePendingTextIfNeeded() {
@@ -320,17 +361,77 @@ final class AnnotationStore {
         updateShapeAnnotation(updatedShape)
     }
 
+    private func applyInspectorStateToSelectedTextIfNeeded(
+        changedColor: Bool = false,
+        changedFontSize: Bool = false
+    ) {
+        guard shouldApplyInspectorStateToSelectedText,
+              changedColor || changedFontSize else {
+            return
+        }
+
+        let selectedTextAnnotationIDs = selectedTextAnnotationIDs
+        var didChangeSelectedText = false
+        let updatedTextAnnotations = textAnnotations.map { textAnnotation in
+            guard selectedTextAnnotationIDs.contains(textAnnotation.id) else {
+                return textAnnotation
+            }
+
+            let updatedTextAnnotation = TextAnnotation(
+                id: textAnnotation.id,
+                text: textAnnotation.text,
+                color: changedColor ? selectedColor : textAnnotation.color,
+                fontSize: changedFontSize ? textFontSize : textAnnotation.fontSize,
+                anchor: textAnnotation.anchor
+            )
+
+            if updatedTextAnnotation != textAnnotation {
+                didChangeSelectedText = true
+            }
+
+            return updatedTextAnnotation
+        }
+
+        guard didChangeSelectedText else {
+            return
+        }
+
+        beginMutation()
+        textAnnotations = updatedTextAnnotations
+    }
+
+    private func syncInspectorStateFromSelectionIfNeeded() {
+        if shouldSyncInspectorStateFromSelectedText {
+            syncInspectorStateFromSelectedTextIfNeeded()
+            return
+        }
+
+        syncInspectorStateFromSelectedShapeIfNeeded()
+    }
+
     private func syncInspectorStateFromSelectedShapeIfNeeded() {
         guard let selectedShape,
               selectedTool.shapeKind == selectedShape.kind else {
             return
         }
 
-        isSyncingShapeInspectorState = true
+        isSyncingInspectorState = true
         selectedColor = selectedShape.color
         lineWidth = selectedShape.lineWidth
         rectangleFillMode = selectedShape.fillMode
-        isSyncingShapeInspectorState = false
+        isSyncingInspectorState = false
+    }
+
+    private func syncInspectorStateFromSelectedTextIfNeeded() {
+        guard shouldSyncInspectorStateFromSelectedText,
+              let selectedTextAnnotation = selectedTextAnnotations.first else {
+            return
+        }
+
+        isSyncingInspectorState = true
+        selectedColor = selectedTextAnnotation.color
+        textFontSize = selectedTextAnnotation.fontSize
+        isSyncingInspectorState = false
     }
 
     private func validSelections(from selections: Set<AnnotationSelection>) -> Set<AnnotationSelection> {
@@ -356,5 +457,22 @@ final class AnnotationStore {
         }
 
         lineWidth = clampedLineWidth
+    }
+
+    private var selectedTextAnnotations: [TextAnnotation] {
+        let selectedTextAnnotationIDs = selectedTextAnnotationIDs
+        return textAnnotations.filter { selectedTextAnnotationIDs.contains($0.id) }
+    }
+
+    private var shouldApplyInspectorStateToSelectedText: Bool {
+        shouldSyncInspectorStateFromSelectedText
+    }
+
+    private var shouldSyncInspectorStateFromSelectedText: Bool {
+        guard selectedTextAnnotationIDs.isEmpty == false else {
+            return false
+        }
+
+        return selectedTool.isTextAnnotationTool || isEditingSelectedTextInInspector
     }
 }

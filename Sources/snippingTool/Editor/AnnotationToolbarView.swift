@@ -112,7 +112,7 @@ struct AnnotationToolbarView: View {
             accessibilityLabel: "Tool settings",
             accessibilityIdentifier: AppAutomationIdentifiers.editorToolSettingsGroup
         ) {
-            if annotationStore.selectedTool.usesColor {
+            if annotationStore.inspectorShowsColorControl {
                 ColorPicker(
                     "Color",
                     selection: Binding(
@@ -128,15 +128,15 @@ struct AnnotationToolbarView: View {
             }
 
             VStack(alignment: .leading, spacing: 0) {
-                if let inspectorTitle = annotationStore.selectedTool.inspectorTitle {
+                if let inspectorTitle = annotationStore.inspectorTitle {
                     Text(inspectorTitle)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
 
-                if annotationStore.selectedTool.showsSizeControl {
-                    if annotationStore.selectedTool.usesStrokeWidth {
+                if annotationStore.inspectorShowsSizeControl {
+                    if annotationStore.inspectorUsesStrokeWidthControl {
                         AccessibleInspectorSlider(
                             value: $annotationStore.lineWidth,
                             range: annotationStore.selectedTool.strokeWidthRange,
@@ -151,14 +151,14 @@ struct AnnotationToolbarView: View {
                         )
                         .frame(width: 120)
                     }
-                } else if let inspectorMessage = annotationStore.selectedTool.inspectorMessage {
+                } else if let inspectorMessage = annotationStore.inspectorMessage {
                     Text(inspectorMessage)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
-            .frame(width: annotationStore.selectedTool.showsSizeControl ? 120 : 280, alignment: .leading)
+            .frame(width: annotationStore.inspectorShowsSizeControl ? 120 : 280, alignment: .leading)
 
             if annotationStore.selectedTool.shapeKind == .rectangle {
                 AccessibleRectangleFillPicker(
@@ -221,11 +221,11 @@ struct AnnotationToolbarView: View {
     }
 
     private var shouldShowInspectorPanel: Bool {
-        annotationStore.selectedTool.usesColor
-            || annotationStore.selectedTool.showsSizeControl
+        annotationStore.inspectorShowsColorControl
+            || annotationStore.inspectorShowsSizeControl
             || annotationStore.selectedTool.shapeKind == .rectangle
-            || annotationStore.selectedTool.inspectorTitle != nil
-            || annotationStore.selectedTool.inspectorMessage != nil
+            || annotationStore.inspectorTitle != nil
+            || annotationStore.inspectorMessage != nil
     }
 }
 

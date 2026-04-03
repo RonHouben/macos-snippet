@@ -153,4 +153,28 @@ final class AnnotationStoreTests: XCTestCase {
         XCTAssertEqual(store.selectedAnnotationCount, 0)
         XCTAssertEqual(store.textAnnotations, [textAnnotation])
     }
+
+    func testSelectingTextInSelectionModeSyncsInspectorAndAppliesFontEdits() {
+        let store = AnnotationStore()
+        let textAnnotation = TextAnnotation(
+            text: "Resize me",
+            color: .systemBlue,
+            fontSize: 24,
+            anchor: AnnotationPoint(CGPoint(x: 120, y: 160))
+        )
+
+        store.textAnnotations = [textAnnotation]
+        store.selectedTool = .select
+        store.selectOnly(.text(textAnnotation.id))
+
+        XCTAssertTrue(store.isEditingSelectedTextInInspector)
+        XCTAssertEqual(store.selectedColor, textAnnotation.color)
+        XCTAssertEqual(store.textFontSize, textAnnotation.fontSize)
+
+        store.textFontSize = 42
+
+        XCTAssertEqual(store.textAnnotations.first?.fontSize, 42)
+        XCTAssertEqual(store.textAnnotations.first?.text, textAnnotation.text)
+        XCTAssertEqual(store.textAnnotations.first?.anchor, textAnnotation.anchor)
+    }
 }
