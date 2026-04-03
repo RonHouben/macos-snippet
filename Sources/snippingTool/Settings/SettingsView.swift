@@ -49,6 +49,8 @@ struct SettingsView: View {
                 }
             }
 
+            Divider().padding(.vertical, 4)
+
             Section("Capture") {
                 Text("Capture defaults")
                     .font(.headline)
@@ -70,8 +72,7 @@ struct SettingsView: View {
                     .accessibilityIdentifier(AppAutomationIdentifiers.settingsCaptureModePicker)
                 }
 
-                Divider()
-                    .padding(.vertical, 4)
+                Divider().padding(.vertical, 4)
 
                 Text("Permissions")
                     .font(.headline)
@@ -112,21 +113,28 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
+
+            Divider().padding(.vertical, 4)
+
             Section("Keybindings") {
+                SettingsHelpText("Duplicate shortcuts are not allowed.")
+                Text("New capture")
+                    .font(.headline)
+
+                SettingsHelpText("Choose the shortcut for starting a new capture with the currently selected default capture mode.")
+
+                NewCaptureShortcutRow()
+
                 Text("Open editor")
                     .font(.headline)
 
-                SettingsHelpText("Set modifier keys to always open completed captures in the editor instead of copying them immediately.")
+                SettingsHelpText("Set key to hold while creating a capture to open it directly in the editor.")
 
                 EditorCompletionModifierRow()
-
-                Divider()
-                    .padding(.vertical, 4)
-
                 Text("Capture shortcuts")
                     .font(.headline)
-
-                SettingsHelpText("Enable shortcuts for the capture modes you use most. Duplicate shortcuts are not allowed.")
+    
+                SettingsHelpText("Enable shortcuts for the capture modes you use most.")
 
                 VStack(alignment: .leading, spacing: SettingsLayout.rowSpacing + 2) {
                     ForEach(CaptureMode.allCases) { mode in
@@ -134,7 +142,7 @@ struct SettingsView: View {
                     }
                 }
 
-                if let validationMessage = appState.hotkeyValidationMessage {
+                if let validationMessage = appState.keybindingValidationMessage {
                     Label(validationMessage, systemImage: "exclamationmark.triangle.fill")
                         .font(.subheadline)
                         .foregroundStyle(.orange)
@@ -256,13 +264,13 @@ private struct EditorCompletionModifierRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: SettingsLayout.helpTextSpacing) {
             HStack(alignment: .center, spacing: SettingsLayout.columnSpacing) {
-                SettingsFieldLabel("Open editor modifier")
+                SettingsFieldLabel("Open editor after capture")
 
                 Spacer()
                     .frame(width: SettingsLayout.toggleColumnWidth)
 
                 SettingsRecorderFieldContainer(
-                    label: "Open editor modifier",
+                    label: "Open editor after capture",
                     value: editorModifierDisplayValue,
                     identifier: AppAutomationIdentifiers.settingsEditorCompletionModifierRecorder,
                     isEnabled: true,
@@ -273,7 +281,7 @@ private struct EditorCompletionModifierRow: View {
                         isEnabled: true,
                         isRecording: $isRecording,
                         accessibilityIdentifier: AppAutomationIdentifiers.settingsEditorCompletionModifierRecorder,
-                        accessibilityLabel: "Open editor modifier",
+                        accessibilityLabel: "Open editor after capture",
                         onModifiersRecorded: { modifiers in
                             recorderMessage = nil
                             appState.editorCompletionModifiers = modifiers
@@ -338,6 +346,89 @@ private struct EditorCompletionModifierRow: View {
 
 }
 
+private struct NewCaptureShortcutRow: View {
+    @Environment(AppState.self) private var appState
+    @State private var isRecording = false
+    @State private var recorderMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SettingsLayout.helpTextSpacing) {
+            HStack(alignment: .center, spacing: SettingsLayout.columnSpacing) {
+                SettingsFieldLabel("New capture")
+
+                Spacer()
+                    .frame(width: SettingsLayout.toggleColumnWidth)
+
+                SettingsRecorderFieldContainer(
+                    label: "New capture shortcut",
+                    value: shortcutDisplayValue,
+                    identifier: AppAutomationIdentifiers.settingsNewCaptureShortcutRecorder,
+                    isEnabled: true,
+                    isRecording: $isRecording
+                ) {
+                    KeybindingRecorderField(
+                        shortcut: appState.newCaptureShortcut,
+                        isEnabled: true,
+                        isRecording: $isRecording,
+                        accessibilityIdentifier: AppAutomationIdentifiers.settingsNewCaptureShortcutRecorder,
+                        accessibilityLabel: "New capture shortcut",
+                        onShortcutRecorded: { shortcut in
+                            recorderMessage = nil
+                            appState.clearKeybindingValidationMessage()
+                            return appState.updateNewCaptureShortcut(shortcut)
+                        },
+                        onUnsupportedKey: { message in
+                            appState.clearKeybindingValidationMessage()
+                            recorderMessage = message
+                        }
+                    )
+                }
+                .frame(width: SettingsLayout.fieldColumnWidth, height: SettingsLayout.controlHeight)
+
+                Button("Reset") {
+                    recorderMessage = nil
+                    appState.resetNewCaptureShortcut()
+                    isRecording = false
+                }
+                .frame(width: SettingsLayout.actionColumnWidth)
+                .controlSize(.regular)
+                .disabled(appState.newCaptureShortcut == AppState.defaultNewCaptureShortcut)
+                .pointingHandCursor()
+                .accessibilityIdentifier(AppAutomationIdentifiers.settingsNewCaptureShortcutResetButton)
+
+                Spacer(minLength: 0)
+            }
+
+            if isRecording {
+                SettingsHelpText("Press Escape to cancel.")
+                    .font(.caption)
+                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
+            }
+
+            if let recorderMessage {
+                SettingsHelpText(recorderMessage)
+                    .font(.caption)
+                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: isRecording) { _, newValue in
+            if newValue {
+                recorderMessage = nil
+                appState.clearKeybindingValidationMessage()
+            }
+        }
+    }
+
+    private var shortcutDisplayValue: String {
+        if isRecording {
+            return "\(appState.newCaptureShortcut.displayText)…"
+        }
+
+        return appState.newCaptureShortcut.displayText
+    }
+}
+
 private struct CaptureModeHotkeyRow: View {
     @Environment(AppState.self) private var appState
     @State private var isShortcutEnabled = false
@@ -373,11 +464,11 @@ private struct CaptureModeHotkeyRow: View {
                         accessibilityLabel: "\(mode.title) shortcut",
                         onShortcutRecorded: { shortcut in
                             recorderMessage = nil
-                            appState.clearHotkeyValidationMessage()
+                            appState.clearKeybindingValidationMessage()
                             return appState.updateShortcut(shortcut, for: mode)
                         },
                         onUnsupportedKey: { message in
-                            appState.clearHotkeyValidationMessage()
+                            appState.clearKeybindingValidationMessage()
                             recorderMessage = message
                         }
                     )
@@ -386,7 +477,7 @@ private struct CaptureModeHotkeyRow: View {
 
                 Button("Clear") {
                     recorderMessage = nil
-                    appState.clearHotkeyValidationMessage()
+                    appState.clearKeybindingValidationMessage()
                     _ = appState.updateShortcut(nil, for: mode)
                     isShortcutEnabled = false
                     isRecording = false
@@ -426,7 +517,7 @@ private struct CaptureModeHotkeyRow: View {
         .onChange(of: isRecording) { _, newValue in
             if newValue {
                 recorderMessage = nil
-                appState.clearHotkeyValidationMessage()
+                appState.clearKeybindingValidationMessage()
             }
         }
     }
@@ -438,7 +529,7 @@ private struct CaptureModeHotkeyRow: View {
             },
             set: { isEnabled in
                 recorderMessage = nil
-                appState.clearHotkeyValidationMessage()
+                appState.clearKeybindingValidationMessage()
                 if isEnabled {
                     isShortcutEnabled = true
                     isRecording = true

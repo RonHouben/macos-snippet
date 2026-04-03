@@ -9,8 +9,14 @@ final class AppState {
         static let themePreference = "themePreference"
         static let preferredCaptureMode = "preferredCaptureMode"
         static let captureModeHotkeys = "captureModeHotkeys"
+        static let newCaptureShortcut = "newCaptureShortcut"
         static let editorCompletionModifier = "editorCompletionModifier"
     }
+
+    static let defaultNewCaptureShortcut = HotkeyShortcut(
+        key: .one,
+        modifiers: [.command, .shift]
+    )
 
     @ObservationIgnored
     private let defaults: UserDefaults
@@ -46,8 +52,15 @@ final class AppState {
     var captureModeHotkeys: CaptureModeHotkeyConfiguration {
         didSet {
             persistCaptureModeHotkeys()
-            hotkeyValidationMessage = nil
+            keybindingValidationMessage = nil
             onHotkeysChanged?(captureModeHotkeys)
+        }
+    }
+
+    var newCaptureShortcut: HotkeyShortcut {
+        didSet {
+            persistNewCaptureShortcut()
+            keybindingValidationMessage = nil
         }
     }
 
@@ -58,7 +71,7 @@ final class AppState {
         }
     }
 
-    var hotkeyValidationMessage: String?
+    var keybindingValidationMessage: String?
     var launchAtLogin = false
 
     init(defaults: UserDefaults = .standard) {
@@ -85,6 +98,12 @@ final class AppState {
             captureModeHotkeys = .default
         }
 
+        if let shortcut = Self.restoreNewCaptureShortcut(from: defaults, decoder: decoder) {
+            newCaptureShortcut = shortcut
+        } else {
+            newCaptureShortcut = Self.defaultNewCaptureShortcut
+        }
+
         if let storedEditorCompletionModifiers = Self.restoreEditorCompletionModifiers(from: defaults) {
             editorCompletionModifiers = storedEditorCompletionModifiers
         } else {
@@ -99,7 +118,7 @@ final class AppState {
     @discardableResult
     func updateShortcut(_ shortcut: HotkeyShortcut?, for mode: CaptureMode) -> Bool {
         if let error = captureModeHotkeys.validationError(for: mode, shortcut: shortcut) {
-            hotkeyValidationMessage = error
+            keybindingValidationMessage = error
             return false
         }
 
@@ -109,8 +128,24 @@ final class AppState {
         return true
     }
 
-    func clearHotkeyValidationMessage() {
-        hotkeyValidationMessage = nil
+    @discardableResult
+    func updateNewCaptureShortcut(_ shortcut: HotkeyShortcut) -> Bool {
+        if let error = validationError(forNewCaptureShortcut: shortcut) {
+            keybindingValidationMessage = error
+            return false
+        }
+
+        newCaptureShortcut = shortcut
+        return true
+    }
+
+    func resetNewCaptureShortcut() {
+        keybindingValidationMessage = nil
+        newCaptureShortcut = Self.defaultNewCaptureShortcut
+    }
+
+    func clearKeybindingValidationMessage() {
+        keybindingValidationMessage = nil
     }
 
     private func persistCaptureModeHotkeys() {
@@ -119,6 +154,34 @@ final class AppState {
         }
 
         defaults.set(data, forKey: StorageKeys.captureModeHotkeys)
+    }
+
+    private func persistNewCaptureShortcut() {
+        guard let data = try? encoder.encode(newCaptureShortcut) else {
+            return
+        }
+
+        defaults.set(data, forKey: StorageKeys.newCaptureShortcut)
+    }
+
+    private func validationError(forNewCaptureShortcut shortcut: HotkeyShortcut) -> String? {
+        guard shortcut.isValid else {
+            return "Shortcuts must include at least one modifier key."
+        }
+
+        if captureModeHotkeys.activeBindings.contains(where: { $0.shortcut == shortcut }) {
+            return "\(shortcut.displayText) is already assigned to a capture mode shortcut."
+        }
+
+        return nil
+    }
+
+    private static func restoreNewCaptureShortcut(from defaults: UserDefaults, decoder: JSONDecoder) -> HotkeyShortcut? {
+        guard let data = defaults.data(forKey: StorageKeys.newCaptureShortcut) else {
+            return nil
+        }
+
+        return try? decoder.decode(HotkeyShortcut.self, from: data)
     }
 
     private static func restoreEditorCompletionModifiers(from defaults: UserDefaults) -> HotkeyModifiers? {

@@ -57,6 +57,59 @@ final class RecorderTextFieldTests: XCTestCase {
         XCTAssertEqual(receivedPreference, .light)
     }
 
+    func testNewCaptureShortcutDefaultsToCommandShiftOne() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+
+        XCTAssertEqual(appState.newCaptureShortcut, AppState.defaultNewCaptureShortcut)
+    }
+
+    func testNewCaptureShortcutRestoresPersistedValue() throws {
+        let defaults = makeDefaults(suiteName: #function)
+        let storedShortcut = HotkeyShortcut(key: .two, modifiers: [.command, .option])
+        defaults.set(try JSONEncoder().encode(storedShortcut), forKey: "newCaptureShortcut")
+
+        let appState = AppState(defaults: defaults)
+
+        XCTAssertEqual(appState.newCaptureShortcut, storedShortcut)
+    }
+
+    func testUpdatingNewCaptureShortcutPersistsValue() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+        let updatedShortcut = HotkeyShortcut(key: .three, modifiers: [.command, .shift])
+
+        XCTAssertTrue(appState.updateNewCaptureShortcut(updatedShortcut))
+
+        let restoredState = AppState(defaults: defaults)
+        XCTAssertEqual(restoredState.newCaptureShortcut, updatedShortcut)
+        XCTAssertNil(appState.keybindingValidationMessage)
+    }
+
+    func testNewCaptureShortcutRejectsMissingModifier() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+        let invalidShortcut = HotkeyShortcut(key: .four, modifiers: [])
+
+        XCTAssertFalse(appState.updateNewCaptureShortcut(invalidShortcut))
+        XCTAssertEqual(appState.keybindingValidationMessage, "Shortcuts must include at least one modifier key.")
+        XCTAssertEqual(appState.newCaptureShortcut, AppState.defaultNewCaptureShortcut)
+    }
+
+    func testNewCaptureShortcutRejectsConflictsWithCaptureModeHotkeys() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+        let conflictingShortcut = HotkeyShortcut(key: .nine, modifiers: [.command, .shift])
+        appState.captureModeHotkeys = CaptureModeHotkeyConfiguration(rectangular: conflictingShortcut)
+
+        XCTAssertFalse(appState.updateNewCaptureShortcut(conflictingShortcut))
+        XCTAssertEqual(
+            appState.keybindingValidationMessage,
+            "⇧⌘9 is already assigned to a capture mode shortcut."
+        )
+        XCTAssertEqual(appState.newCaptureShortcut, AppState.defaultNewCaptureShortcut)
+    }
+
     private func makeDefaults(suiteName: String) -> UserDefaults {
         let suiteName = "snippingTool.tests.\(suiteName)"
         let defaults = UserDefaults(suiteName: suiteName)!

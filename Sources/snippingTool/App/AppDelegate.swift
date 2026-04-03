@@ -43,9 +43,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for entry in snapshot.entries {
             switch entry {
             case let .action(title, action):
-                let item = NSMenuItem(title: title, action: selector(for: action), keyEquivalent: keyEquivalent(for: action))
+                let item = NSMenuItem(title: title, action: selector(for: action), keyEquivalent: "")
                 item.target = self
                 item.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.statusMenuAction(action))
+                configureShortcut(for: item, action: action)
                 menu.addItem(item)
 
             case let .captureModes(title, items):
@@ -92,15 +93,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func keyEquivalent(for action: StatusMenuAction) -> String {
+    private func configureShortcut(for item: NSMenuItem, action: StatusMenuAction) {
         switch action {
+        case .newCapture:
+            item.keyEquivalent = menuKeyEquivalent(for: services.appState.newCaptureShortcut)
+            item.keyEquivalentModifierMask = services.appState.newCaptureShortcut.modifiers.eventModifierFlags
         case .openSettings:
-            ","
+            item.keyEquivalent = ","
+            item.keyEquivalentModifierMask = [.command]
         case .quit:
-            "q"
+            item.keyEquivalent = "q"
+            item.keyEquivalentModifierMask = [.command]
         default:
-            ""
+            item.keyEquivalent = ""
+            item.keyEquivalentModifierMask = []
         }
+    }
+
+    private func menuKeyEquivalent(for shortcut: HotkeyShortcut) -> String {
+        shortcut.key.title.lowercased()
     }
 
     @objc
