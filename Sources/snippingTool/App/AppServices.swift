@@ -18,6 +18,11 @@ final class AppServices {
     lazy var settingsWindowManager = SettingsWindowManager(services: self)
     lazy var onboardingWindowManager = OnboardingWindowManager(services: self)
     lazy var uiTestControlWindowManager = UITestControlWindowManager(services: self)
+    lazy var capturePreviewWindowManager: CapturePreviewWindowManager = {
+        let manager = CapturePreviewWindowManager(services: self)
+        manager.onOpen = { [weak self] in self?.openEditor() }
+        return manager
+    }()
 
     private init(configuration: AppLaunchConfiguration = .current) {
         launchConfiguration = configuration
@@ -35,6 +40,7 @@ final class AppServices {
             self?.editorWindowManager.applyThemePreference()
             self?.settingsWindowManager.applyThemePreference()
             self?.onboardingWindowManager.applyThemePreference()
+            self?.capturePreviewWindowManager.applyThemePreference()
         }
         appState.onEditorCompletionModifiersChanged = { [weak self] modifiers in
             self?.captureCoordinator.editorCompletionModifiers = modifiers
@@ -51,6 +57,7 @@ final class AppServices {
     }
 
     func startPreferredCapture() {
+        capturePreviewWindowManager.dismissImmediately()
         captureCoordinator.startCapture(mode: appState.preferredCaptureMode)
     }
 
@@ -133,6 +140,10 @@ final class AppServices {
 
                 let baseStatus = captureCoordinator.statusMessage ?? "Capture ready."
                 captureCoordinator.statusMessage = "\(baseStatus) Copied the screenshot to the clipboard."
+
+                DispatchQueue.main.async { [weak self] in
+                    self?.capturePreviewWindowManager.show(capture: capture)
+                }
             } catch {
                 captureCoordinator.lastError = error.localizedDescription
                 captureCoordinator.statusMessage = error.localizedDescription

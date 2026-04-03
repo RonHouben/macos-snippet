@@ -1,5 +1,15 @@
 import CoreGraphics
 
+public struct ScreenPlacementContext: Equatable, Sendable {
+    public let frame: CGRect
+    public let visibleFrame: CGRect
+
+    public init(frame: CGRect, visibleFrame: CGRect) {
+        self.frame = frame
+        self.visibleFrame = visibleFrame
+    }
+}
+
 public enum EditorWindowPlacement {
     public static func targetScreenFrame(for sourceRect: CGRect, availableScreenFrames: [CGRect]) -> CGRect? {
         let normalizedSourceRect = sourceRect.standardized
@@ -13,6 +23,26 @@ public enum EditorWindowPlacement {
                 lhs.score < rhs.score
             }?
             .frame
+    }
+
+    public static func targetVisibleScreenFrame(
+        for sourceRect: CGRect,
+        screens: [ScreenPlacementContext]
+    ) -> CGRect? {
+        let normalizedSourceRect = sourceRect.standardized
+
+        return screens
+            .map { screen in
+                (
+                    visibleFrame: screen.visibleFrame,
+                    score: intersectionArea(between: normalizedSourceRect, and: screen.frame.standardized)
+                )
+            }
+            .filter { $0.score > 0 }
+            .max { lhs, rhs in
+                lhs.score < rhs.score
+            }?
+            .visibleFrame
     }
 
     public static func centeredFrame(for windowSize: CGSize, in visibleScreenFrame: CGRect) -> CGRect {

@@ -203,6 +203,30 @@ func testEditorWindowPlacementCentersWindowInsideVisibleScreenFrame() throws {
     try expect(centeredFrame == CGRect(x: 1826, y: 198, width: 1100, height: 760), "The editor should be centered inside the target screen's visible frame")
 }
 
+func testEditorWindowPlacementResolvesVisibleFrameUsingFullScreenBounds() throws {
+    let sourceRect = CGRect(x: 120, y: 0, width: 240, height: 40)
+    let screens = [
+        ScreenPlacementContext(
+            frame: CGRect(x: 0, y: 0, width: 1512, height: 982),
+            visibleFrame: CGRect(x: 0, y: 80, width: 1512, height: 902)
+        ),
+        ScreenPlacementContext(
+            frame: CGRect(x: 1512, y: 0, width: 1728, height: 1117),
+            visibleFrame: CGRect(x: 1512, y: 38, width: 1728, height: 1079)
+        )
+    ]
+
+    let chosenVisibleFrame = try XCTUnwrapLike(
+        EditorWindowPlacement.targetVisibleScreenFrame(for: sourceRect, screens: screens),
+        "A capture hugging the screen edge should still resolve to a visible placement frame"
+    )
+
+    try expect(
+        chosenVisibleFrame == screens[0].visibleFrame,
+        "Screen matching should use full screen bounds so captures near the dock or menu bar still place windows on the correct display"
+    )
+}
+
 func testDefaultHotkeyConfigurationStartsWithNoBindings() throws {
     let configuration = CaptureModeHotkeyConfiguration.default
 
@@ -503,6 +527,7 @@ do {
     try testScreenSelectionCropMapperHandlesOffsetScreens()
     try testEditorWindowPlacementChoosesTheScreenWithLargestCapturedArea()
     try testEditorWindowPlacementCentersWindowInsideVisibleScreenFrame()
+    try testEditorWindowPlacementResolvesVisibleFrameUsingFullScreenBounds()
     try testDefaultHotkeyConfigurationStartsWithNoBindings()
     try testHotkeyConfigurationReportsDuplicateAssignments()
     try testHotkeyValidationRejectsModifierlessShortcut()

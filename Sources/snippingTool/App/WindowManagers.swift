@@ -55,9 +55,11 @@ final class EditorWindowManager {
     private func positionEditorWindowIfNeeded(_ window: NSWindow?) {
         guard let window,
               let capture = services.captureCoordinator.currentCapture,
-              let targetFrame = EditorWindowPlacement.targetScreenFrame(
+              let targetFrame = EditorWindowPlacement.targetVisibleScreenFrame(
                   for: capture.sourceRect,
-                  availableScreenFrames: NSScreen.screens.map(\.visibleFrame)
+                  screens: NSScreen.screens.map {
+                      ScreenPlacementContext(frame: $0.frame, visibleFrame: $0.visibleFrame)
+                  }
               ) else {
             return
         }
@@ -143,10 +145,186 @@ final class UITestControlWindowManager {
     }
 }
 
+@MainActor
+final class CapturePreviewWindowManager {
+    private let services: AppServices
+    private var window: NSWindow?
+    private var autoDismissTask: Task<Void, Never>?
+    private var isPointerHoveringPreview = false
+
+    private let screenMargin: CGFloat = 16
+    private let animationDuration: TimeInterval = 0.3
+    private let autoDismissDelay: TimeInterval = 5
+
+    var onOpen: (() -> Void)?
+
+    init(services: AppServices) {
+        self.services = services
+    }
+
+    func applyThemePreference() {
+        window?.apply(themePreference: services.appState.themePreference)
+    }
+
+    func show(capture: CapturedSnippet) {
+        dismissImmediately()
+
+        let rootView = CapturePreviewView(
+            image: capture.cgImage,
+            onTap: { [weak self] in
+                self?.onOpen?()
+                self?.dismiss()
+            },
+            onHoverChanged: { [weak self] isHovering in
+                self?.updateHoverState(isHovering)
+            }
+        )
+
+        let hostingController = NSHostingController(rootView: rootView)
+        let contentSize = hostingController.sizeThatFits(in: CGSize(width: 300, height: 300))
+        let windowSize = NSSize(
+            width: max(contentSize.width, 224),
+            height: max(contentSize.height, 180)
+        )
+
+        let targetFrame = targetScreenFrame(for: capture.sourceRect)
+        let onScreenOrigin = bottomRightOrigin(for: windowSize, in: targetFrame)
+
+        let window = CapturePreviewPanel(
+            contentRect: NSRect(origin: onScreenOrigin, size: windowSize),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.capturePreviewWindow)
+        window.contentViewController = hostingController
+
+        window.level = .statusBar
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.hidesOnDeactivate = false
+        window.isFloatingPanel = true
+        window.becomesKeyOnlyIfNeeded = true
+        window.animationBehavior = .utilityWindow
+        window.collectionBehavior = [.fullScreenAuxiliary, .moveToActiveSpace]
+        window.isReleasedWhenClosed = false
+        window.ignoresMouseEvents = false
+        window.alphaValue = 0
+        window.apply(themePreference: services.appState.themePreference)
+        hostingController.view.setAccessibilityIdentifier(AppAutomationIdentifiers.capturePreviewRoot)
+
+        // Wait until the current event settles before surfacing the preview.
+        isPointerHoveringPreview = false
+        self.window = window
+
+        DispatchQueue.main.async { [weak self, weak window] in
+            guard let self, let window, self.window === window else {
+                return
+            }
+
+            NSApp.activate(ignoringOtherApps: true)
+            window.setFrame(NSRect(origin: onScreenOrigin, size: windowSize), display: true)
+            window.orderFrontRegardless()
+
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = self.animationDuration
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                window.animator().alphaValue = 1
+            }
+        }
+
+        scheduleAutoDismiss()
+    }
+
+    func dismiss() {
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
+        isPointerHoveringPreview = false
+
+        guard let currentWindow = window else { return }
+        window = nil
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = animationDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            currentWindow.animator().alphaValue = 0
+        }, completionHandler: {
+            Task { @MainActor in
+                currentWindow.close()
+            }
+        })
+    }
+
+    func dismissImmediately() {
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
+        isPointerHoveringPreview = false
+
+        let currentWindow = window
+        window = nil
+        currentWindow?.close()
+    }
+
+    private func updateHoverState(_ isHovering: Bool) {
+        guard window != nil, isPointerHoveringPreview != isHovering else {
+            return
+        }
+
+        isPointerHoveringPreview = isHovering
+
+        if isHovering {
+            autoDismissTask?.cancel()
+            autoDismissTask = nil
+        } else {
+            scheduleAutoDismiss()
+        }
+    }
+
+    private func scheduleAutoDismiss() {
+        autoDismissTask?.cancel()
+
+        guard window != nil, isPointerHoveringPreview == false else {
+            autoDismissTask = nil
+            return
+        }
+
+        autoDismissTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(self?.autoDismissDelay ?? 5))
+            guard let self, !Task.isCancelled, self.isPointerHoveringPreview == false else {
+                return
+            }
+
+            self.dismiss()
+        }
+    }
+
+    private func targetScreenFrame(for sourceRect: CGRect) -> CGRect {
+        EditorWindowPlacement.targetVisibleScreenFrame(
+            for: sourceRect,
+            screens: NSScreen.screens.map {
+                ScreenPlacementContext(frame: $0.frame, visibleFrame: $0.visibleFrame)
+            }
+        ) ?? NSScreen.main?.visibleFrame ?? .zero
+    }
+
+    private func bottomRightOrigin(for size: NSSize, in screenFrame: CGRect) -> NSPoint {
+        NSPoint(
+            x: screenFrame.maxX - size.width - screenMargin,
+            y: screenFrame.minY + screenMargin
+        )
+    }
+}
+
 extension NSWindow {
     func apply(themePreference: AppThemePreference) {
         appearance = themePreference.nsAppearance
         contentViewController?.view.needsLayout = true
         contentViewController?.view.needsDisplay = true
     }
+}
+
+private final class CapturePreviewPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
 }

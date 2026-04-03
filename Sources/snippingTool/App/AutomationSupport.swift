@@ -165,6 +165,8 @@ enum AppAutomationIdentifiers {
     static let editorTestPanRightButton = "editor.test.pan-right"
     static let editorTestPanTopButton = "editor.test.pan-top"
     static let editorTestPanBottomButton = "editor.test.pan-bottom"
+    static let capturePreviewWindow = "window.capture-preview"
+    static let capturePreviewRoot = "capture-preview.root"
 
     static let overlayRoot = "overlay.root"
     static let overlayToolbar = "overlay.toolbar"
