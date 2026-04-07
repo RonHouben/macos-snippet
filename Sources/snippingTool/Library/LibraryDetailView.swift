@@ -40,13 +40,6 @@ struct LibraryDetailView: View {
                     }
                     .font(.caption)
 
-                    if let description = item.aiDescription {
-                        Text(description)
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(3)
-                    }
                 }
 
                 HStack(spacing: 12) {

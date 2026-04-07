@@ -62,7 +62,8 @@ final class AppServices {
     }
 
     var shouldShowOnboardingOnLaunch: Bool {
-        launchConfiguration.isUITesting == false && appState.hasCompletedOnboarding == false
+        guard launchConfiguration.isUITesting == false else { return false }
+        return appState.hasCompletedOnboarding == false || captureCoordinator.needsAnyPermission
     }
 
     func startPreferredCapture() {

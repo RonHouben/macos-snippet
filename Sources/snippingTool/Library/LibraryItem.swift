@@ -11,8 +11,6 @@ struct LibraryItem: Identifiable, Equatable {
     var thumbnail: NSImage
     var fullImage: CGImage
     var fileURL: URL?
-    var aiDescription: String?
-    var isDescriptionGenerating: Bool
 
     init(
         id: UUID = UUID(),
@@ -21,9 +19,7 @@ struct LibraryItem: Identifiable, Equatable {
         dimensions: CGSize,
         thumbnail: NSImage,
         fullImage: CGImage,
-        fileURL: URL? = nil,
-        aiDescription: String? = nil,
-        isDescriptionGenerating: Bool = false
+        fileURL: URL? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -32,8 +28,6 @@ struct LibraryItem: Identifiable, Equatable {
         self.thumbnail = thumbnail
         self.fullImage = fullImage
         self.fileURL = fileURL
-        self.aiDescription = aiDescription
-        self.isDescriptionGenerating = isDescriptionGenerating
     }
 
     static func == (lhs: LibraryItem, rhs: LibraryItem) -> Bool {
@@ -41,9 +35,7 @@ struct LibraryItem: Identifiable, Equatable {
         lhs.createdAt == rhs.createdAt &&
         lhs.captureMode == rhs.captureMode &&
         lhs.dimensions == rhs.dimensions &&
-        lhs.fileURL == rhs.fileURL &&
-        lhs.aiDescription == rhs.aiDescription &&
-        lhs.isDescriptionGenerating == rhs.isDescriptionGenerating
+        lhs.fileURL == rhs.fileURL
     }
 
     static func makeThumbnail(from cgImage: CGImage, maxWidth: CGFloat = 200) -> NSImage {

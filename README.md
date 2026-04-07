@@ -14,29 +14,55 @@ This repository currently contains the first implementation scaffold:
 
 ## Requirements
 
-- macOS 14+
-- Full Xcode recommended for running and debugging
+- macOS 26+
+- Xcode 26+ with Metal Toolchain installed
 - Screen Recording permission for capturing other app windows/screens
 - Accessibility permission for global shortcut support (later phases)
 
 ## Running locally
 
-You can open the package directly in Xcode, or run it from the terminal.
+The project uses mlx-swift for on-device AI image descriptions, which requires Metal shaders. These shaders are **only compiled by Xcode's build system**, not by `swift build`/`swift run`.
 
-### Fastest way right now
+### Quick start
 
-From the project root:
+After installing the Metal Toolchain, build and run with a single command:
 
-- `swift run snippingTool`
+```
+./run.sh
+```
 
-This launches the current menu bar app directly from the Swift package. The app has been verified to build successfully with `swift build`, and the direct launch path has been verified with `swift run snippingTool`.
+This builds the project, kills any running instance, and launches the app.
+
+### Manual build and run
+
+1. **Install Metal Toolchain** (one-time):
+   ```
+   xcodebuild -downloadComponent MetalToolchain
+   ```
+
+2. **Build**:
+   ```
+   xcodebuild build -scheme snippingToolHost -destination 'platform=macOS' -configuration Debug
+   ```
+
+3. **Run**:
+   ```
+   open ~/Library/Developer/Xcode/DerivedData/snippingToolHost-*/Build/Products/Debug/snippingTool.app
+   ```
 
 ### Using Xcode
 
-- Open `Package.swift` in Xcode
-- Let Xcode resolve the package
-- Choose the `snippingTool` executable target
+- Open `snippingToolHost.xcodeproj` in Xcode
+- Select the `snippingToolHost` scheme
 - Press Run
+
+### Why not `swift run`?
+
+`swift build` / `swift run` cannot compile Metal shaders. Running the app built with SPM will crash with:
+```
+MLX error: Failed to load the default metallib.
+```
+Always use `xcodebuild` or Xcode instead.
 
 ### Permissions on first launch
 
@@ -54,16 +80,7 @@ If you deny these the first time, you can re-enable them in:
 
 There is **no packaged `.app` installer yet**.
 
-Right now, the project is a Swift Package with an executable target, so the practical ways to use it are:
-
-- run it with `swift run snippingTool`
-- run it from Xcode
-
-If you want a normal drag-and-drop Mac app next, the next step is to create a dedicated Xcode macOS app target that builds a real `.app` bundle.
-
-## Notes
-
-Because this machine currently only has the Command Line Tools active, some GUI app workflows are best experienced by opening the package in full Xcode.
+Right now, the project is built via `xcodebuild` or Xcode using the `snippingToolHost` scheme.
 
 ## UI automation groundwork
 

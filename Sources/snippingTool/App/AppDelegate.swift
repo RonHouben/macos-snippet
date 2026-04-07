@@ -13,10 +13,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.configureStatusItemIfNeeded()
         }
 
-        if services.shouldShowOnboardingOnLaunch {
+        configureStatusItemIfNeeded()
+
+        let shouldShow = services.shouldShowOnboardingOnLaunch
+        let completed = services.appState.hasCompletedOnboarding
+        let needsPerms = services.captureCoordinator.needsAnyPermission
+        let needsScreen = services.captureCoordinator.needsScreenRecordingPermission
+        let needsAccess = services.captureCoordinator.needsAccessibilityPermission
+        print("[Onboarding] shouldShow=\(shouldShow) completed=\(completed) needsPerms=\(needsPerms) screen=\(needsScreen) accessibility=\(needsAccess)")
+
+        if shouldShow {
+            if completed {
+                services.onboardingWindowManager.initialStep = .permissions
+            }
             services.onboardingWindowManager.show()
-        } else {
-            configureStatusItemIfNeeded()
         }
 
         if services.launchConfiguration.isUITesting {

@@ -6,7 +6,6 @@ import snippingToolCore
 @Observable
 @MainActor
 final class LibraryStore {
-    private let descriptionService = ImageDescriptionService()
     private let maxItems = 20
 
     private(set) var items: [LibraryItem] = []
@@ -22,8 +21,7 @@ final class LibraryStore {
             captureMode: captureMode,
             dimensions: dimensions,
             thumbnail: thumbnail,
-            fullImage: image,
-            isDescriptionGenerating: true
+            fullImage: image
         )
 
         items.insert(item, at: 0)
@@ -32,8 +30,6 @@ final class LibraryStore {
             let removed = items.removeLast()
             deleteFileFromDisk(removed.fileURL)
         }
-
-        generateDescription(for: id, image: image)
 
         return id
     }
@@ -50,10 +46,6 @@ final class LibraryStore {
         if let fileURL {
             items[index].fileURL = fileURL
         }
-
-        items[index].aiDescription = nil
-        items[index].isDescriptionGenerating = true
-        generateDescription(for: id, image: image)
     }
 
     func remove(id: UUID) {
@@ -67,19 +59,6 @@ final class LibraryStore {
 
     func item(for id: UUID) -> LibraryItem? {
         items.first { $0.id == id }
-    }
-
-    private func generateDescription(for id: UUID, image: CGImage) {
-        Task { [descriptionService] in
-            let description = await descriptionService.describeImage(image)
-
-            guard let index = items.firstIndex(where: { $0.id == id }) else {
-                return
-            }
-
-            items[index].aiDescription = description
-            items[index].isDescriptionGenerating = false
-        }
     }
 
     private func deleteFileFromDisk(_ url: URL?) {

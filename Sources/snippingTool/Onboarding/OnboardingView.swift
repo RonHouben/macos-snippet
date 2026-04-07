@@ -32,7 +32,9 @@ struct OnboardingView: View {
     @State private var editorModifierRecorderMessage: String?
     @State private var systemSettingsMessage: String?
     @State private var hasAppliedThemeDefault = false
+    @State private var permissionRefreshTimer: Timer?
 
+    let initialStep: OnboardingStep
     let onCancel: () -> Void
     let onComplete: () -> Void
 
@@ -61,6 +63,7 @@ struct OnboardingView: View {
         .padding(.vertical, OnboardingLayout.verticalPadding)
         .frame(maxWidth: .infinity, minHeight: 620, alignment: .topLeading)
         .onAppear {
+            onboardingState.currentStep = initialStep
             captureCoordinator.refreshPermissions()
             applySystemScreenshotPresetIfNeeded()
             applyThemeDefaultIfNeeded()
@@ -149,6 +152,8 @@ struct OnboardingView: View {
                 }
             }
         }
+        .onAppear { startPermissionPolling() }
+        .onDisappear { stopPermissionPolling() }
     }
 
     private var shortcutsStep: some View {
@@ -638,6 +643,20 @@ struct OnboardingView: View {
         }
 
         return value as AnyObject?
+    }
+
+    private func startPermissionPolling() {
+        stopPermissionPolling()
+        permissionRefreshTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
+            Task { @MainActor in
+                captureCoordinator.refreshPermissions()
+            }
+        }
+    }
+
+    private func stopPermissionPolling() {
+        permissionRefreshTimer?.invalidate()
+        permissionRefreshTimer = nil
     }
 }
 

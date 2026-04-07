@@ -11,9 +11,6 @@ let package = Package(
         .executable(name: "snippingTool", targets: ["snippingTool"]),
         .executable(name: "snippingToolTDD", targets: ["snippingToolTDD"])
     ],
-    dependencies: [
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm", from: "2.31.3"),
-    ],
     targets: [
         .target(
             name: "snippingToolCore",
@@ -21,11 +18,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "snippingTool",
-            dependencies: [
-                "snippingToolCore",
-                .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
-                .product(name: "MLXVLM", package: "mlx-swift-lm"),
-            ],
+            dependencies: ["snippingToolCore"],
             path: "Sources/snippingTool"
         ),
         .executableTarget(

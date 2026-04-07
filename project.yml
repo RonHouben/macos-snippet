@@ -18,10 +18,6 @@ targets:
     dependencies:
       - package: snippingToolPackage
         product: snippingToolCore
-      - package: snippingToolPackage
-        product: MLXLMCommon
-      - package: snippingToolPackage
-        product: MLXVLM
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ronhouben.snippingtool.host

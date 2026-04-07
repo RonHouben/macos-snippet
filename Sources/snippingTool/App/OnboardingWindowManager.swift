@@ -12,6 +12,9 @@ final class OnboardingWindowManager: NSObject, NSWindowDelegate {
     }
 
     func show() {
+        if initialStep != .welcome {
+            windowController = nil
+        }
         let controller = windowController ?? makeWindowController()
         windowController = controller
         applyThemePreference()
@@ -31,8 +34,11 @@ final class OnboardingWindowManager: NSObject, NSWindowDelegate {
         windowController?.window?.apply(themePreference: services.appState.themePreference)
     }
 
+    var initialStep: OnboardingStep = .welcome
+
     private func makeWindowController() -> NSWindowController {
         let rootView = OnboardingView(
+            initialStep: initialStep,
             onCancel: {
                 self.services.cancelOnboarding()
             },

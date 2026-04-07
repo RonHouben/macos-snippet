@@ -32,20 +32,6 @@ struct LibraryItemView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
 
-                if item.isDescriptionGenerating {
-                    HStack(spacing: 4) {
-                        ProgressView()
-                            .controlSize(.mini)
-                        Text("Analyzing…")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                } else if let description = item.aiDescription {
-                    Text(description)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
             }
         }
         .padding(8)
