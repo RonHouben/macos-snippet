@@ -151,10 +151,7 @@ struct OnboardingView: View {
                     )
 
                     if let message = captureCoordinator.permissionFeedbackMessage {
-                        Text(message)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        PermissionFeedbackMessageView(message: message)
                     }
                 }
             }
