@@ -60,6 +60,14 @@ final class CaptureCoordinator {
         return "Screen Recording: \(screen) • Accessibility: \(access)"
     }
 
+    var permissionFeedbackMessage: String? {
+        guard let statusMessage, statusMessage != permissionSummary else {
+            return nil
+        }
+
+        return statusMessage
+    }
+
     var needsScreenRecordingPermission: Bool {
         permissionManager.screenRecordingStatus != .granted
     }
@@ -79,12 +87,16 @@ final class CaptureCoordinator {
 
     func requestScreenRecording() {
         let granted = permissionManager.requestScreenRecordingIfNeeded()
-        statusMessage = granted ? "Screen Recording permission granted." : "Screen Recording permission still missing."
+        statusMessage = granted
+            ? "Screen Recording permission granted."
+            : "Screen Recording permission is still missing. If macOS did not show a prompt, open System Settings > Privacy & Security > Screen Recording and enable snippingTool."
     }
 
     func requestAccessibility() {
         let granted = permissionManager.requestAccessibilityIfNeeded()
-        statusMessage = granted ? "Accessibility permission granted." : "Accessibility permission still missing."
+        statusMessage = granted
+            ? "Accessibility permission granted."
+            : "Accessibility permission is still missing. Approve the macOS prompt, or open System Settings > Privacy & Security > Accessibility and enable snippingTool."
     }
 
     func startCapture(mode: CaptureMode) {
