@@ -85,6 +85,64 @@ final class RecorderTextFieldTests: XCTestCase {
         XCTAssertFalse(restoredState.hasCompletedOnboarding)
     }
 
+    func testSetupGuidanceIsShownWhenOnboardingIsIncomplete() {
+        XCTAssertTrue(
+            AppServices.shouldOfferSetupGuidance(
+                hasCompletedOnboarding: false,
+                needsAnyPermission: false
+            )
+        )
+    }
+
+    func testSetupGuidanceIsShownWhenPermissionsAreMissingAfterOnboarding() {
+        XCTAssertTrue(
+            AppServices.shouldOfferSetupGuidance(
+                hasCompletedOnboarding: true,
+                needsAnyPermission: true
+            )
+        )
+    }
+
+    func testOnboardingReopensOnPermissionsStepWhenPermissionsAreMissing() {
+        XCTAssertEqual(
+            AppServices.onboardingInitialStep(
+                hasCompletedOnboarding: true,
+                needsAnyPermission: true
+            ),
+            .permissions
+        )
+    }
+
+    func testOnboardingStartsAtWelcomeWhenPermissionsAreAlreadyGranted() {
+        XCTAssertEqual(
+            AppServices.onboardingInitialStep(
+                hasCompletedOnboarding: false,
+                needsAnyPermission: false
+            ),
+            .welcome
+        )
+    }
+
+    func testActivationPolicyUsesRegularAppModeWhilePresentingOnboarding() {
+        XCTAssertEqual(
+            AppServices.activationPolicy(
+                isUITesting: false,
+                isPresentingOnboarding: true
+            ),
+            .regular
+        )
+    }
+
+    func testActivationPolicyUsesAccessoryModeForNormalMenuBarLaunch() {
+        XCTAssertEqual(
+            AppServices.activationPolicy(
+                isUITesting: false,
+                isPresentingOnboarding: false
+            ),
+            .accessory
+        )
+    }
+
     func testNewCaptureShortcutDefaultsToCommandShiftOne() {
         let defaults = makeDefaults(suiteName: #function)
         let appState = AppState(defaults: defaults)

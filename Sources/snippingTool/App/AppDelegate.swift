@@ -6,10 +6,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let services = AppServices.shared
     private var statusItem: NSStatusItem?
     private let statusMenu = NSMenu()
+    private var pendingOnboardingStep: OnboardingStep?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(services.launchConfiguration.isUITesting ? .regular : .accessory)
+        NSApp.setActivationPolicy(services.defaultActivationPolicy)
         services.onOnboardingDismissed = { [weak self] in
+            self?.pendingOnboardingStep = nil
             self?.configureStatusItemIfNeeded()
         }
 
@@ -23,10 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         print("[Onboarding] shouldShow=\(shouldShow) completed=\(completed) needsPerms=\(needsPerms) screen=\(needsScreen) accessibility=\(needsAccess)")
 
         if shouldShow {
-            if completed {
-                services.onboardingWindowManager.initialStep = .permissions
+            pendingOnboardingStep = services.onboardingInitialStep
+            DispatchQueue.main.async { [weak self] in
+                self?.presentPendingOnboardingIfNeeded()
             }
-            services.onboardingWindowManager.show()
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { [weak self] in
+                self?.presentPendingOnboardingIfNeeded(force: true)
+            }
         }
 
         if services.launchConfiguration.isUITesting {
@@ -61,11 +67,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuild(menu: NSMenu) {
         menu.removeAllItems()
+        services.captureCoordinator.refreshPermissions()
 
         let snapshot = StatusMenuBuilder.build(
             preferredCaptureMode: services.appState.preferredCaptureMode,
             statusMessage: services.captureCoordinator.statusMessage,
-            showContinueSetup: services.appState.hasCompletedOnboarding == false
+            showContinueSetup: services.shouldOfferSetupGuidance
         )
 
         for entry in snapshot.entries {
@@ -187,6 +194,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         services.setPreferredCaptureMode(mode)
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        presentPendingOnboardingIfNeeded()
+    }
+
+    private func presentPendingOnboardingIfNeeded(force: Bool = false) {
+        guard let step = pendingOnboardingStep else {
+            return
+        }
+
+        if force == false, services.onboardingWindowManager.isVisible {
+            pendingOnboardingStep = nil
+            return
+        }
+
+        services.onboardingWindowManager.show(startingAt: step)
+
+        if services.onboardingWindowManager.isVisible {
+            pendingOnboardingStep = nil
+        }
     }
 }
 

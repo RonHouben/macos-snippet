@@ -6,6 +6,26 @@ import snippingToolCore
 final class AppServices {
     static let shared = AppServices()
 
+    static func shouldOfferSetupGuidance(hasCompletedOnboarding: Bool, needsAnyPermission: Bool) -> Bool {
+        hasCompletedOnboarding == false || needsAnyPermission
+    }
+
+    static func onboardingInitialStep(hasCompletedOnboarding: Bool, needsAnyPermission: Bool) -> OnboardingStep {
+        if hasCompletedOnboarding && needsAnyPermission {
+            return .permissions
+        }
+
+        return .welcome
+    }
+
+    static func activationPolicy(isUITesting: Bool, isPresentingOnboarding: Bool) -> NSApplication.ActivationPolicy {
+        if isUITesting || isPresentingOnboarding {
+            return .regular
+        }
+
+        return .accessory
+    }
+
     let launchConfiguration: AppLaunchConfiguration
     let appState: AppState
     let captureCoordinator: CaptureCoordinator
@@ -63,7 +83,28 @@ final class AppServices {
 
     var shouldShowOnboardingOnLaunch: Bool {
         guard launchConfiguration.isUITesting == false else { return false }
-        return appState.hasCompletedOnboarding == false || captureCoordinator.needsAnyPermission
+        return shouldOfferSetupGuidance
+    }
+
+    var defaultActivationPolicy: NSApplication.ActivationPolicy {
+        Self.activationPolicy(
+            isUITesting: launchConfiguration.isUITesting,
+            isPresentingOnboarding: false
+        )
+    }
+
+    var shouldOfferSetupGuidance: Bool {
+        Self.shouldOfferSetupGuidance(
+            hasCompletedOnboarding: appState.hasCompletedOnboarding,
+            needsAnyPermission: captureCoordinator.needsAnyPermission
+        )
+    }
+
+    var onboardingInitialStep: OnboardingStep {
+        Self.onboardingInitialStep(
+            hasCompletedOnboarding: appState.hasCompletedOnboarding,
+            needsAnyPermission: captureCoordinator.needsAnyPermission
+        )
     }
 
     func startPreferredCapture() {
@@ -131,17 +172,31 @@ final class AppServices {
     func completeOnboarding() {
         appState.completeOnboarding()
         onboardingWindowManager.close()
+        restoreDefaultActivationPolicy()
         onOnboardingDismissed?()
     }
 
     func cancelOnboarding() {
         onboardingWindowManager.close()
+        restoreDefaultActivationPolicy()
         quit()
     }
 
     func reopenOnboarding() {
-        appState.resetOnboarding()
-        onboardingWindowManager.show()
+        onboardingWindowManager.show(startingAt: onboardingInitialStep)
+    }
+
+    func prepareForOnboardingPresentation() {
+        NSApp.setActivationPolicy(
+            Self.activationPolicy(
+                isUITesting: launchConfiguration.isUITesting,
+                isPresentingOnboarding: true
+            )
+        )
+    }
+
+    func restoreDefaultActivationPolicy() {
+        NSApp.setActivationPolicy(defaultActivationPolicy)
     }
 
     func performStatusMenuAction(_ action: StatusMenuAction) {

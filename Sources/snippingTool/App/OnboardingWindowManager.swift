@@ -11,16 +11,25 @@ final class OnboardingWindowManager: NSObject, NSWindowDelegate {
         self.services = services
     }
 
-    func show() {
-        if initialStep != .welcome {
-            windowController = nil
-        }
-        let controller = windowController ?? makeWindowController()
+    var isVisible: Bool {
+        windowController?.window?.isVisible == true
+    }
+
+    func show(startingAt step: OnboardingStep = .welcome) {
+        initialStep = step
+        windowController = nil
+        services.prepareForOnboardingPresentation()
+
+        let controller = makeWindowController()
         windowController = controller
+        controller.window?.center()
         applyThemePreference()
         controller.window?.delegate = self
         controller.showWindow(nil)
+        controller.window?.deminiaturize(nil)
         controller.window?.makeKeyAndOrderFront(nil)
+        controller.window?.orderFrontRegardless()
+        NSRunningApplication.current.activate(options: [.activateAllWindows])
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -57,6 +66,7 @@ final class OnboardingWindowManager: NSObject, NSWindowDelegate {
         window.title = "Welcome to snippingTool"
         window.setContentSize(NSSize(width: 760, height: 680))
         window.styleMask = [.titled, .miniaturizable]
+        window.collectionBehavior.formUnion([.moveToActiveSpace, .fullScreenAuxiliary])
         window.isReleasedWhenClosed = false
         window.center()
         window.apply(themePreference: services.appState.themePreference)
@@ -68,6 +78,7 @@ final class OnboardingWindowManager: NSObject, NSWindowDelegate {
             return
         }
 
+        services.restoreDefaultActivationPolicy()
         services.onOnboardingDismissed?()
     }
 }
