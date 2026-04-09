@@ -197,6 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
+        services.captureCoordinator.refreshPermissions()
         presentPendingOnboardingIfNeeded()
     }
 

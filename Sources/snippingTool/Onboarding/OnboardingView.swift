@@ -149,6 +149,13 @@ struct OnboardingView: View {
                         isActionEnabled: captureCoordinator.needsAccessibilityPermission,
                         identifier: AppAutomationIdentifiers.onboardingAccessibilityButton
                     )
+
+                    if let message = captureCoordinator.permissionFeedbackMessage {
+                        Text(message)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
         }

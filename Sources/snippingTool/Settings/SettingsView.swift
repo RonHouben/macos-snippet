@@ -108,6 +108,13 @@ struct SettingsView: View {
                                 .accessibilityIdentifier(AppAutomationIdentifiers.settingsRequestAccessibilityButton)
                             }
                         }
+
+                        if let message = captureCoordinator.permissionFeedbackMessage {
+                            Text(message)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
