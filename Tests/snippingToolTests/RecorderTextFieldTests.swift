@@ -150,6 +150,39 @@ final class RecorderTextFieldTests: XCTestCase {
         XCTAssertEqual(appState.newCaptureShortcut, AppState.defaultNewCaptureShortcut)
     }
 
+    func testCaptureModeHotkeysDefaultToRectangularShortcutWhenUnset() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+
+        XCTAssertEqual(
+            appState.captureModeHotkeys,
+            .init(rectangular: HotkeyShortcut.recommended(for: .rectangular))
+        )
+    }
+
+    func testCaptureModeHotkeysRestorePersistedEmptyConfiguration() throws {
+        let defaults = makeDefaults(suiteName: #function)
+        let storedConfiguration = CaptureModeHotkeyConfiguration()
+        defaults.set(try JSONEncoder().encode(storedConfiguration), forKey: "captureModeHotkeys")
+
+        let appState = AppState(defaults: defaults)
+
+        XCTAssertEqual(appState.captureModeHotkeys, storedConfiguration)
+    }
+
+    func testCaptureModeHotkeysRestorePersistedCustomConfiguration() throws {
+        let defaults = makeDefaults(suiteName: #function)
+        let storedConfiguration = CaptureModeHotkeyConfiguration(
+            fullScreen: HotkeyShortcut(key: .three, modifiers: [.command, .shift]),
+            window: HotkeyShortcut(key: .seven, modifiers: [.command, .shift])
+        )
+        defaults.set(try JSONEncoder().encode(storedConfiguration), forKey: "captureModeHotkeys")
+
+        let appState = AppState(defaults: defaults)
+
+        XCTAssertEqual(appState.captureModeHotkeys, storedConfiguration)
+    }
+
     func testNewCaptureShortcutRestoresPersistedValue() throws {
         let defaults = makeDefaults(suiteName: #function)
         let storedShortcut = HotkeyShortcut(key: .two, modifiers: [.command, .option])

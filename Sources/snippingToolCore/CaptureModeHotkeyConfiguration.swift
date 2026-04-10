@@ -197,7 +197,9 @@ public struct CaptureModeHotkeyConfiguration: Codable, Equatable, Sendable {
         self.window = window
     }
 
-    public static let `default` = CaptureModeHotkeyConfiguration()
+    public static let `default` = CaptureModeHotkeyConfiguration(
+        rectangular: HotkeyShortcut.recommended(for: .rectangular)
+    )
 
     public subscript(mode: CaptureMode) -> HotkeyShortcut? {
         get {

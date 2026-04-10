@@ -227,13 +227,19 @@ func testEditorWindowPlacementResolvesVisibleFrameUsingFullScreenBounds() throws
     )
 }
 
-func testDefaultHotkeyConfigurationStartsWithNoBindings() throws {
+func testDefaultHotkeyConfigurationStartsWithRectangularBinding() throws {
     let configuration = CaptureModeHotkeyConfiguration.default
 
-    try expect(configuration.rectangular == nil, "Rectangular capture should start without a default shortcut")
+    try expect(
+        configuration.rectangular == HotkeyShortcut.recommended(for: .rectangular),
+        "Rectangular capture should start with the recommended default shortcut"
+    )
     try expect(configuration.fullScreen == nil, "Full Screen should start without a default shortcut")
     try expect(configuration.window == nil, "Window capture should start without a default shortcut")
-    try expect(configuration.activeBindings.isEmpty, "No hotkeys should be active by default")
+    try expect(
+        configuration.activeBindings.map(\.mode) == [.rectangular],
+        "Only the rectangular capture shortcut should be active by default"
+    )
 }
 
 func testHotkeyConfigurationReportsDuplicateAssignments() throws {
@@ -528,7 +534,7 @@ do {
     try testEditorWindowPlacementChoosesTheScreenWithLargestCapturedArea()
     try testEditorWindowPlacementCentersWindowInsideVisibleScreenFrame()
     try testEditorWindowPlacementResolvesVisibleFrameUsingFullScreenBounds()
-    try testDefaultHotkeyConfigurationStartsWithNoBindings()
+    try testDefaultHotkeyConfigurationStartsWithRectangularBinding()
     try testHotkeyConfigurationReportsDuplicateAssignments()
     try testHotkeyValidationRejectsModifierlessShortcut()
     try testHotkeyValidationRejectsDuplicateShortcutAcrossModes()

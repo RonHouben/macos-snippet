@@ -407,6 +407,7 @@ struct OnboardingView: View {
     private func applySystemScreenshotPreset() {
         appState.clearKeybindingValidationMessage()
         appState.captureModeHotkeys = CaptureModeHotkeyConfiguration(
+            rectangular: HotkeyShortcut.recommended(for: .rectangular),
             fullScreen: HotkeyShortcut(key: .three, modifiers: [.command, .shift])
         )
         _ = appState.updateNewCaptureShortcut(HotkeyShortcut(key: .one, modifiers: [.command, .shift]))
