@@ -54,6 +54,7 @@
 		F6010C62FE9F6D0E80EE7112 /* AnnotationStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55BEB2F2B864565A972118DE /* AnnotationStoreTests.swift */; };
 		F673C87D1354C20E81AD5E1F /* AutomationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */; };
 		FC25194A5433085917F64889 /* AnnotationToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */; };
+		FE174413A2D37939F60A5C0B /* PermissionFeedbackMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08217FAB2750F7BE8D55213F /* PermissionFeedbackMessageView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,6 +81,7 @@
 		0518AAB8774416E64059E241 /* SnippetEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnippetEditorView.swift; sourceTree = "<group>"; };
 		0697ADC30E1E75D1F559129B /* AnnotationCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCanvasView.swift; sourceTree = "<group>"; };
 		07D56D94A45EB12B495F1662 /* LibraryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDetailView.swift; sourceTree = "<group>"; };
+		08217FAB2750F7BE8D55213F /* PermissionFeedbackMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionFeedbackMessageView.swift; sourceTree = "<group>"; };
 		135816870D06929AB24BF0C2 /* KeybindingRecorderField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeybindingRecorderField.swift; sourceTree = "<group>"; };
 		15CFBBFBAA1128925202423A /* snippingToolHostUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = snippingToolHostUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		164CBA7C01DDFF2F7C1F00D5 /* RecentCaptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentCaptureStore.swift; sourceTree = "<group>"; };
@@ -232,6 +234,7 @@
 		8AEC9A2B3EB6CC7B903C47B1 /* Permissions */ = {
 			isa = PBXGroup;
 			children = (
+				08217FAB2750F7BE8D55213F /* PermissionFeedbackMessageView.swift */,
 				34E783B8F426985FC47A828A /* PermissionManager.swift */,
 			);
 			path = Permissions;
@@ -496,6 +499,7 @@
 				39EC77D304A1F42358F8205B /* OnboardingState.swift in Sources */,
 				25383C6C3BB3C451D72A3A2B /* OnboardingView.swift in Sources */,
 				612E66EFA37FFA94BA5C90FF /* OnboardingWindowManager.swift in Sources */,
+				FE174413A2D37939F60A5C0B /* PermissionFeedbackMessageView.swift in Sources */,
 				565062C6CC078E3C5038DDBC /* PermissionManager.swift in Sources */,
 				5E75DAB6EC2197347319D2A6 /* RecentCaptureStore.swift in Sources */,
 				39558C404B7B0D4A893AE5E6 /* ScreenCaptureService.swift in Sources */,
