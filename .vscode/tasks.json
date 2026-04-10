@@ -5,7 +5,14 @@
             "label": "buildAndRun",
             "type": "shell",
             "command": "DERIVED_DATA=\"$TMPDIR/snippingToolHost-copilot\" && APP=\"$DERIVED_DATA/Build/Products/Debug/snippingTool.app/Contents/MacOS/snippingTool\" && xcodegen generate && xcodebuild build -scheme snippingToolHost -destination 'platform=macOS' -configuration Debug -derivedDataPath \"$DERIVED_DATA\" && exec \"$APP\"",
-            "inSessions": true
+            "inSessions": true,
+            "inAgents": true
+        },
+        {
+            "label": "runTests",
+            "type": "shell",
+            "command": "DERIVED_DATA=\"$TMPDIR/snippingToolHost-copilot\" && xcodegen generate && xcodebuild test -scheme snippingToolHost -destination 'platform=macOS' -configuration Debug -derivedDataPath \"$DERIVED_DATA\"",
+            "inAgents": true
         }
     ]
 }
