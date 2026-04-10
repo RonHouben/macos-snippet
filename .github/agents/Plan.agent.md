@@ -5,7 +5,7 @@ model:
 argument-hint: Outline the goal or problem to research
 tools:
     [
-        vscode/*extensions,
+        vscode/extensions,
         vscode/askQuestions,
         vscode/getProjectSetupInfo,
         vscode/installExtension,
