@@ -363,6 +363,14 @@ func testShapeAnnotationGeometryBuildsNormalizedRectangle() throws {
     try expect(center == CGPoint(x: 20, y: 45), "Normalized rectangle center should be derived from the standardized bounds")
 }
 
+func testShapeAnnotationGeometryBuildsConstrainedSquareFromDrag() throws {
+    let rect = ShapeAnnotationGeometry.square(from: CGPoint(x: 80, y: 90), to: CGPoint(x: 50, y: 20))
+    let center = ShapeAnnotationGeometry.center(for: rect)
+
+    try expect(rect == CGRect(x: 50, y: 60, width: 30, height: 30), "Circle creation should constrain the initial drag to the smaller axis while preserving drag direction")
+    try expect(center == CGPoint(x: 65, y: 75), "Constrained square center should still derive from the normalized bounds")
+}
+
 func testShapeAnnotationGeometryEnforcesMinimumArrowSize() throws {
     let size = ShapeAnnotationGeometry.arrowSize(
         fromTail: CGPoint(x: 0, y: 0),
@@ -402,6 +410,21 @@ func testShapeAnnotationGeometryResizesRectangleFromOppositeCorner() throws {
     try expect(result.size == CGSize(width: 50, height: 30), "Rectangle resize should let width and height change independently")
     try expect(result.center == CGPoint(x: 45, y: 45), "Resizing from the top-left should keep the opposite corner anchored")
     try expectClose(result.scaleFactor, 1.5, message: "Non-uniform resize should still report the dominant scale factor")
+}
+
+func testShapeAnnotationGeometryCanStretchASquareIntoAnEllipse() throws {
+    let result = ShapeAnnotationGeometry.resize(
+        fromCenter: CGPoint(x: 50, y: 50),
+        size: CGSize(width: 40, height: 40),
+        rotation: 0,
+        handle: .bottomRight,
+        currentPoint: CGPoint(x: 90, y: 80),
+        minimumSize: CGSize(width: 12, height: 12),
+        keepsAspectRatio: false
+    )
+
+    try expect(result.size == CGSize(width: 60, height: 50), "Post-creation resize should let circles stretch into ellipses")
+    try expect(result.center == CGPoint(x: 60, y: 55), "Stretching a circle should keep the opposite corner anchored")
 }
 
 func testShapeAnnotationGeometryUniformResizePreservesAspectRatio() throws {
@@ -548,9 +571,11 @@ do {
     try testOverlayToolbarCanResolveModesFromShortcutDigits()
     try testOverlayToolbarShortcutKeysAllowShiftButRejectOtherModifiers()
     try testShapeAnnotationGeometryBuildsNormalizedRectangle()
+    try testShapeAnnotationGeometryBuildsConstrainedSquareFromDrag()
     try testShapeAnnotationGeometryEnforcesMinimumArrowSize()
     try testShapeAnnotationGeometryReturnsExpectedHandlePoints()
     try testShapeAnnotationGeometryResizesRectangleFromOppositeCorner()
+    try testShapeAnnotationGeometryCanStretchASquareIntoAnEllipse()
     try testShapeAnnotationGeometryUniformResizePreservesAspectRatio()
     try testShapeAnnotationGeometryResizesArrowTipWhileKeepingTailFixed()
     try testShapeAnnotationGeometryResizesArrowTailWhileKeepingTipFixed()

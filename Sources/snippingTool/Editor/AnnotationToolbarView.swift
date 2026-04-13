@@ -160,7 +160,7 @@ struct AnnotationToolbarView: View {
             }
             .frame(width: annotationStore.inspectorShowsSizeControl ? 120 : 280, alignment: .leading)
 
-            if annotationStore.selectedTool.shapeKind == .rectangle {
+            if annotationStore.selectedTool.shapeKind?.supportsFillMode == true {
                 AccessibleRectangleFillPicker(
                     selection: $annotationStore.rectangleFillMode,
                     accessibilityIdentifier: AppAutomationIdentifiers.editorInspectorFillPicker
@@ -223,7 +223,7 @@ struct AnnotationToolbarView: View {
     private var shouldShowInspectorPanel: Bool {
         annotationStore.inspectorShowsColorControl
             || annotationStore.inspectorShowsSizeControl
-            || annotationStore.selectedTool.shapeKind == .rectangle
+            || annotationStore.selectedTool.shapeKind?.supportsFillMode == true
             || annotationStore.inspectorTitle != nil
             || annotationStore.inspectorMessage != nil
     }

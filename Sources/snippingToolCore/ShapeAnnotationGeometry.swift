@@ -71,6 +71,17 @@ public enum ShapeAnnotationGeometry {
         )
     }
 
+    public static func square(from start: CGPoint, to end: CGPoint) -> CGRect {
+        let deltaX = end.x - start.x
+        let deltaY = end.y - start.y
+        let side = min(abs(deltaX), abs(deltaY))
+        let constrainedEnd = CGPoint(
+            x: start.x + (deltaX >= 0 ? side : -side),
+            y: start.y + (deltaY >= 0 ? side : -side)
+        )
+        return rect(from: start, to: constrainedEnd)
+    }
+
     public static func center(for rect: CGRect) -> CGPoint {
         CGPoint(x: rect.midX, y: rect.midY)
     }
