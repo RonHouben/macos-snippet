@@ -6,11 +6,12 @@ import snippingToolCore
 @Observable
 @MainActor
 final class CaptureCoordinator {
-    private let permissionManager = PermissionManager()
+    private let permissionManager: PermissionManager
     private let screenCaptureService = ScreenCaptureService()
     private let hotkeyMonitor = GlobalHotkeyMonitor()
     private let windowSelectionService = WindowSelectionService()
     private let isGlobalHotkeyMonitoringEnabled: Bool
+    private let isPermissionPollingEnabled: Bool
 
     private var overlayController: SelectionOverlayWindowController?
 
@@ -32,9 +33,17 @@ final class CaptureCoordinator {
     }
     var onCaptureCompleted: ((CaptureCompletionAction) -> Void)?
 
-    init(isGlobalHotkeyMonitoringEnabled: Bool = true) {
+    init(
+        isGlobalHotkeyMonitoringEnabled: Bool = true,
+        isPermissionPollingEnabled: Bool = true
+    ) {
+        permissionManager = PermissionManager(shouldRefreshOnInit: isPermissionPollingEnabled)
         self.isGlobalHotkeyMonitoringEnabled = isGlobalHotkeyMonitoringEnabled
-        refreshPermissions()
+        self.isPermissionPollingEnabled = isPermissionPollingEnabled
+
+        if isPermissionPollingEnabled {
+            refreshPermissions()
+        }
     }
 
     func configureHotkeys(_ configuration: CaptureModeHotkeyConfiguration) {
@@ -95,6 +104,10 @@ final class CaptureCoordinator {
     }
 
     func refreshPermissions() {
+        guard isPermissionPollingEnabled else {
+            return
+        }
+
         permissionManager.refresh()
         statusMessage = permissionSummary
     }

@@ -52,8 +52,13 @@ final class AppServices {
         launchConfiguration = configuration
         appState = AppState(defaults: configuration.makeUserDefaults())
         captureCoordinator = CaptureCoordinator(
-            isGlobalHotkeyMonitoringEnabled: configuration.disablesGlobalHotkeys == false
+            isGlobalHotkeyMonitoringEnabled: configuration.disablesGlobalHotkeys == false,
+            isPermissionPollingEnabled: configuration.isUITesting == false
         )
+
+        if configuration.isUITesting {
+            OCRTextSelectionView.prewarmRecognition()
+        }
 
         captureCoordinator.editorCompletionModifiers = appState.editorCompletionModifiers
 

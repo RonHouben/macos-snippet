@@ -7,6 +7,16 @@ final class SnippingToolHostUITests: XCTestCase {
         case missingCGImage
     }
 
+    private enum UITestTiming {
+        static let pollingInterval: TimeInterval = 0.03
+        static let summaryElementTimeout: TimeInterval = 1
+        static let pendingTextFieldTimeout: TimeInterval = 2
+        static let shortExistenceTimeout: TimeInterval = 0.5
+        static let standardExistenceTimeout: TimeInterval = 1
+        static let dragPressDuration: TimeInterval = 0.05
+        static let ocrRecognitionTimeout: TimeInterval = 8
+    }
+
     private enum SampleCaptureText {
         static let primaryLine = "Alpha Beta Gamma Delta"
     }
@@ -22,6 +32,7 @@ final class SnippingToolHostUITests: XCTestCase {
 
     private var app: XCUIApplication!
     private var defaultsSuiteName: String!
+    private var cachedElements: [String: XCUIElement] = [:]
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -41,6 +52,7 @@ final class SnippingToolHostUITests: XCTestCase {
 
         app = application
         defaultsSuiteName = suiteName
+        cachedElements.removeAll()
 
         XCTAssertTrue(
             app.descendants(matching: .any)[AppAutomationIdentifiers.uiTestControlRoot].waitForExistence(timeout: 5),
@@ -55,6 +67,7 @@ final class SnippingToolHostUITests: XCTestCase {
 
         app = nil
         defaultsSuiteName = nil
+        cachedElements.removeAll()
     }
 
     func testOpenSettingsFromUITestControlPanel() throws {
@@ -120,7 +133,7 @@ final class SnippingToolHostUITests: XCTestCase {
 
         let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
-            firstRecognizedLine.waitForExistence(timeout: 15),
+            waitForRecognizedLine(firstRecognizedLine),
             "Expected the recognized sample text line overlay to exist for the sample capture."
         )
     }
@@ -233,13 +246,13 @@ final class SnippingToolHostUITests: XCTestCase {
 
         let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
-            firstRecognizedLine.waitForExistence(timeout: 15),
+            waitForRecognizedLine(firstRecognizedLine),
             "Expected the recognized sample text line overlay to exist for the sample capture."
         )
 
         let start = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.10, dy: 0.5))
         let end = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5))
-        start.press(forDuration: 0.1, thenDragTo: end)
+        start.press(forDuration: UITestTiming.dragPressDuration, thenDragTo: end)
 
         app.typeKey("c", modifierFlags: .command)
 
@@ -272,13 +285,13 @@ final class SnippingToolHostUITests: XCTestCase {
 
         let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
-            firstRecognizedLine.waitForExistence(timeout: 15),
+            waitForRecognizedLine(firstRecognizedLine),
             "Expected the recognized sample text line overlay to exist for the sample capture."
         )
 
         let start = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.36, dy: 0.5))
         let end = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: 0.5))
-        start.press(forDuration: 0.1, thenDragTo: end)
+        start.press(forDuration: UITestTiming.dragPressDuration, thenDragTo: end)
 
         _ = waitForOCRSelectionSummary(timeout: 3) { summary in
             summary["selectedCount"] == "1"
@@ -309,7 +322,7 @@ final class SnippingToolHostUITests: XCTestCase {
 
         let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
-            firstRecognizedLine.waitForExistence(timeout: 15),
+            waitForRecognizedLine(firstRecognizedLine),
             "Expected the recognized sample text line overlay to exist for the sample capture."
         )
 
@@ -336,13 +349,13 @@ final class SnippingToolHostUITests: XCTestCase {
 
         let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
-            firstRecognizedLine.waitForExistence(timeout: 15),
+            waitForRecognizedLine(firstRecognizedLine),
             "Expected the recognized sample text line overlay to exist for the sample capture."
         )
 
         let start = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.36, dy: 0.5))
         let end = firstRecognizedLine.coordinate(withNormalizedOffset: CGVector(dx: 0.62, dy: 0.5))
-        start.press(forDuration: 0.1, thenDragTo: end)
+        start.press(forDuration: UITestTiming.dragPressDuration, thenDragTo: end)
 
         _ = waitForOCRSelectionSummary(timeout: 3) { summary in
             summary["selectedCount"] == "1"
@@ -374,7 +387,7 @@ final class SnippingToolHostUITests: XCTestCase {
 
         let firstRecognizedLine = recognizedLine(matching: SampleCaptureText.primaryLine)
         XCTAssertTrue(
-            firstRecognizedLine.waitForExistence(timeout: 15),
+            waitForRecognizedLine(firstRecognizedLine),
             "Expected the recognized sample text line overlay to exist for the sample capture."
         )
 
@@ -407,7 +420,7 @@ final class SnippingToolHostUITests: XCTestCase {
         openEditorWithSampleCaptureIfNeeded()
 
         let canvas = editorDrawingSurface()
-        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+        XCTAssertTrue(exists(canvas, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor drawing surface to be available.")
 
         selectEditorTool(named: "Pen")
         adjustStrokeSlider(to: 12)
@@ -472,7 +485,7 @@ final class SnippingToolHostUITests: XCTestCase {
         openEditorWithSampleCaptureIfNeeded()
 
         let canvas = editorDrawingSurface()
-        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+        XCTAssertTrue(exists(canvas, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor drawing surface to be available.")
 
         selectEditorTool(named: "Pen")
         adjustStrokeSlider(to: 12)
@@ -568,7 +581,7 @@ final class SnippingToolHostUITests: XCTestCase {
         openEditorWithSampleCaptureIfNeeded()
 
         let canvas = editorDrawingSurface()
-        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+        XCTAssertTrue(exists(canvas, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor drawing surface to be available.")
 
         selectEditorTool(named: "Pen")
         adjustStrokeSlider(to: 10)
@@ -605,11 +618,11 @@ final class SnippingToolHostUITests: XCTestCase {
         openEditorWithSampleCaptureIfNeeded()
 
         let canvas = editorDrawingSurface()
-        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+        XCTAssertTrue(exists(canvas, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor drawing surface to be available.")
 
         selectEditorTool(named: "Text")
         tap(on: canvas, atImagePoint: CGPoint(x: 650, y: 420))
-        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        waitForPendingTextField()
         app.typeText("Group note")
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
 
@@ -669,7 +682,7 @@ final class SnippingToolHostUITests: XCTestCase {
         openEditorWithSampleCaptureIfNeeded()
 
         let canvas = editorDrawingSurface()
-        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+        XCTAssertTrue(exists(canvas, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor drawing surface to be available.")
 
         selectEditorTool(named: "Text")
         tap(on: canvas, atImagePoint: CGPoint(x: 700, y: 460))
@@ -678,7 +691,7 @@ final class SnippingToolHostUITests: XCTestCase {
             summary["selectedTool"] == "text" && summary["pendingTextActive"] == "1"
         }
 
-        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        waitForPendingTextField()
         app.typeText("Copilot note")
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
 
@@ -725,7 +738,7 @@ final class SnippingToolHostUITests: XCTestCase {
         openEditorWithSampleCaptureIfNeeded()
 
         let canvas = editorDrawingSurface()
-        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+        XCTAssertTrue(exists(canvas, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor drawing surface to be available.")
 
         selectEditorTool(named: "Text")
         tap(on: canvas, atImagePoint: CGPoint(x: 700, y: 460))
@@ -734,7 +747,7 @@ final class SnippingToolHostUITests: XCTestCase {
             summary["selectedTool"] == "text" && summary["pendingTextActive"] == "1"
         }
 
-        RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        waitForPendingTextField()
         app.typeText("Resizable note")
         app.typeKey(XCUIKeyboardKey.return.rawValue, modifierFlags: [])
 
@@ -775,7 +788,7 @@ final class SnippingToolHostUITests: XCTestCase {
         openEditorWithSampleCaptureIfNeeded()
 
         let canvas = editorDrawingSurface()
-        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+        XCTAssertTrue(exists(canvas, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor drawing surface to be available.")
 
         selectEditorTool(named: "Rectangle")
         adjustStrokeSlider(to: 8)
@@ -883,7 +896,7 @@ final class SnippingToolHostUITests: XCTestCase {
         openEditorWithSampleCaptureIfNeeded()
 
         let canvas = editorDrawingSurface()
-        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+        XCTAssertTrue(exists(canvas, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor drawing surface to be available.")
 
         selectEditorTool(named: "Circle")
         adjustStrokeSlider(to: 8)
@@ -975,7 +988,7 @@ final class SnippingToolHostUITests: XCTestCase {
         openEditorWithSampleCaptureIfNeeded()
 
         let canvas = editorDrawingSurface()
-        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+        XCTAssertTrue(exists(canvas, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor drawing surface to be available.")
 
         selectEditorTool(named: "Arrow")
         adjustStrokeSlider(to: 10)
@@ -1084,12 +1097,16 @@ final class SnippingToolHostUITests: XCTestCase {
     }
 
     private func uiTestButton(identifier: String, fallbackLabel: String) -> XCUIElement {
-        let identified = app.descendants(matching: .button)[identifier]
-        if identified.waitForExistence(timeout: 2) {
+        let identified = cachedElement(key: "button.\(identifier)") { [self] in
+            app.descendants(matching: .any)[identifier]
+        }
+        if exists(identified, timeout: UITestTiming.shortExistenceTimeout) {
             return identified
         }
 
-        return app.buttons[fallbackLabel]
+        return cachedElement(key: "button.label.\(fallbackLabel)") { [self] in
+            app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", fallbackLabel)).firstMatch
+        }
     }
 
     private func focusOpenEditorModifierRecorder(
@@ -1126,40 +1143,79 @@ final class SnippingToolHostUITests: XCTestCase {
     }
 
     private func recognizedLine(matching label: String) -> XCUIElement {
-        let identified = app.textViews.matching(NSPredicate(format: "label == %@", label)).firstMatch
-        if identified.waitForExistence(timeout: 2) {
+        let stableLine = cachedElement(key: AppAutomationIdentifiers.editorOCRLine(0)) { [self] in
+            app.descendants(matching: .any)[AppAutomationIdentifiers.editorOCRLine(0)]
+        }
+        if exists(stableLine, timeout: UITestTiming.standardExistenceTimeout) {
+            return stableLine
+        }
+
+        let identified = cachedElement(key: "ocr.label.\(label)") { [self] in
+            app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
+        }
+        if exists(identified, timeout: UITestTiming.shortExistenceTimeout) {
             return identified
         }
 
-        return app.descendants(matching: .any)[AppAutomationIdentifiers.editorOCRLine(0)]
+        return stableLine
     }
 
     private func openEditorWithSampleCaptureIfNeeded() {
         uiTestButton(identifier: AppAutomationIdentifiers.uiTestLoadSampleCaptureButton, fallbackLabel: "Load Sample Capture").click()
 
-        let editorRoot = app.descendants(matching: .any)[AppAutomationIdentifiers.editorRoot]
-        if editorRoot.waitForExistence(timeout: 5) == false {
+        let editorRoot = cachedElement(key: AppAutomationIdentifiers.editorRoot) { [self] in
+            app.descendants(matching: .any)[AppAutomationIdentifiers.editorRoot]
+        }
+        if exists(editorRoot, timeout: UITestTiming.standardExistenceTimeout) == false {
             uiTestButton(identifier: AppAutomationIdentifiers.uiTestOpenEditorButton, fallbackLabel: "Open Editor").click()
         }
 
         XCTAssertTrue(
-            editorRoot.waitForExistence(timeout: 15),
+            exists(editorRoot, timeout: 10),
             "Expected the Editor root view to exist after loading the sample capture."
+        )
+
+        _ = summaryElement(
+            identifier: AppAutomationIdentifiers.editorShapeSummary,
+            failureMessage: "Expected the shape summary automation element to exist."
+        )
+        _ = summaryElement(
+            identifier: AppAutomationIdentifiers.editorViewportSummary,
+            failureMessage: "Expected the viewport summary automation element to exist."
+        )
+        _ = summaryElement(
+            identifier: AppAutomationIdentifiers.editorCursorPreviewSummary,
+            failureMessage: "Expected the cursor preview automation element to exist."
+        )
+        _ = summaryElement(
+            identifier: AppAutomationIdentifiers.editorOCRSelectionSummary,
+            failureMessage: "Expected the OCR selection automation element to exist.",
+            query: { [self] in
+                app.descendants(matching: .any)
+                    .matching(identifier: AppAutomationIdentifiers.editorOCRSelectionSummary)
+                    .firstMatch
+            }
         )
     }
 
     private func editorDrawingSurface() -> XCUIElement {
-        let canvasSurface = app.descendants(matching: .any).matching(identifier: AppAutomationIdentifiers.editorCanvas).firstMatch
-        if canvasSurface.waitForExistence(timeout: 2) {
+        let canvasSurface = cachedElement(key: AppAutomationIdentifiers.editorCanvas) { [self] in
+            app.descendants(matching: .any).matching(identifier: AppAutomationIdentifiers.editorCanvas).firstMatch
+        }
+        if exists(canvasSurface, timeout: UITestTiming.standardExistenceTimeout) {
             return canvasSurface
         }
 
-        let recognizedTextSurface = app.descendants(matching: .any).matching(identifier: AppAutomationIdentifiers.editorOCRRoot).firstMatch
-        if recognizedTextSurface.waitForExistence(timeout: 2) {
+        let recognizedTextSurface = cachedElement(key: AppAutomationIdentifiers.editorOCRRoot) { [self] in
+            app.descendants(matching: .any).matching(identifier: AppAutomationIdentifiers.editorOCRRoot).firstMatch
+        }
+        if exists(recognizedTextSurface, timeout: UITestTiming.standardExistenceTimeout) {
             return recognizedTextSurface
         }
 
-        return app.descendants(matching: .any).matching(identifier: AppAutomationIdentifiers.editorRoot).firstMatch
+        return cachedElement(key: "drawing-surface.editor-root") { [self] in
+            app.descendants(matching: .any).matching(identifier: AppAutomationIdentifiers.editorRoot).firstMatch
+        }
     }
 
     private func selectEditorTool(named name: String) {
@@ -1168,20 +1224,28 @@ final class SnippingToolHostUITests: XCTestCase {
         } else {
             name.lowercased().replacingOccurrences(of: " ", with: "")
         }
-        let identifiedButton = app.descendants(matching: .any)["editor.tool.\(normalizedName)"]
-        if identifiedButton.waitForExistence(timeout: 2) {
+        let identifiedButton = cachedElement(key: AppAutomationIdentifiers.editorToolButton(named: normalizedName)) { [self] in
+            app.descendants(matching: .any)[AppAutomationIdentifiers.editorToolButton(named: normalizedName)]
+        }
+        if exists(identifiedButton, timeout: UITestTiming.standardExistenceTimeout) {
             identifiedButton.click()
             return
         }
 
-        let toolPicker = app.segmentedControls[AppAutomationIdentifiers.editorToolPicker]
-        if toolPicker.waitForExistence(timeout: 2), toolPicker.buttons[name].waitForExistence(timeout: 2) {
+        let toolPicker = cachedElement(key: AppAutomationIdentifiers.editorToolPicker) { [self] in
+            app.segmentedControls[AppAutomationIdentifiers.editorToolPicker]
+        }
+        if exists(toolPicker, timeout: UITestTiming.standardExistenceTimeout),
+           exists(toolPicker.buttons[name], timeout: UITestTiming.shortExistenceTimeout) {
             toolPicker.buttons[name].click()
             return
         }
 
-        let toolbar = app.descendants(matching: .any)[AppAutomationIdentifiers.editorToolbar]
-        if toolbar.waitForExistence(timeout: 2), toolbar.buttons[name].waitForExistence(timeout: 2) {
+        let toolbar = cachedElement(key: AppAutomationIdentifiers.editorToolbar) { [self] in
+            app.descendants(matching: .any)[AppAutomationIdentifiers.editorToolbar]
+        }
+        if exists(toolbar, timeout: UITestTiming.standardExistenceTimeout),
+           exists(toolbar.buttons[name], timeout: UITestTiming.shortExistenceTimeout) {
             toolbar.buttons[name].click()
             return
         }
@@ -1198,16 +1262,20 @@ final class SnippingToolHostUITests: XCTestCase {
     }
 
     private func adjustSlider(identifier: String, value: Double, minimum: Double, maximum: Double) {
-        let typedSlider = app.sliders[identifier].firstMatch
+        let typedSlider = cachedElement(key: "slider.\(identifier)") { [self] in
+            app.sliders[identifier].firstMatch
+        }
         let normalizedPosition = Swift.min(Swift.max((value - minimum) / (maximum - minimum), 0), 1)
 
-        if typedSlider.waitForExistence(timeout: 2) {
+        if exists(typedSlider, timeout: UITestTiming.standardExistenceTimeout) {
             typedSlider.adjust(toNormalizedSliderPosition: normalizedPosition)
             return
         }
 
-        let sliderContainer = app.descendants(matching: .any)[identifier]
-        XCTAssertTrue(sliderContainer.waitForExistence(timeout: 5), "Expected slider \(identifier) to exist.")
+        let sliderContainer = cachedElement(key: "slider-container.\(identifier)") { [self] in
+            app.descendants(matching: .any)[identifier]
+        }
+        XCTAssertTrue(exists(sliderContainer, timeout: UITestTiming.standardExistenceTimeout), "Expected slider \(identifier) to exist.")
 
         let start = sliderContainer.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
         let end = sliderContainer.coordinate(withNormalizedOffset: CGVector(dx: normalizedPosition, dy: 0.5))
@@ -1215,11 +1283,15 @@ final class SnippingToolHostUITests: XCTestCase {
     }
 
     private func chooseRectangleFill(named rawValue: String) {
-        let typedFillPicker = app.segmentedControls[AppAutomationIdentifiers.editorInspectorFillPicker]
-        let fillPicker = typedFillPicker.waitForExistence(timeout: 2)
+        let typedFillPicker = cachedElement(key: "segmented.\(AppAutomationIdentifiers.editorInspectorFillPicker)") { [self] in
+            app.segmentedControls[AppAutomationIdentifiers.editorInspectorFillPicker]
+        }
+        let fillPicker = exists(typedFillPicker, timeout: UITestTiming.standardExistenceTimeout)
             ? typedFillPicker
-            : app.descendants(matching: .any)[AppAutomationIdentifiers.editorInspectorFillPicker]
-        XCTAssertTrue(fillPicker.waitForExistence(timeout: 5), "Expected the rectangle fill picker to exist.")
+            : cachedElement(key: AppAutomationIdentifiers.editorInspectorFillPicker) { [self] in
+                app.descendants(matching: .any)[AppAutomationIdentifiers.editorInspectorFillPicker]
+            }
+        XCTAssertTrue(exists(fillPicker, timeout: UITestTiming.standardExistenceTimeout), "Expected the rectangle fill picker to exist.")
 
         let buttonTitle: String
         let normalizedPosition: CGFloat
@@ -1239,7 +1311,7 @@ final class SnippingToolHostUITests: XCTestCase {
         }
 
         let button = fillPicker.buttons[buttonTitle].firstMatch
-        if button.waitForExistence(timeout: 2) {
+        if exists(button, timeout: UITestTiming.shortExistenceTimeout) {
             button.click()
             return
         }
@@ -1254,7 +1326,7 @@ final class SnippingToolHostUITests: XCTestCase {
     private func drag(on element: XCUIElement, fromImagePoint start: CGPoint, toImagePoint end: CGPoint) {
         let startCoordinate = element.coordinate(withNormalizedOffset: normalizedOffset(for: start, in: element))
         let endCoordinate = element.coordinate(withNormalizedOffset: normalizedOffset(for: end, in: element))
-        startCoordinate.press(forDuration: 0.1, thenDragTo: endCoordinate)
+        startCoordinate.press(forDuration: UITestTiming.dragPressDuration, thenDragTo: endCoordinate)
     }
 
     private func normalizedOffset(for point: CGPoint, in element: XCUIElement) -> CGVector {
@@ -1283,12 +1355,16 @@ final class SnippingToolHostUITests: XCTestCase {
             return elementFrame
         }
 
-        let toolbar = app.descendants(matching: .any)[AppAutomationIdentifiers.editorToolbar]
-        guard toolbar.waitForExistence(timeout: 1) else {
+        let toolbar = cachedElement(key: "interaction.toolbar") { [self] in
+            app.descendants(matching: .any)[AppAutomationIdentifiers.editorToolbar]
+        }
+        guard exists(toolbar, timeout: UITestTiming.shortExistenceTimeout) else {
             return elementFrame
         }
 
-        let footer = app.descendants(matching: .any)[AppAutomationIdentifiers.editorFooterMessage]
+        let footer = cachedElement(key: "interaction.footer") { [self] in
+            app.descendants(matching: .any)[AppAutomationIdentifiers.editorFooterMessage]
+        }
         let footerHeight = footer.exists ? footer.frame.height : 0
         let canvasMinY = max(elementFrame.minY, toolbar.frame.maxY)
         let canvasMaxY = max(canvasMinY + 1, elementFrame.maxY - footerHeight)
@@ -1313,7 +1389,7 @@ final class SnippingToolHostUITests: XCTestCase {
                 return summary
             }
 
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            RunLoop.current.run(until: Date().addingTimeInterval(UITestTiming.pollingInterval))
         } while Date() < deadline
 
         let finalSummary = currentShapeSummary()
@@ -1333,7 +1409,7 @@ final class SnippingToolHostUITests: XCTestCase {
                 return summary
             }
 
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            RunLoop.current.run(until: Date().addingTimeInterval(UITestTiming.pollingInterval))
         } while Date() < deadline
 
         let finalSummary = currentOCRSelectionSummary()
@@ -1342,48 +1418,29 @@ final class SnippingToolHostUITests: XCTestCase {
     }
 
     private func currentShapeSummary() -> [String: String] {
-        let summaryElement = app.descendants(matching: .any)[AppAutomationIdentifiers.editorShapeSummary]
-        XCTAssertTrue(summaryElement.waitForExistence(timeout: 5), "Expected the shape summary automation element to exist.")
-
-        let rawSummaryCandidates = [summaryElement.value as? String, summaryElement.label]
-        let rawSummary = rawSummaryCandidates
-            .compactMap { $0 }
-            .first(where: { $0.contains("count=") })
-            ?? ""
-
-        return Dictionary(
-            uniqueKeysWithValues: rawSummary
-                .split(separator: ";")
-                .compactMap { entry -> (String, String)? in
-                    let pieces = entry.split(separator: "=", maxSplits: 1).map(String.init)
-                    guard pieces.count == 2 else { return nil }
-                    return (pieces[0], pieces[1])
-                }
+        let summaryElement = summaryElement(
+            identifier: AppAutomationIdentifiers.editorShapeSummary,
+            failureMessage: "Expected the shape summary automation element to exist."
         )
+
+        return parsedSummary(from: summaryElement, requiredToken: "count=")
     }
 
     private func currentOCRSelectionSummary() -> [String: String] {
-        let summaryElement = app.descendants(matching: .any)
-            .matching(identifier: AppAutomationIdentifiers.editorOCRSelectionSummary)
-            .firstMatch
-        XCTAssertTrue(summaryElement.waitForExistence(timeout: 5), "Expected the OCR selection automation element to exist.")
+        let summaryElement = summaryElement(
+            identifier: AppAutomationIdentifiers.editorOCRSelectionSummary,
+            failureMessage: "Expected the OCR selection automation element to exist.",
+            query: { [self] in
+                app.descendants(matching: .any)
+                    .matching(identifier: AppAutomationIdentifiers.editorOCRSelectionSummary)
+                    .firstMatch
+            }
+        )
 
-        let rawSummaryCandidates = [summaryElement.value as? String, summaryElement.label]
-        let rawSummary = rawSummaryCandidates
-            .compactMap { $0 }
-            .first(where: { $0.contains("selectedCount=") })
-            ?? ""
-
-        return Dictionary(
-            uniqueKeysWithValues: rawSummary
-                .split(separator: ";", omittingEmptySubsequences: false)
-                .compactMap { entry -> (String, String)? in
-                    let pieces = entry
-                        .split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
-                        .map(String.init)
-                    guard pieces.count == 2 else { return nil }
-                    return (pieces[0], pieces[1])
-                }
+        return parsedSummary(
+            from: summaryElement,
+            requiredToken: "selectedCount=",
+            omitEmptySubsequences: false
         )
     }
 
@@ -1399,7 +1456,7 @@ final class SnippingToolHostUITests: XCTestCase {
                 return summary
             }
 
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            RunLoop.current.run(until: Date().addingTimeInterval(UITestTiming.pollingInterval))
         } while Date() < deadline
 
         let finalSummary = currentCursorPreviewSummary()
@@ -1408,25 +1465,15 @@ final class SnippingToolHostUITests: XCTestCase {
     }
 
     private func currentCursorPreviewSummary() -> [String: String] {
-        let summaryElement = app.descendants(matching: .any)[AppAutomationIdentifiers.editorCursorPreviewSummary]
-        XCTAssertTrue(summaryElement.waitForExistence(timeout: 5), "Expected the cursor preview automation element to exist.")
+        let summaryElement = summaryElement(
+            identifier: AppAutomationIdentifiers.editorCursorPreviewSummary,
+            failureMessage: "Expected the cursor preview automation element to exist."
+        )
 
-        let rawSummaryCandidates = [summaryElement.value as? String, summaryElement.label]
-        let rawSummary = rawSummaryCandidates
-            .compactMap { $0 }
-            .first(where: { $0.contains("isVisible=") })
-            ?? ""
-
-        return Dictionary(
-            uniqueKeysWithValues: rawSummary
-                .split(separator: ";", omittingEmptySubsequences: false)
-                .compactMap { entry -> (String, String)? in
-                    let pieces = entry
-                        .split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
-                        .map(String.init)
-                    guard pieces.count == 2 else { return nil }
-                    return (pieces[0], pieces[1])
-                }
+        return parsedSummary(
+            from: summaryElement,
+            requiredToken: "isVisible=",
+            omitEmptySubsequences: false
         )
     }
 
@@ -1442,7 +1489,7 @@ final class SnippingToolHostUITests: XCTestCase {
                 return summary
             }
 
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            RunLoop.current.run(until: Date().addingTimeInterval(UITestTiming.pollingInterval))
         } while Date() < deadline
 
         let finalSummary = currentViewportSummary()
@@ -1451,24 +1498,12 @@ final class SnippingToolHostUITests: XCTestCase {
     }
 
     private func currentViewportSummary() -> [String: String] {
-        let summaryElement = app.descendants(matching: .any)[AppAutomationIdentifiers.editorViewportSummary]
-        XCTAssertTrue(summaryElement.waitForExistence(timeout: 5), "Expected the viewport summary automation element to exist.")
-
-        let rawSummaryCandidates = [summaryElement.value as? String, summaryElement.label]
-        let rawSummary = rawSummaryCandidates
-            .compactMap { $0 }
-            .first(where: { $0.contains("visibleMinX=") })
-            ?? ""
-
-        return Dictionary(
-            uniqueKeysWithValues: rawSummary
-                .split(separator: ";")
-                .compactMap { entry -> (String, String)? in
-                    let pieces = entry.split(separator: "=", maxSplits: 1).map(String.init)
-                    guard pieces.count == 2 else { return nil }
-                    return (pieces[0], pieces[1])
-                }
+        let summaryElement = summaryElement(
+            identifier: AppAutomationIdentifiers.editorViewportSummary,
+            failureMessage: "Expected the viewport summary automation element to exist."
         )
+
+        return parsedSummary(from: summaryElement, requiredToken: "visibleMinX=")
     }
 
     private func doubleValue(for key: String, in summary: [String: String]) -> Double? {
@@ -1496,7 +1531,7 @@ final class SnippingToolHostUITests: XCTestCase {
         NSPasteboard.general.clearContents()
 
         let copyButton = uiTestButton(identifier: AppAutomationIdentifiers.editorCopyButton, fallbackLabel: "Copy")
-        XCTAssertTrue(copyButton.waitForExistence(timeout: 5), "Expected the editor Copy button to exist.")
+        XCTAssertTrue(exists(copyButton, timeout: UITestTiming.standardExistenceTimeout), "Expected the editor Copy button to exist.")
         copyButton.click()
 
         let deadline = Date().addingTimeInterval(timeout)
@@ -1505,7 +1540,7 @@ final class SnippingToolHostUITests: XCTestCase {
                 return image
             }
 
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            RunLoop.current.run(until: Date().addingTimeInterval(UITestTiming.pollingInterval))
         } while Date() < deadline
 
         throw UITestError.missingCopiedImage
@@ -1519,7 +1554,7 @@ final class SnippingToolHostUITests: XCTestCase {
                 return copiedText
             }
 
-            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            RunLoop.current.run(until: Date().addingTimeInterval(UITestTiming.pollingInterval))
         } while Date() < deadline
 
         return NSPasteboard.general.string(forType: .string)
@@ -1546,6 +1581,88 @@ final class SnippingToolHostUITests: XCTestCase {
         )
 
         return state["text"]
+    }
+
+    private func waitForPendingTextField() {
+        let pendingTextField = cachedElement(key: AppAutomationIdentifiers.editorPendingTextField) { [self] in
+            app.descendants(matching: .any)[AppAutomationIdentifiers.editorPendingTextField]
+        }
+
+        XCTAssertTrue(
+            pendingTextField.waitForExistence(timeout: UITestTiming.pendingTextFieldTimeout),
+            "Expected the pending text field to be ready before typing text."
+        )
+    }
+
+    private func waitForRecognizedLine(_ line: XCUIElement) -> Bool {
+        _ = waitForOCRSelectionSummary(timeout: UITestTiming.ocrRecognitionTimeout) { summary in
+            guard let recognizedCount = Int(summary["recognizedCount"] ?? "0") else {
+                return false
+            }
+
+            return recognizedCount > 0
+        }
+
+        return exists(line, timeout: UITestTiming.shortExistenceTimeout)
+    }
+
+    private func summaryElement(
+        identifier: String,
+        failureMessage: String,
+        query: (() -> XCUIElement)? = nil
+    ) -> XCUIElement {
+        let element = cachedElement(key: identifier) { [self] in
+            query?() ?? app.descendants(matching: .any)[identifier]
+        }
+
+        if element.exists == false {
+            XCTAssertTrue(
+                element.waitForExistence(timeout: UITestTiming.summaryElementTimeout),
+                failureMessage
+            )
+        }
+
+        return element
+    }
+
+    private func cachedElement(key: String, query: () -> XCUIElement) -> XCUIElement {
+        if let element = cachedElements[key] {
+            return element
+        }
+
+        let element = query()
+        cachedElements[key] = element
+        return element
+    }
+
+    private func exists(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        element.exists || element.waitForExistence(timeout: timeout)
+    }
+
+    private func parsedSummary(
+        from element: XCUIElement,
+        requiredToken: String,
+        omitEmptySubsequences: Bool = true
+    ) -> [String: String] {
+        let rawSummary = [element.value as? String, element.label]
+            .compactMap { $0 }
+            .first(where: { $0.contains(requiredToken) })
+            ?? ""
+
+        return Dictionary(
+            uniqueKeysWithValues: rawSummary
+                .split(separator: ";", omittingEmptySubsequences: omitEmptySubsequences)
+                .compactMap { entry -> (String, String)? in
+                    let pieces = entry
+                        .split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                        .map(String.init)
+                    guard pieces.count == 2 else {
+                        return nil
+                    }
+
+                    return (pieces[0], pieces[1])
+                }
+        )
     }
 
     private func sampledColors(in image: NSImage, atImagePoint point: CGPoint) throws -> [NSColor] {

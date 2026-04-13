@@ -14,8 +14,10 @@ final class PermissionManager {
     var screenRecordingStatus: PermissionStatus = .unknown
     var accessibilityStatus: PermissionStatus = .unknown
 
-    init() {
-        refresh()
+    init(shouldRefreshOnInit: Bool = true) {
+        if shouldRefreshOnInit {
+            refresh()
+        }
     }
 
     func refresh() {

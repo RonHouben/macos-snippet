@@ -15,6 +15,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.configureStatusItemIfNeeded()
         }
 
+        if services.launchConfiguration.isUITesting {
+            services.uiTestControlWindowManager.show()
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
         configureStatusItemIfNeeded()
 
         let shouldShow = services.shouldShowOnboardingOnLaunch
@@ -33,11 +39,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { [weak self] in
                 self?.presentPendingOnboardingIfNeeded(force: true)
             }
-        }
-
-        if services.launchConfiguration.isUITesting {
-            services.uiTestControlWindowManager.show()
-            NSApp.activate(ignoringOtherApps: true)
         }
     }
 
@@ -197,6 +198,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
+        guard services.launchConfiguration.isUITesting == false else {
+            return
+        }
+
         services.captureCoordinator.refreshPermissions()
         presentPendingOnboardingIfNeeded()
     }

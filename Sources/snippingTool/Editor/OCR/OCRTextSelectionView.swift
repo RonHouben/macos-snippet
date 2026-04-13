@@ -208,6 +208,14 @@ enum OCRRegionSelectionResolver {
 /// - Supports line-level selection (clicking selects entire line)
 @MainActor
 final class OCRTextSelectionView: NSView {
+    private static let recognitionWarmupTask: Task<Void, Never> = Task.detached(priority: .utility) {
+        guard let cgImage = makeWarmupImage() else {
+            return
+        }
+
+        _ = try? recognizeTextRegions(in: cgImage)
+    }
+
     // MARK: - Configuration
 
     private let highlightAnimationDuration: TimeInterval = 0.145
@@ -342,6 +350,10 @@ final class OCRTextSelectionView: NSView {
                 await self?.clearRecognizedRegions(for: captureID)
             }
         }
+    }
+
+    static func prewarmRecognition() {
+        _ = recognitionWarmupTask
     }
 
     /// Clears selection state.
@@ -763,13 +775,15 @@ final class OCRTextSelectionView: NSView {
         let selectedText = selectionState.selectedText
         let hasSelection = selectionState.hasSelection
         let selectedCount = selectionState.selections.count
+        let recognizedCount = selectionState.regions.count
+        let firstRecognizedText = selectionState.regions.first?.text ?? ""
         let selectedRange = selectionState.selections
             .compactMap(\.range)
             .map { "\($0.location),\($0.length)" }
             .joined(separator: "|")
 
         setAccessibilityValue(
-            "selectedCount=\(selectedCount);hasSelection=\(hasSelection ? 1 : 0);selectedRange=\(selectedRange);text=\(selectedText)"
+            "recognizedCount=\(recognizedCount);selectedCount=\(selectedCount);hasSelection=\(hasSelection ? 1 : 0);selectedRange=\(selectedRange);text=\(selectedText);firstText=\(firstRecognizedText)"
         )
 
         accessibilitySummaryView.string = accessibilityValue() as? String ?? ""
@@ -903,6 +917,25 @@ final class OCRTextSelectionView: NSView {
 
             return OCRWord(text: wordText, boundingBox: resolvedBoundingBox, range: selectedRange)
         }
+    }
+
+    nonisolated private static func makeWarmupImage() -> CGImage? {
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(
+            data: nil,
+            width: 8,
+            height: 8,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return nil
+        }
+
+        context.setFillColor(NSColor.black.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
+        return context.makeImage()
     }
 
     nonisolated private static func enumeratedWordRanges(in text: String) -> [(String, Range<String.Index>)] {

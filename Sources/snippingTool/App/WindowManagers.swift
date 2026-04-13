@@ -19,6 +19,12 @@ final class EditorWindowManager {
         NSApp.activate(ignoringOtherApps: true)
         positionEditorWindowIfNeeded(controller.window)
         controller.showWindow(nil)
+
+        if services.launchConfiguration.isUITesting {
+            controller.window?.makeKeyAndOrderFront(nil)
+            return
+        }
+
         controller.window?.deminiaturize(nil)
         controller.window?.orderFrontRegardless()
         controller.window?.makeKey()
