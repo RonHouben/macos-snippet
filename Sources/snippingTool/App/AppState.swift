@@ -44,6 +44,9 @@ final class AppState {
     var onThemePreferenceChanged: ((AppThemePreference) -> Void)?
 
     @ObservationIgnored
+    var onNewCaptureShortcutChanged: ((HotkeyShortcut) -> Void)?
+
+    @ObservationIgnored
     var onLibraryShortcutChanged: ((HotkeyShortcut) -> Void)?
 
     var themePreference: AppThemePreference {
@@ -71,6 +74,7 @@ final class AppState {
         didSet {
             persistNewCaptureShortcut()
             keybindingValidationMessage = nil
+            onNewCaptureShortcutChanged?(newCaptureShortcut)
         }
     }
 

@@ -32,6 +32,7 @@ final class AppServices {
     let recentCaptureStore = RecentCaptureStore()
     let libraryStore = LibraryStore()
     private let exportService = ExportService()
+    private let newCaptureHotkeyMonitor = GlobalHotkeyMonitor()
     private var libraryHotkeyMonitor: Any?
 
     var onOnboardingDismissed: (() -> Void)?
@@ -66,10 +67,14 @@ final class AppServices {
             self?.capturePreviewWindowManager.applyThemePreference()
             self?.libraryWindowManager.applyThemePreference()
         }
+        appState.onNewCaptureShortcutChanged = { [weak self] shortcut in
+            self?.configureNewCaptureHotkey(shortcut)
+        }
         appState.onEditorCompletionModifiersChanged = { [weak self] modifiers in
             self?.captureCoordinator.editorCompletionModifiers = modifiers
         }
         captureCoordinator.configureHotkeys(appState.captureModeHotkeys)
+        configureNewCaptureHotkey(appState.newCaptureShortcut)
 
         captureCoordinator.onCaptureCompleted = { [weak self] action in
             self?.handleCompletedCapture(action)
@@ -235,6 +240,23 @@ final class AppServices {
 
             Task { @MainActor in
                 self?.openLibrary()
+            }
+        }
+    }
+
+    private func configureNewCaptureHotkey(_ shortcut: HotkeyShortcut) {
+        guard launchConfiguration.disablesGlobalHotkeys == false else {
+            newCaptureHotkeyMonitor.stop()
+            return
+        }
+
+        newCaptureHotkeyMonitor.start(shortcut: shortcut) { [weak self] in
+            Task { @MainActor in
+                guard let self, self.captureCoordinator.isCaptureInProgress == false else {
+                    return
+                }
+
+                self.startPreferredCapture()
             }
         }
     }

@@ -7,6 +7,30 @@ final class GlobalHotkeyMonitor {
     private var localMonitor: Any?
 
     func start(
+        shortcut: HotkeyShortcut,
+        onShortcut: @escaping () -> Void
+    ) {
+        stop()
+
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+            guard Self.matches(event, shortcut: shortcut) else {
+                return
+            }
+
+            onShortcut()
+        }
+
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard Self.matches(event, shortcut: shortcut) else {
+                return event
+            }
+
+            onShortcut()
+            return nil
+        }
+    }
+
+    func start(
         bindings: [(mode: CaptureMode, shortcut: HotkeyShortcut)],
         onShortcut: @escaping (CaptureMode) -> Void
     ) {
@@ -53,11 +77,15 @@ final class GlobalHotkeyMonitor {
         for event: NSEvent,
         bindings: [(mode: CaptureMode, shortcut: HotkeyShortcut)]
     ) -> CaptureMode? {
+        return bindings.first(where: { binding in
+            matches(event, shortcut: binding.shortcut)
+        })?.mode
+    }
+
+    private static func matches(_ event: NSEvent, shortcut: HotkeyShortcut) -> Bool {
         let normalizedModifiers = event.modifierFlags.hotkeyRelevantModifiers
 
-        return bindings.first(where: { binding in
-            binding.shortcut.key.keyCode == event.keyCode &&
-            binding.shortcut.modifiers.eventModifierFlags == normalizedModifiers
-        })?.mode
+        return shortcut.key.keyCode == event.keyCode &&
+            shortcut.modifiers.eventModifierFlags == normalizedModifiers
     }
 }

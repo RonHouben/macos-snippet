@@ -25,6 +25,14 @@ let package = Package(
             name: "snippingToolTDD",
             dependencies: ["snippingToolCore"],
             path: "Sources/snippingToolTDD"
+        ),
+        .testTarget(
+            name: "snippingToolTests",
+            dependencies: [
+                "snippingTool",
+                "snippingToolCore"
+            ],
+            path: "Tests/snippingToolTests"
         )
     ]
 )
