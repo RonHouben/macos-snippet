@@ -47,13 +47,7 @@ final class AppState {
     var onThemePreferenceChanged: ((AppThemePreference) -> Void)?
 
     @ObservationIgnored
-    var onNewCaptureShortcutChanged: ((HotkeyShortcut) -> Void)?
-
-    @ObservationIgnored
     var onLibraryShortcutChanged: ((HotkeyShortcut) -> Void)?
-
-    @ObservationIgnored
-    var onNewCaptureShortcutChanged: ((HotkeyShortcut) -> Void)?
 
     var themePreference: AppThemePreference {
         didSet {
