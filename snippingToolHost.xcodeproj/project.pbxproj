@@ -94,9 +94,9 @@
 		323D5E90A83E721328BACB17 /* OnboardingWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowManager.swift; sourceTree = "<group>"; };
 		34E783B8F426985FC47A828A /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		387AE152230447688959BCCF /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
+		38C1F5FD365B4DABE4479192 /* snippingTool */ = {isa = PBXFileReference; lastKnownFileType = folder; name = snippingTool; path = .; sourceTree = SOURCE_ROOT; };
 		3B1B2BF058D9172336F68ACE /* OnboardingState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingState.swift; sourceTree = "<group>"; };
 		44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationToolbarView.swift; sourceTree = "<group>"; };
-		464630499836A7B71D7F30F3 /* agents-loose-quokka */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "agents-loose-quokka"; path = .; sourceTree = SOURCE_ROOT; };
 		4B9F976AF437339A50626C08 /* LibraryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryItem.swift; sourceTree = "<group>"; };
 		522C4FDF4AEB4C541610BB94 /* WindowSelectionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSelectionService.swift; sourceTree = "<group>"; };
 		52C6549AFF9007266029903F /* CapturePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapturePreviewView.swift; sourceTree = "<group>"; };
@@ -117,7 +117,6 @@
 		AE14CC0A94C3D4B5B627A304 /* OCRTextSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRTextSelectionView.swift; sourceTree = "<group>"; };
 		BEA6F5BCCB815D3996FC97C1 /* RecorderTextFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderTextFieldTests.swift; sourceTree = "<group>"; };
 		C32DD835B08D04D693297B56 /* snippingToolHostUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = snippingToolHostUITests.swift; sourceTree = "<group>"; };
-
 		CB35A6903E9F6A9DA8688E76 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		D7A5951650119B5C7C4C4CB3 /* AnnotationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationStore.swift; sourceTree = "<group>"; };
 		DC359D8E3C9F535C2FF4FD68 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
@@ -270,7 +269,7 @@
 		A11F0B984B8AA5A1262624EA /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				464630499836A7B71D7F30F3 /* agents-loose-quokka */,
+				38C1F5FD365B4DABE4479192 /* snippingTool */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
