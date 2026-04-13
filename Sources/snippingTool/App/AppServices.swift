@@ -74,12 +74,11 @@ final class AppServices {
             self?.captureCoordinator.editorCompletionModifiers = modifiers
         }
         captureCoordinator.configureHotkeys(appState.captureModeHotkeys)
+        configureNewCaptureHotkey(appState.newCaptureShortcut)
 
         captureCoordinator.onCaptureCompleted = { [weak self] action in
             self?.handleCompletedCapture(action)
         }
-
-        configureNewCaptureHotkey(appState.newCaptureShortcut)
 
         appState.onLibraryShortcutChanged = { [weak self] shortcut in
             self?.configureLibraryHotkey(shortcut)
