@@ -117,6 +117,7 @@
 		AE14CC0A94C3D4B5B627A304 /* OCRTextSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRTextSelectionView.swift; sourceTree = "<group>"; };
 		BEA6F5BCCB815D3996FC97C1 /* RecorderTextFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderTextFieldTests.swift; sourceTree = "<group>"; };
 		C32DD835B08D04D693297B56 /* snippingToolHostUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = snippingToolHostUITests.swift; sourceTree = "<group>"; };
+
 		CB35A6903E9F6A9DA8688E76 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		D7A5951650119B5C7C4C4CB3 /* AnnotationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationStore.swift; sourceTree = "<group>"; };
 		DC359D8E3C9F535C2FF4FD68 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };

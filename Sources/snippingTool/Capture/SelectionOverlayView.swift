@@ -245,12 +245,14 @@ private struct InlineHintText: View {
 
     var body: some View {
         if let emphasis, emphasis.isEmpty == false {
-            Text(prefix)
-                .font(.caption)
-            + Text(emphasis)
-                .font(.caption.weight(.bold))
-            + Text(suffix)
-                .font(.caption)
+            HStack(spacing: 0) {
+                Text(prefix)
+                    .font(.caption)
+                Text(emphasis)
+                    .font(.caption.weight(.bold))
+                Text(suffix)
+                    .font(.caption)
+            }
         } else {
             Text(fallback ?? prefix + suffix)
                 .font(.caption)
