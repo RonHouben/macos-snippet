@@ -95,7 +95,7 @@ private struct ExportSnapshotView: View {
                         context.opacity = 0.45
                         context.fill(brushPath, with: .color(Color(nsColor: stroke.color)))
                         context.opacity = 1
-                    case .text, .rectangle, .arrow:
+                    case .text, .rectangle, .circle, .arrow:
                         break
                     }
                 }
@@ -105,7 +105,7 @@ private struct ExportSnapshotView: View {
                     let color = Color(nsColor: shapeAnnotation.color)
 
                     switch shapeAnnotation.kind {
-                    case .rectangle:
+                    case .rectangle, .circle:
                         if shapeAnnotation.fillMode.includesFill {
                             context.fill(path, with: .color(color))
                         }

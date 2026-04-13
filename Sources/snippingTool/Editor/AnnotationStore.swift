@@ -349,7 +349,7 @@ final class AnnotationStore {
             kind: selectedShape.kind,
             color: changedColor ? selectedColor : selectedShape.color,
             lineWidth: changedLineWidth ? lineWidth : selectedShape.lineWidth,
-            fillMode: selectedShape.kind == .rectangle ? rectangleFillMode : .outline,
+            fillMode: selectedShape.kind.supportsFillMode ? rectangleFillMode : .outline,
             center: selectedShape.center,
             size: selectedShape.size,
             rotation: selectedShape.rotation

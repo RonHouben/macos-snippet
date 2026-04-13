@@ -136,6 +136,7 @@ final class SnippingToolHostUITests: XCTestCase {
             ("eraser", "Eraser"),
             ("text", "Text"),
             ("rectangle", "Rectangle"),
+            ("circle", "Circle"),
             ("arrow", "Arrow")
         ]
 
@@ -861,6 +862,98 @@ final class SnippingToolHostUITests: XCTestCase {
             on: canvas,
             fromImagePoint: CGPoint(x: resizedCenterX, y: resizedCenterY - (resizedHeight / 2) - 28),
             toImagePoint: CGPoint(x: resizedCenterX + 120, y: resizedCenterY - (resizedHeight / 2) + 100)
+        )
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            guard let rotation = doubleValue(for: "rotation", in: summary) else {
+                return false
+            }
+
+            return abs(rotation) > 0.25
+        }
+
+        app.typeKey(XCUIKeyboardKey.delete.rawValue, modifierFlags: [])
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["shapeCount"] == "0" && summary["selectedKind"] == "none"
+        }
+    }
+
+    func testCanDrawStretchAndDeleteCircleInEditor() throws {
+        openEditorWithSampleCaptureIfNeeded()
+
+        let canvas = editorDrawingSurface()
+        XCTAssertTrue(canvas.waitForExistence(timeout: 5), "Expected the editor drawing surface to be available.")
+
+        selectEditorTool(named: "Circle")
+        adjustStrokeSlider(to: 8)
+
+        let interiorPoint = CGPoint(x: 790, y: 310)
+        drag(on: canvas, fromImagePoint: CGPoint(x: 720, y: 220), toImagePoint: CGPoint(x: 880, y: 360))
+
+        let drawnSummary = waitForShapeSummary(timeout: 5) { summary in
+            guard let width = doubleValue(for: "width", in: summary),
+                  let height = doubleValue(for: "height", in: summary) else {
+                return false
+            }
+
+            return summary["shapeCount"] == "1"
+                && summary["selectedKind"] == "circle"
+                && summary["selectedFillMode"] == "outline"
+                && abs(width - height) <= 1.0
+                && approximatelyEquals(key: "lineWidth", expected: 8, in: summary, tolerance: 0.75)
+        }
+
+        let outlineOnlyImage = try copyEditorImageToPasteboard()
+        try XCTAssertTrue(
+            sampledColors(in: outlineOnlyImage, atImagePoint: interiorPoint).contains(where: {
+                isClose($0, to: SampleCaptureColor.background, tolerance: 0.12)
+            }),
+            "Expected the inside of an outline-only circle to remain transparent."
+        )
+
+        chooseRectangleFill(named: "fill")
+
+        _ = waitForShapeSummary(timeout: 5) { summary in
+            summary["selectedFillMode"] == "fill"
+        }
+
+        let filledImage = try copyEditorImageToPasteboard()
+        try XCTAssertTrue(
+            sampledColors(in: filledImage, atImagePoint: interiorPoint).contains(where: isRedDominant(_:)),
+            "Expected the inside of a filled circle to be tinted by the selected fill color."
+        )
+
+        let initialCenterX = try XCTUnwrap(doubleValue(for: "centerX", in: drawnSummary), "Expected the circle summary to include a center x-value.")
+        let initialCenterY = try XCTUnwrap(doubleValue(for: "centerY", in: drawnSummary), "Expected the circle summary to include a center y-value.")
+        let initialWidth = try XCTUnwrap(doubleValue(for: "width", in: drawnSummary), "Expected the circle summary to include a width.")
+        let initialHeight = try XCTUnwrap(doubleValue(for: "height", in: drawnSummary), "Expected the circle summary to include a height.")
+
+        drag(
+            on: canvas,
+            fromImagePoint: CGPoint(x: initialCenterX + (initialWidth / 2), y: initialCenterY + (initialHeight / 2)),
+            toImagePoint: CGPoint(x: initialCenterX + (initialWidth / 2) + 120, y: initialCenterY + (initialHeight / 2) + 40)
+        )
+
+        let stretchedSummary = waitForShapeSummary(timeout: 5) { summary in
+            guard let width = doubleValue(for: "width", in: summary),
+                  let height = doubleValue(for: "height", in: summary) else {
+                return false
+            }
+
+            return width > initialWidth + 100
+                && height > initialHeight + 20
+                && abs(width - height) > 40
+        }
+
+        let stretchedCenterX = try XCTUnwrap(doubleValue(for: "centerX", in: stretchedSummary), "Expected the stretched circle summary to include a center x-value.")
+        let stretchedCenterY = try XCTUnwrap(doubleValue(for: "centerY", in: stretchedSummary), "Expected the stretched circle summary to include a center y-value.")
+        let stretchedHeight = try XCTUnwrap(doubleValue(for: "height", in: stretchedSummary), "Expected the stretched circle summary to include a height.")
+
+        drag(
+            on: canvas,
+            fromImagePoint: CGPoint(x: stretchedCenterX, y: stretchedCenterY - (stretchedHeight / 2) - 28),
+            toImagePoint: CGPoint(x: stretchedCenterX + 100, y: stretchedCenterY - (stretchedHeight / 2) + 80)
         )
 
         _ = waitForShapeSummary(timeout: 5) { summary in

@@ -46,6 +46,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
     case eraser
     case text
     case rectangle
+    case circle
     case arrow
 
     var id: String { rawValue }
@@ -66,6 +67,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             "textformat"
         case .rectangle:
             "square"
+        case .circle:
+            "circle"
         case .arrow:
             "arrow.up.right"
         }
@@ -87,6 +90,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             "click to place text, drag to move it"
         case .rectangle:
             "drag to draw a rectangle"
+        case .circle:
+            "drag to draw a circle"
         case .arrow:
             "drag to draw an arrow"
         }
@@ -106,14 +111,14 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             .arrow
         case .ocr, .text:
             .iBeam
-        case .pen, .highlighter, .eraser, .rectangle, .arrow:
+        case .pen, .highlighter, .eraser, .rectangle, .circle, .arrow:
             .crosshair
         }
     }
 
     var usesStrokeWidth: Bool {
         switch self {
-        case .pen, .highlighter, .eraser, .rectangle, .arrow:
+        case .pen, .highlighter, .eraser, .rectangle, .circle, .arrow:
             true
         case .select, .ocr, .text:
             false
@@ -124,7 +129,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         switch self {
         case .pen, .highlighter, .eraser:
             true
-        case .select, .ocr, .text, .rectangle, .arrow:
+        case .select, .ocr, .text, .rectangle, .circle, .arrow:
             false
         }
     }
@@ -149,6 +154,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         switch self {
         case .rectangle:
             .rectangle
+        case .circle:
+            .circle
         case .arrow:
             .arrow
         case .select, .ocr, .pen, .highlighter, .eraser, .text:
@@ -160,7 +167,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         switch self {
         case .select, .ocr, .eraser:
             false
-        case .pen, .highlighter, .text, .rectangle, .arrow:
+        case .pen, .highlighter, .text, .rectangle, .circle, .arrow:
             true
         }
     }
@@ -173,7 +180,7 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
         switch self {
         case .eraser:
             1...28
-        case .pen, .highlighter, .rectangle, .arrow:
+        case .pen, .highlighter, .rectangle, .circle, .arrow:
             1...16
         case .select, .ocr, .text:
             1...16
@@ -198,6 +205,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             return "Eraser"
         case .rectangle:
             return "Rectangle"
+        case .circle:
+            return "Circle"
         case .arrow:
             return "Arrow"
         case .pen, .highlighter, .text:
@@ -215,6 +224,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             return "Remove annotations"
         case .rectangle:
             return "Drag to draw • drag handles to resize or rotate"
+        case .circle:
+            return "Drag to draw • drag handles to resize, stretch, or rotate"
         case .arrow:
             return "Drag tail/tip, top/bottom, or corners to edit • rotate with the top handle"
         case .pen, .highlighter, .text:
@@ -238,6 +249,8 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
             "Text"
         case .rectangle:
             "Rectangle"
+        case .circle:
+            "Circle"
         case .arrow:
             "Arrow"
         }
@@ -246,7 +259,17 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
 
 enum AnnotationShapeKind: String, Hashable {
     case rectangle
+    case circle
     case arrow
+
+    var supportsFillMode: Bool {
+        switch self {
+        case .rectangle, .circle:
+            true
+        case .arrow:
+            false
+        }
+    }
 }
 
 enum RectangleFillMode: String, CaseIterable, Identifiable, Hashable {
@@ -386,7 +409,7 @@ struct ShapeAnnotation: Identifiable, Hashable {
 
     var minimumSize: CGSize {
         switch kind {
-        case .rectangle:
+        case .rectangle, .circle:
             CGSize(width: ShapeAnnotationGeometry.minimumDimension, height: ShapeAnnotationGeometry.minimumDimension)
         case .arrow:
             CGSize(width: ShapeAnnotationGeometry.minimumArrowDimension, height: ShapeAnnotationGeometry.minimumArrowDimension)
@@ -410,7 +433,7 @@ enum FreehandBrushGeometry {
         switch tool {
         case .highlighter, .eraser:
             return CGSize(width: baseWidth, height: max(baseWidth * rectangularAspectRatio, baseWidth))
-        case .pen, .select, .ocr, .text, .rectangle, .arrow:
+        case .pen, .select, .ocr, .text, .rectangle, .circle, .arrow:
             return CGSize(width: baseWidth, height: baseWidth)
         }
     }

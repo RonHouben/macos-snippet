@@ -777,7 +777,7 @@ struct AnnotationCanvasView: View {
             context.opacity = 0.45
             context.fill(rectangularBrushPath, with: .color(Color(nsColor: stroke.color)))
             context.opacity = 1
-        case .text, .rectangle, .arrow:
+        case .text, .rectangle, .circle, .arrow:
             break
         }
     }
@@ -820,7 +820,7 @@ struct AnnotationCanvasView: View {
         )
 
         switch shapeAnnotation.kind {
-        case .rectangle:
+        case .rectangle, .circle:
             if shapeAnnotation.fillMode.includesFill {
                 context.fill(path, with: .color(color))
             }
@@ -1106,6 +1106,23 @@ struct AnnotationCanvasView: View {
                 size: normalizedRect.size
             )
 
+        case .circle:
+            let rect = ShapeAnnotationGeometry.square(from: clampedStart, to: clampedCurrent)
+            let normalizedRect = CGRect(
+                x: rect.minX,
+                y: rect.minY,
+                width: max(rect.width, ShapeAnnotationGeometry.minimumDimension),
+                height: max(rect.height, ShapeAnnotationGeometry.minimumDimension)
+            )
+            return ShapeAnnotation(
+                kind: .circle,
+                color: annotationStore.selectedColor,
+                lineWidth: annotationStore.lineWidth,
+                fillMode: annotationStore.rectangleFillMode,
+                center: AnnotationPoint(ShapeAnnotationGeometry.center(for: normalizedRect)),
+                size: normalizedRect.size
+            )
+
         case .arrow:
             let rotation = ShapeAnnotationGeometry.rotation(from: clampedStart, to: clampedCurrent)
             let size = ShapeAnnotationGeometry.arrowSize(
@@ -1135,7 +1152,8 @@ struct AnnotationCanvasView: View {
         case (_, .rotation):
             return shape
 
-        case (.rectangle, let handle) where handle.isCornerHandle:
+        case (.rectangle, let handle) where handle.isCornerHandle,
+             (.circle, let handle) where handle.isCornerHandle:
             let resizeResult = ShapeAnnotationGeometry.resize(
                 fromCenter: shape.center.cgPoint,
                 size: shape.size,
@@ -1224,7 +1242,7 @@ struct AnnotationCanvasView: View {
 
     private func draftShapeShouldCommit(_ shape: ShapeAnnotation, startPoint: CGPoint, endPoint: CGPoint) -> Bool {
         switch shape.kind {
-        case .rectangle:
+        case .rectangle, .circle:
             return shape.size.width >= ShapeAnnotationGeometry.minimumDimension
                 && shape.size.height >= ShapeAnnotationGeometry.minimumDimension
                 && hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y) >= 2
