@@ -222,20 +222,6 @@ final class AppServices {
         }
     }
 
-    private func configureNewCaptureHotkey(_ shortcut: HotkeyShortcut) {
-        newCaptureHotkeyMonitor.stop()
-
-        guard launchConfiguration.disablesGlobalHotkeys == false else {
-            return
-        }
-
-        newCaptureHotkeyMonitor.start(shortcuts: [shortcut]) { [weak self] _ in
-            Task { @MainActor in
-                self?.startPreferredCapture()
-            }
-        }
-    }
-
     private func configureLibraryHotkey(_ shortcut: HotkeyShortcut) {
         libraryHotkeyMonitor.stop()
 
@@ -246,6 +232,24 @@ final class AppServices {
         libraryHotkeyMonitor.start(shortcuts: [shortcut]) { [weak self] _ in
             Task { @MainActor in
                 self?.openLibrary()
+            }
+        }
+    }
+
+    private func configureNewCaptureHotkey(_ shortcut: HotkeyShortcut) {
+        newCaptureHotkeyMonitor.stop()
+
+        guard launchConfiguration.disablesGlobalHotkeys == false else {
+            return
+        }
+
+        newCaptureHotkeyMonitor.start(shortcuts: [shortcut]) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.captureCoordinator.isCaptureInProgress == false else {
+                    return
+                }
+
+                self.startPreferredCapture()
             }
         }
     }

@@ -38,6 +38,9 @@ final class AppState {
     var onHotkeysChanged: ((CaptureModeHotkeyConfiguration) -> Void)?
 
     @ObservationIgnored
+    var onNewCaptureShortcutChanged: ((HotkeyShortcut) -> Void)?
+
+    @ObservationIgnored
     var onEditorCompletionModifiersChanged: ((HotkeyModifiers) -> Void)?
 
     @ObservationIgnored
