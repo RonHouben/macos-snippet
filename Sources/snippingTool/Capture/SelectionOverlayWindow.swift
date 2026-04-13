@@ -5,7 +5,7 @@ import snippingToolCore
 @MainActor
 final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
     private let hostingView: NSHostingView<SelectionOverlayView>
-    private let window: NSWindow
+    private let window: OverlayCapturePanel
     private let coordinator: CaptureCoordinator
     private var localKeyMonitor: Any?
     private var globalKeyMonitor: Any?
@@ -23,9 +23,9 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
         let contentView = SelectionOverlayView(coordinator: coordinator)
         hostingView = NSHostingView(rootView: contentView)
 
-        window = OverlayCaptureWindow(
+        window = OverlayCapturePanel(
             contentRect: screenFrame,
-            styleMask: [.borderless],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -40,13 +40,14 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
         window.ignoresMouseEvents = false
         window.acceptsMouseMovedEvents = true
         window.hasShadow = false
+        window.hidesOnDeactivate = false
+        window.isFloatingPanel = true
+        window.becomesKeyOnlyIfNeeded = true
         window.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.overlayRoot)
         window.contentView = hostingView
         hostingView.setAccessibilityIdentifier(AppAutomationIdentifiers.overlayRoot)
-        if let overlayWindow = window as? OverlayCaptureWindow {
-            overlayWindow.onEscape = { [weak coordinator] in
-                coordinator?.cancelCapture()
-            }
+        window.onEscape = { [weak coordinator] in
+            coordinator?.cancelCapture()
         }
     }
 
@@ -55,7 +56,6 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
         window.makeFirstResponder(window.contentView)
         installEscapeMonitors()
         installMouseMonitor()
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     func close() {
@@ -176,11 +176,11 @@ final class SelectionOverlayWindowController: NSObject, NSWindowDelegate {
     }
 }
 
-private final class OverlayCaptureWindow: NSWindow {
+private final class OverlayCapturePanel: NSPanel {
     var onEscape: (() -> Void)?
 
     override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
+    override var canBecomeMain: Bool { false }
 
     override func keyDown(with event: NSEvent) {
         if OverlayCancelPolicy.shouldCancelCapture(forKeyCode: event.keyCode) {

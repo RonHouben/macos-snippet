@@ -1,7 +1,6 @@
 import AppKit
-import XCTest
+@preconcurrency import XCTest
 
-@MainActor
 final class SnippingToolHostUITests: XCTestCase {
     private enum UITestError: Error {
         case missingCopiedImage

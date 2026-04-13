@@ -32,7 +32,8 @@ final class AppServices {
     let recentCaptureStore = RecentCaptureStore()
     let libraryStore = LibraryStore()
     private let exportService = ExportService()
-    private var libraryHotkeyMonitor: Any?
+    private let newCaptureHotkeyMonitor = RegisteredHotkeyMonitor(signature: 0x534E4350) // 'SNCP'
+    private let libraryHotkeyMonitor = RegisteredHotkeyMonitor(signature: 0x534C4942) // 'SLIB'
 
     var onOnboardingDismissed: (() -> Void)?
 
@@ -59,6 +60,9 @@ final class AppServices {
         appState.onHotkeysChanged = { [weak self] configuration in
             self?.captureCoordinator.configureHotkeys(configuration)
         }
+        appState.onNewCaptureShortcutChanged = { [weak self] shortcut in
+            self?.configureNewCaptureHotkey(shortcut)
+        }
         appState.onThemePreferenceChanged = { [weak self] _ in
             self?.editorWindowManager.applyThemePreference()
             self?.settingsWindowManager.applyThemePreference()
@@ -74,6 +78,8 @@ final class AppServices {
         captureCoordinator.onCaptureCompleted = { [weak self] action in
             self?.handleCompletedCapture(action)
         }
+
+        configureNewCaptureHotkey(appState.newCaptureShortcut)
 
         appState.onLibraryShortcutChanged = { [weak self] shortcut in
             self?.configureLibraryHotkey(shortcut)
@@ -216,23 +222,28 @@ final class AppServices {
         }
     }
 
-    private func configureLibraryHotkey(_ shortcut: HotkeyShortcut) {
-        if let monitor = libraryHotkeyMonitor {
-            NSEvent.removeMonitor(monitor)
-            libraryHotkeyMonitor = nil
-        }
+    private func configureNewCaptureHotkey(_ shortcut: HotkeyShortcut) {
+        newCaptureHotkeyMonitor.stop()
 
         guard launchConfiguration.disablesGlobalHotkeys == false else {
             return
         }
 
-        libraryHotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let normalizedModifiers = event.modifierFlags.hotkeyRelevantModifiers
-            guard shortcut.key.keyCode == event.keyCode,
-                  shortcut.modifiers.eventModifierFlags == normalizedModifiers else {
-                return
+        newCaptureHotkeyMonitor.start(shortcuts: [shortcut]) { [weak self] _ in
+            Task { @MainActor in
+                self?.startPreferredCapture()
             }
+        }
+    }
 
+    private func configureLibraryHotkey(_ shortcut: HotkeyShortcut) {
+        libraryHotkeyMonitor.stop()
+
+        guard launchConfiguration.disablesGlobalHotkeys == false else {
+            return
+        }
+
+        libraryHotkeyMonitor.start(shortcuts: [shortcut]) { [weak self] _ in
             Task { @MainActor in
                 self?.openLibrary()
             }
