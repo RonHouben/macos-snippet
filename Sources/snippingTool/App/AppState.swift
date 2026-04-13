@@ -38,6 +38,9 @@ final class AppState {
     var onHotkeysChanged: ((CaptureModeHotkeyConfiguration) -> Void)?
 
     @ObservationIgnored
+    var onNewCaptureShortcutChanged: ((HotkeyShortcut) -> Void)?
+
+    @ObservationIgnored
     var onEditorCompletionModifiersChanged: ((HotkeyModifiers) -> Void)?
 
     @ObservationIgnored
@@ -71,6 +74,7 @@ final class AppState {
         didSet {
             persistNewCaptureShortcut()
             keybindingValidationMessage = nil
+            onNewCaptureShortcutChanged?(newCaptureShortcut)
         }
     }
 

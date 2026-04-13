@@ -124,13 +124,17 @@ enum WindowSelectionTargetingPolicy {
             return lhs.windowLayer > rhs.windowLayer
         }
 
+        if lhs.stackingIndex != rhs.stackingIndex {
+            return lhs.stackingIndex < rhs.stackingIndex
+        }
+
         let lhsArea = lhs.bounds.width * lhs.bounds.height
         let rhsArea = rhs.bounds.width * rhs.bounds.height
         if lhsArea != rhsArea {
             return lhsArea < rhsArea
         }
 
-        return lhs.stackingIndex < rhs.stackingIndex
+        return lhs.windowID < rhs.windowID
     }
 
     private static func candidate(

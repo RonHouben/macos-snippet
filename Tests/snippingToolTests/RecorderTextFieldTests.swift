@@ -205,6 +205,18 @@ final class RecorderTextFieldTests: XCTestCase {
         XCTAssertNil(appState.keybindingValidationMessage)
     }
 
+    func testUpdatingNewCaptureShortcutNotifiesObservers() {
+        let defaults = makeDefaults(suiteName: #function)
+        let appState = AppState(defaults: defaults)
+        let updatedShortcut = HotkeyShortcut(key: .three, modifiers: [.command, .shift])
+        var observedShortcut: HotkeyShortcut?
+
+        appState.onNewCaptureShortcutChanged = { observedShortcut = $0 }
+
+        XCTAssertTrue(appState.updateNewCaptureShortcut(updatedShortcut))
+        XCTAssertEqual(observedShortcut, updatedShortcut)
+    }
+
     func testNewCaptureShortcutRejectsMissingModifier() {
         let defaults = makeDefaults(suiteName: #function)
         let appState = AppState(defaults: defaults)

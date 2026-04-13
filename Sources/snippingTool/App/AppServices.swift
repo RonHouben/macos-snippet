@@ -4,6 +4,23 @@ import snippingToolCore
 
 @MainActor
 final class AppServices {
+    private struct ShortcutMonitorHandles {
+        var global: Any?
+        var local: Any?
+
+        mutating func removeAll() {
+            if let global {
+                NSEvent.removeMonitor(global)
+            }
+            if let local {
+                NSEvent.removeMonitor(local)
+            }
+
+            global = nil
+            local = nil
+        }
+    }
+
     static let shared = AppServices()
 
     static func shouldOfferSetupGuidance(hasCompletedOnboarding: Bool, needsAnyPermission: Bool) -> Bool {
@@ -32,7 +49,8 @@ final class AppServices {
     let recentCaptureStore = RecentCaptureStore()
     let libraryStore = LibraryStore()
     private let exportService = ExportService()
-    private var libraryHotkeyMonitor: Any?
+    private var newCaptureHotkeyMonitors = ShortcutMonitorHandles()
+    private var libraryHotkeyMonitors = ShortcutMonitorHandles()
 
     var onOnboardingDismissed: (() -> Void)?
 
@@ -59,6 +77,9 @@ final class AppServices {
         appState.onHotkeysChanged = { [weak self] configuration in
             self?.captureCoordinator.configureHotkeys(configuration)
         }
+        appState.onNewCaptureShortcutChanged = { [weak self] shortcut in
+            self?.configureNewCaptureHotkey(shortcut)
+        }
         appState.onThemePreferenceChanged = { [weak self] _ in
             self?.editorWindowManager.applyThemePreference()
             self?.settingsWindowManager.applyThemePreference()
@@ -74,6 +95,8 @@ final class AppServices {
         captureCoordinator.onCaptureCompleted = { [weak self] action in
             self?.handleCompletedCapture(action)
         }
+
+        configureNewCaptureHotkey(appState.newCaptureShortcut)
 
         appState.onLibraryShortcutChanged = { [weak self] shortcut in
             self?.configureLibraryHotkey(shortcut)
@@ -217,26 +240,58 @@ final class AppServices {
     }
 
     private func configureLibraryHotkey(_ shortcut: HotkeyShortcut) {
-        if let monitor = libraryHotkeyMonitor {
-            NSEvent.removeMonitor(monitor)
-            libraryHotkeyMonitor = nil
+        installShortcutMonitor(shortcut, into: &libraryHotkeyMonitors) { [weak self] in
+            self?.openLibrary()
         }
+    }
+
+    private func configureNewCaptureHotkey(_ shortcut: HotkeyShortcut) {
+        installShortcutMonitor(shortcut, into: &newCaptureHotkeyMonitors) { [weak self] in
+            guard let self, self.captureCoordinator.isCaptureInProgress == false else {
+                return
+            }
+
+            self.startPreferredCapture()
+        }
+    }
+
+    private func installShortcutMonitor(
+        _ shortcut: HotkeyShortcut,
+        into handles: inout ShortcutMonitorHandles,
+        onMatch: @escaping @MainActor () -> Void
+    ) {
+        handles.removeAll()
 
         guard launchConfiguration.disablesGlobalHotkeys == false else {
             return
         }
 
-        libraryHotkeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let normalizedModifiers = event.modifierFlags.hotkeyRelevantModifiers
-            guard shortcut.key.keyCode == event.keyCode,
-                  shortcut.modifiers.eventModifierFlags == normalizedModifiers else {
+        handles.global = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { event in
+            guard Self.eventMatchesShortcut(event, shortcut: shortcut) else {
                 return
             }
 
             Task { @MainActor in
-                self?.openLibrary()
+                onMatch()
             }
         }
+
+        handles.local = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard Self.eventMatchesShortcut(event, shortcut: shortcut) else {
+                return event
+            }
+
+            Task { @MainActor in
+                onMatch()
+            }
+            return nil
+        }
+    }
+
+    private static func eventMatchesShortcut(_ event: NSEvent, shortcut: HotkeyShortcut) -> Bool {
+        let normalizedModifiers = event.modifierFlags.hotkeyRelevantModifiers
+        return shortcut.key.keyCode == event.keyCode &&
+            shortcut.modifiers.eventModifierFlags == normalizedModifiers
     }
 
     private func handleCompletedCapture(_ action: CaptureCompletionAction) {
