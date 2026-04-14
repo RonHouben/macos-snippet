@@ -72,59 +72,63 @@ private struct ExportSnapshotView: View {
                 .frame(width: CGFloat(capturedSnippet.cgImage.width), height: CGFloat(capturedSnippet.cgImage.height))
 
             Canvas { context, _ in
-                for stroke in strokes where stroke.points.count > 1 {
-                    let points = stroke.points.map(\.cgPoint)
-                    let centerlinePath = FreehandBrushGeometry.centerlinePath(points: points)
-                    let brushPath = FreehandBrushGeometry.rectangularStampPath(
-                        points: points,
-                        footprint: FreehandBrushGeometry.footprintSize(for: stroke.tool, lineWidth: stroke.lineWidth)
-                    )
+                for element in orderedAnnotationRenderElements(
+                    strokes: strokes,
+                    textAnnotations: textAnnotations,
+                    shapeAnnotations: shapeAnnotations
+                ) {
+                    switch element {
+                    case .stroke(let stroke):
+                        guard stroke.points.count > 1 else { continue }
+                        let points = stroke.points.map(\.cgPoint)
+                        let centerlinePath = FreehandBrushGeometry.centerlinePath(points: points)
+                        let brushPath = FreehandBrushGeometry.rectangularStampPath(
+                            points: points,
+                            footprint: FreehandBrushGeometry.footprintSize(for: stroke.tool, lineWidth: stroke.lineWidth)
+                        )
 
-                    switch stroke.tool {
-                    case .select:
-                        break
-                    case .ocr:
-                        break
-                    case .eraser:
-                        context.blendMode = .clear
-                        context.fill(brushPath, with: .color(.clear))
-                        context.blendMode = .normal
-                    case .pen:
-                        context.stroke(centerlinePath, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: stroke.lineWidth, lineCap: .round, lineJoin: .round))
-                    case .highlighter:
-                        context.opacity = 0.45
-                        context.fill(brushPath, with: .color(Color(nsColor: stroke.color)))
-                        context.opacity = 1
-                    case .text, .rectangle, .circle, .arrow:
-                        break
-                    }
-                }
-
-                for shapeAnnotation in shapeAnnotations {
-                    let path = ShapeAnnotationRenderer.path(for: shapeAnnotation) { $0 }
-                    let color = Color(nsColor: shapeAnnotation.color)
-
-                    switch shapeAnnotation.kind {
-                    case .rectangle, .circle:
-                        if shapeAnnotation.fillMode.includesFill {
-                            context.fill(path, with: .color(color))
+                        switch stroke.tool {
+                        case .select:
+                            break
+                        case .ocr:
+                            break
+                        case .eraser:
+                            context.blendMode = .clear
+                            context.fill(brushPath, with: .color(.clear))
+                            context.blendMode = .normal
+                        case .pen:
+                            context.stroke(centerlinePath, with: .color(Color(nsColor: stroke.color)), style: StrokeStyle(lineWidth: stroke.lineWidth, lineCap: .round, lineJoin: .round))
+                        case .highlighter:
+                            context.opacity = 0.45
+                            context.fill(brushPath, with: .color(Color(nsColor: stroke.color)))
+                            context.opacity = 1
+                        case .text, .rectangle, .circle, .arrow:
+                            break
                         }
-                        if shapeAnnotation.fillMode.includesStroke {
-                            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: shapeAnnotation.lineWidth, lineJoin: .round))
-                        }
-                    case .arrow:
-                        context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: shapeAnnotation.lineWidth, lineCap: .round, lineJoin: .round))
-                    }
-                }
+                    case .shape(let shapeAnnotation):
+                        let path = ShapeAnnotationRenderer.path(for: shapeAnnotation) { $0 }
+                        let color = Color(nsColor: shapeAnnotation.color)
 
-                for textAnnotation in textAnnotations {
-                    context.draw(
-                        Text(textAnnotation.text)
-                            .font(.system(size: textAnnotation.fontSize))
-                            .foregroundStyle(Color(nsColor: textAnnotation.color)),
-                        at: textAnnotation.anchor.cgPoint,
-                        anchor: .topLeading
-                    )
+                        switch shapeAnnotation.kind {
+                        case .rectangle, .circle:
+                            if shapeAnnotation.fillMode.includesFill {
+                                context.fill(path, with: .color(color))
+                            }
+                            if shapeAnnotation.fillMode.includesStroke {
+                                context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: shapeAnnotation.lineWidth, lineJoin: .round))
+                            }
+                        case .arrow:
+                            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: shapeAnnotation.lineWidth, lineCap: .round, lineJoin: .round))
+                        }
+                    case .text(let textAnnotation):
+                        context.draw(
+                            Text(textAnnotation.text)
+                                .font(.system(size: textAnnotation.fontSize))
+                                .foregroundStyle(Color(nsColor: textAnnotation.color)),
+                            at: textAnnotation.anchor.cgPoint,
+                            anchor: .topLeading
+                        )
+                    }
                 }
             }
         }

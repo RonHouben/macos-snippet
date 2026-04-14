@@ -26,6 +26,18 @@ struct CapturedSnippet: Identifiable, Equatable {
     }
 }
 
+private enum AnnotationCreationOrder {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var nextValue: UInt64 = 0
+
+    static func make() -> UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        nextValue += 1
+        return nextValue
+    }
+}
+
 enum AnnotationSelection: Hashable {
     case text(UUID)
     case shape(UUID)
@@ -323,6 +335,7 @@ struct AnnotationPoint: Codable, Hashable {
 
 struct AnnotationStroke: Identifiable, Hashable {
     let id: UUID
+    let creationOrder: UInt64
     let tool: AnnotationTool
     let colorData: Data
     let lineWidth: CGFloat
@@ -330,12 +343,14 @@ struct AnnotationStroke: Identifiable, Hashable {
 
     init(
         id: UUID = UUID(),
+        creationOrder: UInt64 = AnnotationCreationOrder.make(),
         tool: AnnotationTool,
         color: NSColor,
         lineWidth: CGFloat,
         points: [AnnotationPoint]
     ) {
         self.id = id
+        self.creationOrder = creationOrder
         self.tool = tool
         self.colorData = archivedColorData(for: color)
         self.lineWidth = lineWidth
@@ -349,6 +364,7 @@ struct AnnotationStroke: Identifiable, Hashable {
 
 struct TextAnnotation: Identifiable, Hashable {
     let id: UUID
+    let creationOrder: UInt64
     let text: String
     let colorData: Data
     let fontSize: CGFloat
@@ -356,12 +372,14 @@ struct TextAnnotation: Identifiable, Hashable {
 
     init(
         id: UUID = UUID(),
+        creationOrder: UInt64 = AnnotationCreationOrder.make(),
         text: String,
         color: NSColor,
         fontSize: CGFloat,
         anchor: AnnotationPoint
     ) {
         self.id = id
+        self.creationOrder = creationOrder
         self.text = text
         self.colorData = archivedColorData(for: color)
         self.fontSize = fontSize
@@ -375,6 +393,7 @@ struct TextAnnotation: Identifiable, Hashable {
 
 struct ShapeAnnotation: Identifiable, Hashable {
     let id: UUID
+    let creationOrder: UInt64
     let kind: AnnotationShapeKind
     let colorData: Data
     let lineWidth: CGFloat
@@ -385,6 +404,7 @@ struct ShapeAnnotation: Identifiable, Hashable {
 
     init(
         id: UUID = UUID(),
+        creationOrder: UInt64 = AnnotationCreationOrder.make(),
         kind: AnnotationShapeKind,
         color: NSColor,
         lineWidth: CGFloat,
@@ -394,6 +414,7 @@ struct ShapeAnnotation: Identifiable, Hashable {
         rotation: CGFloat = 0
     ) {
         self.id = id
+        self.creationOrder = creationOrder
         self.kind = kind
         self.colorData = archivedColorData(for: color)
         self.lineWidth = lineWidth
@@ -415,6 +436,34 @@ struct ShapeAnnotation: Identifiable, Hashable {
             CGSize(width: ShapeAnnotationGeometry.minimumArrowDimension, height: ShapeAnnotationGeometry.minimumArrowDimension)
         }
     }
+}
+
+enum AnnotationRenderElement {
+    case stroke(AnnotationStroke)
+    case text(TextAnnotation)
+    case shape(ShapeAnnotation)
+
+    var creationOrder: UInt64 {
+        switch self {
+        case .stroke(let stroke):
+            stroke.creationOrder
+        case .text(let textAnnotation):
+            textAnnotation.creationOrder
+        case .shape(let shapeAnnotation):
+            shapeAnnotation.creationOrder
+        }
+    }
+}
+
+func orderedAnnotationRenderElements(
+    strokes: [AnnotationStroke],
+    textAnnotations: [TextAnnotation],
+    shapeAnnotations: [ShapeAnnotation]
+) -> [AnnotationRenderElement] {
+    (strokes.map(AnnotationRenderElement.stroke)
+        + textAnnotations.map(AnnotationRenderElement.text)
+        + shapeAnnotations.map(AnnotationRenderElement.shape))
+        .sorted { $0.creationOrder < $1.creationOrder }
 }
 
 struct ExportedCapture: Identifiable, Equatable {

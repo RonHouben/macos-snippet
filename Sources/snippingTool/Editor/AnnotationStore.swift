@@ -197,6 +197,7 @@ final class AnnotationStore {
         var updatedAnnotations = textAnnotations
         updatedAnnotations[index] = TextAnnotation(
             id: textAnnotation.id,
+            creationOrder: textAnnotation.creationOrder,
             text: textAnnotation.text,
             color: textAnnotation.color,
             fontSize: textAnnotation.fontSize,
@@ -346,6 +347,7 @@ final class AnnotationStore {
 
         let updatedShape = ShapeAnnotation(
             id: selectedShape.id,
+            creationOrder: selectedShape.creationOrder,
             kind: selectedShape.kind,
             color: changedColor ? selectedColor : selectedShape.color,
             lineWidth: changedLineWidth ? lineWidth : selectedShape.lineWidth,
@@ -379,6 +381,7 @@ final class AnnotationStore {
 
             let updatedTextAnnotation = TextAnnotation(
                 id: textAnnotation.id,
+                creationOrder: textAnnotation.creationOrder,
                 text: textAnnotation.text,
                 color: changedColor ? selectedColor : textAnnotation.color,
                 fontSize: changedFontSize ? textFontSize : textAnnotation.fontSize,

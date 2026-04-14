@@ -37,6 +37,7 @@
 		9730BB71C9619DA749081A56 /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 387AE152230447688959BCCF /* ExportService.swift */; };
 		9768635D44FADB88A1A885B4 /* GlobalHotkeyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20213997E05DED07B646DF2E /* GlobalHotkeyMonitor.swift */; };
 		AB1FC0E77629F779CD5317BA /* OCRSelectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 008298ACBF43FDA33418933C /* OCRSelectionState.swift */; };
+		AFA9BA5045FEB1927261D231 /* ExportServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CE7284A29B95ED9D28F42E6 /* ExportServiceTests.swift */; };
 		BBA106CFEC1E8A7E92C8BBD5 /* AnnotationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7A5951650119B5C7C4C4CB3 /* AnnotationStore.swift */; };
 		D7CFFE4A8406FEA212AFA192 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E0AAB858489BDF030913C28 /* AppDelegate.swift */; };
 		DA7D5DE3EE0802B8EA745D18 /* snippingToolCore in Frameworks */ = {isa = PBXBuildFile; productRef = D6C1981219670D3E50C55721 /* snippingToolCore */; };
@@ -94,7 +95,6 @@
 		323D5E90A83E721328BACB17 /* OnboardingWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowManager.swift; sourceTree = "<group>"; };
 		34E783B8F426985FC47A828A /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		387AE152230447688959BCCF /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
-		38C1F5FD365B4DABE4479192 /* snippingTool */ = {isa = PBXFileReference; lastKnownFileType = folder; name = snippingTool; path = .; sourceTree = SOURCE_ROOT; };
 		3B1B2BF058D9172336F68ACE /* OnboardingState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingState.swift; sourceTree = "<group>"; };
 		44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationToolbarView.swift; sourceTree = "<group>"; };
 		4B9F976AF437339A50626C08 /* LibraryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryItem.swift; sourceTree = "<group>"; };
@@ -103,6 +103,7 @@
 		54064FE90C25F7A1974EF596 /* LibraryItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryItemView.swift; sourceTree = "<group>"; };
 		54935EFE6D9992AA3AED0514 /* CaptureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureModels.swift; sourceTree = "<group>"; };
 		55BEB2F2B864565A972118DE /* AnnotationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationStoreTests.swift; sourceTree = "<group>"; };
+		5EBA8A3CE726BE47CB6F53D2 /* agents-deep-spider */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "agents-deep-spider"; path = .; sourceTree = SOURCE_ROOT; };
 		626EE4F8768D2FE6C6643502 /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContentView.swift; sourceTree = "<group>"; };
 		68609BA7AFCD4A6F142F5D34 /* snippingToolHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = snippingToolHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		72DF3076A5E95E802F6411F0 /* AppServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServices.swift; sourceTree = "<group>"; };
@@ -110,6 +111,7 @@
 		77A00D6AC58F02E5EC3D03C3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7DD2B78AA767B41CFEA2F735 /* ShapeAnnotationRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeAnnotationRenderer.swift; sourceTree = "<group>"; };
 		804B6FAA86DCA84687912502 /* SelectionOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayView.swift; sourceTree = "<group>"; };
+		9CE7284A29B95ED9D28F42E6 /* ExportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportServiceTests.swift; sourceTree = "<group>"; };
 		9D67D790E3CFE686BBF11EAD /* CaptureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureCoordinator.swift; sourceTree = "<group>"; };
 		A058F45AA666B9C2355748B7 /* HotkeyEventMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyEventMapping.swift; sourceTree = "<group>"; };
 		A92BEE8747A45F16C7D991FD /* snippingToolHostTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = snippingToolHostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -208,6 +210,7 @@
 			isa = PBXGroup;
 			children = (
 				55BEB2F2B864565A972118DE /* AnnotationStoreTests.swift */,
+				9CE7284A29B95ED9D28F42E6 /* ExportServiceTests.swift */,
 				BEA6F5BCCB815D3996FC97C1 /* RecorderTextFieldTests.swift */,
 			);
 			path = snippingToolTests;
@@ -269,7 +272,7 @@
 		A11F0B984B8AA5A1262624EA /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				38C1F5FD365B4DABE4479192 /* snippingTool */,
+				5EBA8A3CE726BE47CB6F53D2 /* agents-deep-spider */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -522,6 +525,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F6010C62FE9F6D0E80EE7112 /* AnnotationStoreTests.swift in Sources */,
+				AFA9BA5045FEB1927261D231 /* ExportServiceTests.swift in Sources */,
 				DA999529CFB1FDCFC67EADC7 /* RecorderTextFieldTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

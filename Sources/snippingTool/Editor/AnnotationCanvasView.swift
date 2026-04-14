@@ -408,12 +408,12 @@ struct AnnotationCanvasView: View {
 
     private func annotationOverlay(containerSize: CGSize, imageFrame: CGRect, imageSize: CGSize) -> some View {
         Canvas { context, _ in
-            for stroke in annotationStore.strokes {
-                render(stroke: stroke, into: &context, imageFrame: imageFrame, imageSize: imageSize)
-            }
-
-            for shapeAnnotation in annotationStore.shapeAnnotations {
-                render(shapeAnnotation: shapeAnnotation, into: &context, imageFrame: imageFrame, imageSize: imageSize)
+            for element in orderedAnnotationRenderElements(
+                strokes: annotationStore.strokes,
+                textAnnotations: annotationStore.textAnnotations,
+                shapeAnnotations: annotationStore.shapeAnnotations
+            ) {
+                render(element: element, into: &context, imageFrame: imageFrame, imageSize: imageSize)
             }
 
             if let draftShapeAnnotation {
@@ -429,10 +429,7 @@ struct AnnotationCanvasView: View {
                 )
                 render(stroke: draft, into: &context, imageFrame: imageFrame, imageSize: imageSize)
             }
-
             for textAnnotation in annotationStore.textAnnotations {
-                render(textAnnotation: textAnnotation, into: &context, imageFrame: imageFrame, imageSize: imageSize)
-
                 if hoveredTextAnnotationID == textAnnotation.id
                     || textDragState?.annotationID == textAnnotation.id
                     || annotationStore.isSelected(.text(textAnnotation.id)) {
@@ -782,6 +779,17 @@ struct AnnotationCanvasView: View {
         }
     }
 
+    private func render(element: AnnotationRenderElement, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
+        switch element {
+        case .stroke(let stroke):
+            render(stroke: stroke, into: &context, imageFrame: imageFrame, imageSize: imageSize)
+        case .text(let textAnnotation):
+            render(textAnnotation: textAnnotation, into: &context, imageFrame: imageFrame, imageSize: imageSize)
+        case .shape(let shapeAnnotation):
+            render(shapeAnnotation: shapeAnnotation, into: &context, imageFrame: imageFrame, imageSize: imageSize)
+        }
+    }
+
     private func render(textAnnotation: TextAnnotation, into context: inout GraphicsContext, imageFrame: CGRect, imageSize: CGSize) {
         let canvasPoint = AnnotationCoordinateMapper.canvasPoint(
             fromImagePoint: textAnnotation.anchor.cgPoint,
@@ -1030,6 +1038,7 @@ struct AnnotationCanvasView: View {
             annotationStore.updateShapeAnnotation(
                 ShapeAnnotation(
                     id: initialShape.id,
+                    creationOrder: initialShape.creationOrder,
                     kind: initialShape.kind,
                     color: initialShape.color,
                     lineWidth: initialShape.lineWidth,
@@ -1057,6 +1066,7 @@ struct AnnotationCanvasView: View {
             annotationStore.updateShapeAnnotation(
                 ShapeAnnotation(
                     id: initialShape.id,
+                    creationOrder: initialShape.creationOrder,
                     kind: initialShape.kind,
                     color: initialShape.color,
                     lineWidth: initialShape.lineWidth,
@@ -1165,6 +1175,7 @@ struct AnnotationCanvasView: View {
             )
             return ShapeAnnotation(
                 id: shape.id,
+                creationOrder: shape.creationOrder,
                 kind: shape.kind,
                 color: shape.color,
                 lineWidth: shape.lineWidth,
@@ -1185,6 +1196,7 @@ struct AnnotationCanvasView: View {
             )
             return ShapeAnnotation(
                 id: shape.id,
+                creationOrder: shape.creationOrder,
                 kind: shape.kind,
                 color: shape.color,
                 lineWidth: shape.lineWidth,
@@ -1205,6 +1217,7 @@ struct AnnotationCanvasView: View {
             )
             return ShapeAnnotation(
                 id: shape.id,
+                creationOrder: shape.creationOrder,
                 kind: shape.kind,
                 color: shape.color,
                 lineWidth: shape.lineWidth,
@@ -1226,6 +1239,7 @@ struct AnnotationCanvasView: View {
             )
             return ShapeAnnotation(
                 id: shape.id,
+                creationOrder: shape.creationOrder,
                 kind: shape.kind,
                 color: shape.color,
                 lineWidth: max(shape.lineWidth * resizeResult.scaleFactor, 1),
@@ -1844,6 +1858,7 @@ struct AnnotationCanvasView: View {
             annotationStore.updateShapeAnnotation(
                 ShapeAnnotation(
                     id: id,
+                    creationOrder: shape.creationOrder,
                     kind: shape.kind,
                     color: shape.color,
                     lineWidth: shape.lineWidth,
