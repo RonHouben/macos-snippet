@@ -5,7 +5,7 @@ argument-hint: Outline the goal or problem to research
 target: vscode
 disable-model-invocation: true
 tools: ['search', 'read', 'web', 'vscode/memory', 'github/issue_read', 'github.vscode-pull-request-github/issue_fetch', 'github.vscode-pull-request-github/activePullRequest', 'execute/getTerminalOutput', 'execute/testFailure', 'agent', 'vscode/askQuestions']
-agents: ['Explore']
+agents: ['DeepSearch']
 handoffs:
   - label: Start Implementation
     agent: agent
@@ -36,7 +36,7 @@ Cycle through these phases based on user input. This is iterative, not linear. I
 
 ## 1. Discovery
 
-Run the *Explore* subagent to gather context, analogous existing features to use as implementation templates, and potential blockers or ambiguities. When the task spans multiple independent areas (e.g., frontend + backend, different features, separate repos), launch **2-3 *Explore* subagents in parallel** — one per area — to speed up discovery.
+Run the *DeepSaerch* subagent to gather context, analogous existing features to use as implementation templates, and potential blockers or ambiguities. When the task spans multiple independent areas (e.g., frontend + backend, different features, separate repos), launch **2-3 *Explore* subagents in parallel** — one per area — to speed up discovery.
 
 Update the plan with your findings.
 
