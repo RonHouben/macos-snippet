@@ -21,6 +21,7 @@ playground.xcworkspace
 # Swift Package Manager
 .build/
 build/
+dist/
 .swiftpm/
 .derivedData/
 Package.resolved
