@@ -227,54 +227,6 @@ func testEditorWindowPlacementResolvesVisibleFrameUsingFullScreenBounds() throws
     )
 }
 
-func testDefaultHotkeyConfigurationStartsWithRectangularBinding() throws {
-    let configuration = CaptureModeHotkeyConfiguration.default
-
-    try expect(
-        configuration.rectangular == HotkeyShortcut.recommended(for: .rectangular),
-        "Rectangular capture should start with the recommended default shortcut"
-    )
-    try expect(configuration.fullScreen == nil, "Full Screen should start without a default shortcut")
-    try expect(configuration.window == nil, "Window capture should start without a default shortcut")
-    try expect(
-        configuration.activeBindings.map(\.mode) == [.rectangular],
-        "Only the rectangular capture shortcut should be active by default"
-    )
-}
-
-func testHotkeyConfigurationReportsDuplicateAssignments() throws {
-    let duplicateShortcut = HotkeyShortcut(key: .four, modifiers: [.command, .shift])
-    let configuration = CaptureModeHotkeyConfiguration(
-        rectangular: duplicateShortcut,
-        fullScreen: duplicateShortcut,
-        window: nil
-    )
-
-    try expect(configuration.conflicts.count == 1, "Duplicate shortcuts should produce one conflict")
-    try expect(configuration.conflicts.first?.shortcut == duplicateShortcut, "Conflict should point at the duplicate shortcut")
-    try expect(configuration.conflicts.first?.modes == [.rectangular, .fullScreen], "Conflict should list the modes sharing the shortcut")
-}
-
-func testHotkeyValidationRejectsModifierlessShortcut() throws {
-    let configuration = CaptureModeHotkeyConfiguration.default
-    let invalidShortcut = HotkeyShortcut(key: .k, modifiers: [])
-
-    try expect(
-        configuration.validationError(for: .fullScreen, shortcut: invalidShortcut) == "Shortcuts must include at least one modifier key.",
-        "Shortcuts without modifiers should be rejected"
-    )
-}
-
-func testHotkeyValidationRejectsDuplicateShortcutAcrossModes() throws {
-    let duplicateShortcut = HotkeyShortcut.recommended(for: .rectangular)
-    let configuration = CaptureModeHotkeyConfiguration(rectangular: duplicateShortcut)
-
-    try expect(
-        configuration.validationError(for: .fullScreen, shortcut: duplicateShortcut) == "⇧⌘4 is assigned to multiple modes: Rectangular, Full Screen.",
-        "Assigning the same shortcut to multiple modes should be rejected"
-    )
-}
-
 func testHotkeyKeyCanBeCreatedFromSupportedKeyCode() throws {
     try expect(HotkeyKey(keyCode: 21) == .four, "Key code 21 should map to the 4 key")
     try expect(HotkeyKey(keyCode: 13) == .w, "Key code 13 should map to the W key")
@@ -557,10 +509,6 @@ do {
     try testEditorWindowPlacementChoosesTheScreenWithLargestCapturedArea()
     try testEditorWindowPlacementCentersWindowInsideVisibleScreenFrame()
     try testEditorWindowPlacementResolvesVisibleFrameUsingFullScreenBounds()
-    try testDefaultHotkeyConfigurationStartsWithRectangularBinding()
-    try testHotkeyConfigurationReportsDuplicateAssignments()
-    try testHotkeyValidationRejectsModifierlessShortcut()
-    try testHotkeyValidationRejectsDuplicateShortcutAcrossModes()
     try testHotkeyKeyCanBeCreatedFromSupportedKeyCode()
     try testHotkeyKeyRejectsUnsupportedKeyCode()
     try testCapturedShortcutRequiresAtLeastOneModifier()

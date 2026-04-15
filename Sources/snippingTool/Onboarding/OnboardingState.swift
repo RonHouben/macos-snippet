@@ -32,7 +32,7 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
         case .permissions:
             "Grant the access macOS needs for screen capture and global shortcuts."
         case .shortcuts:
-            "Set up snippingTool to reuse the familiar macOS screenshot shortcuts."
+            "Choose the keyboard shortcut and capture behavior you want."
         case .theme:
             "Choose how the app should look."
         case .finish:
@@ -45,7 +45,6 @@ enum OnboardingStep: Int, CaseIterable, Identifiable {
 @MainActor
 final class OnboardingState {
     var currentStep: OnboardingStep = .welcome
-    var hasAppliedSystemShortcutPreset = false
 
     var canGoBack: Bool {
         currentStep != .welcome

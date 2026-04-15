@@ -1,4 +1,5 @@
 import AppKit
+import CoreServices
 import Foundation
 import snippingToolCore
 
@@ -43,12 +44,13 @@ enum AppLaunchConfiguration {
     private static let defaultsSuiteEnvironmentKey = "SNIPPING_TOOL_DEFAULTS_SUITE"
     private static let defaultUITestDefaultsSuite = "snippingTool.ui-tests"
 
-    case process(arguments: Set<String>, environment: [String: String])
+    case process(arguments: Set<String>, environment: [String: String], launchedAsLoginItem: Bool)
 
     static var current: AppLaunchConfiguration {
         .process(
             arguments: Set(ProcessInfo.processInfo.arguments),
-            environment: ProcessInfo.processInfo.environment
+            environment: ProcessInfo.processInfo.environment,
+            launchedAsLoginItem: Self.currentLaunchWasFromLoginItem
         )
     }
 
@@ -62,6 +64,13 @@ enum AppLaunchConfiguration {
 
     var usesEphemeralDefaults: Bool {
         isUITesting || hasArgument(Self.ephemeralDefaultsArgument) || isEnabled(Self.ephemeralDefaultsEnvironmentKey)
+    }
+
+    var wasLaunchedAsLoginItem: Bool {
+        switch self {
+        case let .process(_, _, launchedAsLoginItem):
+            launchedAsLoginItem
+        }
     }
 
     func makeUserDefaults() -> UserDefaults {
@@ -80,7 +89,7 @@ enum AppLaunchConfiguration {
 
     private func hasArgument(_ argument: String) -> Bool {
         switch self {
-        case let .process(arguments, _):
+        case let .process(arguments, _, _):
             arguments.contains(argument)
         }
     }
@@ -95,9 +104,17 @@ enum AppLaunchConfiguration {
 
     private func environmentValue(for key: String) -> String? {
         switch self {
-        case let .process(_, environment):
+        case let .process(_, environment, _):
             environment[key]
         }
+    }
+
+    private static var currentLaunchWasFromLoginItem: Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent else {
+            return false
+        }
+
+        return event.paramDescriptor(forKeyword: AEKeyword(keyAELaunchedAsLogInItem)) != nil
     }
 }
 
@@ -115,6 +132,7 @@ enum AppAutomationIdentifiers {
     static let settingsWindow = "window.settings"
     static let settingsRoot = "settings.root"
     static let settingsThemePicker = "settings.theme"
+    static let settingsLaunchAtLoginToggle = "settings.launch-at-login"
     static let settingsCaptureModePicker = "settings.capture-mode"
     static let settingsNewCaptureShortcutRecorder = "settings.new-capture-shortcut"
     static let settingsNewCaptureShortcutResetButton = "settings.new-capture-shortcut.reset"
@@ -131,7 +149,6 @@ enum AppAutomationIdentifiers {
     static let onboardingBackButton = "onboarding.back"
     static let onboardingCancelButton = "onboarding.cancel"
     static let onboardingFinishButton = "onboarding.finish"
-    static let onboardingOpenSystemSettingsButton = "onboarding.open-system-settings"
     static let onboardingRefreshPermissionsButton = "onboarding.refresh-permissions"
     static let onboardingScreenRecordingButton = "onboarding.request-screen-recording"
     static let onboardingAccessibilityButton = "onboarding.request-accessibility"
@@ -192,18 +209,6 @@ enum AppAutomationIdentifiers {
         case .quit:
             "status-menu.quit"
         }
-    }
-
-    static func settingsHotkeyToggle(for mode: CaptureMode) -> String {
-        "settings.hotkey-toggle.\(mode.rawValue)"
-    }
-
-    static func settingsHotkeyRecorder(for mode: CaptureMode) -> String {
-        "settings.hotkey-recorder.\(mode.rawValue)"
-    }
-
-    static func settingsHotkeyClearButton(for mode: CaptureMode) -> String {
-        "settings.hotkey-clear.\(mode.rawValue)"
     }
 
     static func overlayModeButton(for mode: CaptureMode) -> String {

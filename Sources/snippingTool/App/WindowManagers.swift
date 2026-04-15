@@ -112,7 +112,7 @@ final class SettingsWindowManager {
         let window = NSWindow(contentViewController: hostingController)
         window.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.settingsWindow)
         window.title = "Settings"
-        window.setContentSize(NSSize(width: 680, height: 440))
+        window.setContentSize(NSSize(width: 680, height: 640))
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
         window.apply(themePreference: services.appState.themePreference)

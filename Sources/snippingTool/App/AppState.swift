@@ -8,9 +8,9 @@ final class AppState {
     private enum StorageKeys {
         static let themePreference = "themePreference"
         static let preferredCaptureMode = "preferredCaptureMode"
-        static let captureModeHotkeys = "captureModeHotkeys"
         static let newCaptureShortcut = "newCaptureShortcut"
         static let editorCompletionModifier = "editorCompletionModifier"
+        static let launchAtLogin = "launchAtLogin"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let libraryShortcut = "libraryShortcut"
     }
@@ -35,9 +35,6 @@ final class AppState {
     private let decoder = JSONDecoder()
 
     @ObservationIgnored
-    var onHotkeysChanged: ((CaptureModeHotkeyConfiguration) -> Void)?
-
-    @ObservationIgnored
     var onNewCaptureShortcutChanged: ((HotkeyShortcut) -> Void)?
 
     @ObservationIgnored
@@ -49,6 +46,9 @@ final class AppState {
     @ObservationIgnored
     var onLibraryShortcutChanged: ((HotkeyShortcut) -> Void)?
 
+    @ObservationIgnored
+    var onLaunchAtLoginChanged: ((Bool) -> Void)?
+
     var themePreference: AppThemePreference {
         didSet {
             defaults.set(themePreference.rawValue, forKey: StorageKeys.themePreference)
@@ -59,14 +59,6 @@ final class AppState {
     var preferredCaptureMode: CaptureMode {
         didSet {
             defaults.set(preferredCaptureMode.rawValue, forKey: StorageKeys.preferredCaptureMode)
-        }
-    }
-
-    var captureModeHotkeys: CaptureModeHotkeyConfiguration {
-        didSet {
-            persistCaptureModeHotkeys()
-            keybindingValidationMessage = nil
-            onHotkeysChanged?(captureModeHotkeys)
         }
     }
 
@@ -86,7 +78,12 @@ final class AppState {
     }
 
     var keybindingValidationMessage: String?
-    var launchAtLogin = false
+    var launchAtLogin: Bool {
+        didSet {
+            defaults.set(launchAtLogin, forKey: StorageKeys.launchAtLogin)
+            onLaunchAtLoginChanged?(launchAtLogin)
+        }
+    }
     var hasCompletedOnboarding: Bool {
         didSet {
             defaults.set(hasCompletedOnboarding, forKey: StorageKeys.hasCompletedOnboarding)
@@ -118,13 +115,6 @@ final class AppState {
             preferredCaptureMode = .rectangular
         }
 
-        if let data = defaults.data(forKey: StorageKeys.captureModeHotkeys),
-           let hotkeys = try? decoder.decode(CaptureModeHotkeyConfiguration.self, from: data) {
-            captureModeHotkeys = hotkeys
-        } else {
-            captureModeHotkeys = .default
-        }
-
         if let shortcut = Self.restoreNewCaptureShortcut(from: defaults, decoder: decoder) {
             newCaptureShortcut = shortcut
         } else {
@@ -135,6 +125,12 @@ final class AppState {
             editorCompletionModifiers = storedEditorCompletionModifiers
         } else {
             editorCompletionModifiers = CaptureCompletionPolicy.defaultEditorModifier
+        }
+
+        if defaults.object(forKey: StorageKeys.launchAtLogin) != nil {
+            launchAtLogin = defaults.bool(forKey: StorageKeys.launchAtLogin)
+        } else {
+            launchAtLogin = false
         }
 
         if defaults.object(forKey: StorageKeys.hasCompletedOnboarding) != nil {
@@ -148,23 +144,6 @@ final class AppState {
         } else {
             libraryShortcut = Self.defaultLibraryShortcut
         }
-    }
-
-    func shortcut(for mode: CaptureMode) -> HotkeyShortcut? {
-        captureModeHotkeys[mode]
-    }
-
-    @discardableResult
-    func updateShortcut(_ shortcut: HotkeyShortcut?, for mode: CaptureMode) -> Bool {
-        if let error = captureModeHotkeys.validationError(for: mode, shortcut: shortcut) {
-            keybindingValidationMessage = error
-            return false
-        }
-
-        var updated = captureModeHotkeys
-        updated[mode] = shortcut
-        captureModeHotkeys = updated
-        return true
     }
 
     @discardableResult
@@ -211,14 +190,6 @@ final class AppState {
         hasCompletedOnboarding = false
     }
 
-    private func persistCaptureModeHotkeys() {
-        guard let data = try? encoder.encode(captureModeHotkeys) else {
-            return
-        }
-
-        defaults.set(data, forKey: StorageKeys.captureModeHotkeys)
-    }
-
     private func persistNewCaptureShortcut() {
         guard let data = try? encoder.encode(newCaptureShortcut) else {
             return
@@ -240,10 +211,6 @@ final class AppState {
             return "Shortcuts must include at least one modifier key."
         }
 
-        if captureModeHotkeys.activeBindings.contains(where: { $0.shortcut == shortcut }) {
-            return "\(shortcut.displayText) is already assigned to a capture mode shortcut."
-        }
-
         if shortcut == libraryShortcut {
             return "\(shortcut.displayText) is already assigned to the library shortcut."
         }
@@ -258,10 +225,6 @@ final class AppState {
 
         if shortcut == newCaptureShortcut {
             return "\(shortcut.displayText) is already assigned to the new capture shortcut."
-        }
-
-        if captureModeHotkeys.activeBindings.contains(where: { $0.shortcut == shortcut }) {
-            return "\(shortcut.displayText) is already assigned to a capture mode shortcut."
         }
 
         return nil

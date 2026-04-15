@@ -24,9 +24,24 @@ private enum SettingsLayout {
 struct SettingsView: View {
     @Environment(AppState.self) private var appState
     @Environment(CaptureCoordinator.self) private var captureCoordinator
+    private let services = AppServices.shared
 
     var body: some View {
         Form {
+            Section("General") {
+                Text("Launch")
+                    .font(.headline)
+
+                SettingsHelpText("Keep snippingTool available in the menu bar after you sign in without opening a window.")
+
+                LaunchAtLoginRow(
+                    isEnabled: appState.launchAtLogin,
+                    onChange: { services.setLaunchAtLogin($0) }
+                )
+            }
+
+            Divider().padding(.vertical, 4)
+
             Section("Appearance") {
                 Text("Theme")
                     .font(.headline)
@@ -135,16 +150,6 @@ struct SettingsView: View {
                 SettingsHelpText("Set key to hold while creating a capture to open it directly in the editor.")
 
                 EditorCompletionModifierRow()
-                Text("Capture shortcuts")
-                    .font(.headline)
-    
-                SettingsHelpText("Enable shortcuts for the capture modes you use most.")
-
-                VStack(alignment: .leading, spacing: SettingsLayout.rowSpacing + 2) {
-                    ForEach(CaptureMode.allCases) { mode in
-                        CaptureModeHotkeyRow(mode: mode)
-                    }
-                }
 
                 Text("Capture Library")
                     .font(.headline)
@@ -163,6 +168,33 @@ struct SettingsView: View {
         .accessibilityIdentifier(AppAutomationIdentifiers.settingsRoot)
         .padding(SettingsLayout.formPadding)
         .frame(width: SettingsLayout.settingsWidth)
+    }
+}
+
+private struct LaunchAtLoginRow: View {
+    let isEnabled: Bool
+    let onChange: (Bool) -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: SettingsLayout.columnSpacing) {
+            SettingsFieldLabel("Start at login")
+
+            Toggle(
+                "",
+                isOn: Binding(
+                    get: { isEnabled },
+                    set: onChange
+                )
+            )
+            .toggleStyle(.switch)
+            .labelsHidden()
+            .pointingHandCursor()
+            .frame(width: SettingsLayout.toggleColumnWidth, alignment: .center)
+            .accessibilityIdentifier(AppAutomationIdentifiers.settingsLaunchAtLoginToggle)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -440,134 +472,6 @@ private struct NewCaptureShortcutRow: View {
 
         return appState.newCaptureShortcut.displayText
     }
-}
-
-private struct CaptureModeHotkeyRow: View {
-    @Environment(AppState.self) private var appState
-    @State private var isShortcutEnabled = false
-    @State private var isRecording = false
-    @State private var recorderMessage: String?
-
-    let mode: CaptureMode
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: SettingsLayout.helpTextSpacing) {
-            HStack(alignment: .center, spacing: SettingsLayout.columnSpacing) {
-                SettingsFieldLabel(mode.title)
-
-                Toggle("", isOn: isEnabledBinding)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .pointingHandCursor()
-                    .frame(width: SettingsLayout.toggleColumnWidth, alignment: .center)
-                    .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyToggle(for: mode))
-
-                SettingsRecorderFieldContainer(
-                    label: "\(mode.title) shortcut",
-                    value: hotkeyDisplayValue,
-                    identifier: AppAutomationIdentifiers.settingsHotkeyRecorder(for: mode),
-                    isEnabled: isShortcutEnabled,
-                    isRecording: $isRecording
-                ) {
-                    HotkeyRecorderField(
-                        shortcut: appState.shortcut(for: mode),
-                        mode: .shortcut,
-                        isEnabled: isShortcutEnabled,
-                        isRecording: $isRecording,
-                        accessibilityIdentifier: AppAutomationIdentifiers.settingsHotkeyRecorder(for: mode),
-                        accessibilityLabel: "\(mode.title) shortcut",
-                        onShortcutRecorded: { shortcut in
-                            recorderMessage = nil
-                            appState.clearKeybindingValidationMessage()
-                            return appState.updateShortcut(shortcut, for: mode)
-                        },
-                        onUnsupportedKey: { message in
-                            appState.clearKeybindingValidationMessage()
-                            recorderMessage = message
-                        }
-                    )
-                }
-                .frame(width: SettingsLayout.fieldColumnWidth, height: SettingsLayout.controlHeight)
-
-                Button("Clear") {
-                    recorderMessage = nil
-                    appState.clearKeybindingValidationMessage()
-                    _ = appState.updateShortcut(nil, for: mode)
-                    isShortcutEnabled = false
-                    isRecording = false
-                }
-                .frame(width: SettingsLayout.actionColumnWidth)
-                .controlSize(.regular)
-                .disabled(appState.shortcut(for: mode) == nil)
-                .pointingHandCursor()
-                .accessibilityIdentifier(AppAutomationIdentifiers.settingsHotkeyClearButton(for: mode))
-
-                Spacer(minLength: 0)
-            }
-
-            if isRecording {
-                SettingsHelpText("Press Escape to cancel.")
-                    .font(.caption)
-                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
-            }
-
-            if let recorderMessage {
-                SettingsHelpText(recorderMessage)
-                    .font(.caption)
-                    .padding(.leading, SettingsLayout.recorderMessageLeadingPadding)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            isShortcutEnabled = appState.shortcut(for: mode) != nil
-        }
-        .onChange(of: appState.shortcut(for: mode)) { _, newShortcut in
-            if newShortcut != nil {
-                isShortcutEnabled = true
-            } else if isRecording == false {
-                isShortcutEnabled = false
-            }
-        }
-        .onChange(of: isRecording) { _, newValue in
-            if newValue {
-                recorderMessage = nil
-                appState.clearKeybindingValidationMessage()
-            }
-        }
-    }
-
-    private var isEnabledBinding: Binding<Bool> {
-        Binding(
-            get: {
-                isShortcutEnabled
-            },
-            set: { isEnabled in
-                recorderMessage = nil
-                appState.clearKeybindingValidationMessage()
-                if isEnabled {
-                    isShortcutEnabled = true
-                    isRecording = true
-                } else {
-                    _ = appState.updateShortcut(nil, for: mode)
-                    isShortcutEnabled = false
-                    isRecording = false
-                }
-            }
-        )
-    }
-
-    private var hotkeyDisplayValue: String {
-        if isShortcutEnabled == false {
-            return "Not set"
-        }
-
-        if isRecording {
-            return appState.shortcut(for: mode)?.displayText ?? "Type shortcut"
-        }
-
-        return appState.shortcut(for: mode)?.displayText ?? "Click to record"
-    }
-
 }
 
 private struct LibraryShortcutRow: View {

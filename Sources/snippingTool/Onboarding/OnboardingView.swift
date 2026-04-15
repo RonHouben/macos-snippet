@@ -1,5 +1,3 @@
-import AppKit
-import ApplicationServices
 import SwiftUI
 import snippingToolCore
 
@@ -16,12 +14,6 @@ private enum OnboardingLayout {
     static let controlHeight: CGFloat = 36
 }
 
-private enum SettingsAutomationResult {
-    case completed
-    case selectedScreenshotsOnly
-    case failed
-}
-
 struct OnboardingView: View {
     @Environment(AppState.self) private var appState
     @Environment(CaptureCoordinator.self) private var captureCoordinator
@@ -30,7 +22,6 @@ struct OnboardingView: View {
     @State private var isRecordingEditorModifier = false
     @State private var newCaptureRecorderMessage: String?
     @State private var editorModifierRecorderMessage: String?
-    @State private var systemSettingsMessage: String?
     @State private var hasAppliedThemeDefault = false
     @State private var permissionRefreshTimer: Timer?
 
@@ -65,7 +56,6 @@ struct OnboardingView: View {
         .onAppear {
             onboardingState.currentStep = initialStep
             captureCoordinator.refreshPermissions()
-            applySystemScreenshotPresetIfNeeded()
             applyThemeDefaultIfNeeded()
         }
     }
@@ -119,7 +109,7 @@ struct OnboardingView: View {
             OnboardingSection("What we’ll set up") {
                 VStack(alignment: .leading, spacing: 8) {
                     OnboardingBullet("Grant Screen Recording and Accessibility permissions.")
-                    OnboardingBullet("Disable the built-in macOS screenshot shortcuts and reuse those familiar keys in snippingTool.")
+                    OnboardingBullet("Choose the main shortcut you want to use for starting captures.")
                     OnboardingBullet("Pick a theme and confirm your defaults before the app drops into the menu bar.")
                 }
             }
@@ -162,27 +152,6 @@ struct OnboardingView: View {
 
     private var shortcutsStep: some View {
         VStack(alignment: .leading, spacing: OnboardingLayout.sectionSpacing) {
-            OnboardingSection("Disable macOS screenshot shortcuts") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("If the built-in macOS screenshot shortcuts stay enabled, they can conflict with snippingTool’s keyboard shortcuts and intercept the key presses before snippingTool gets them.")
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Button("Disable macOS screenshot shortcuts") {
-                        openSystemSettingsForScreenshotShortcuts()
-                    }
-                    .pointingHandCursor()
-                    .accessibilityIdentifier(AppAutomationIdentifiers.onboardingOpenSystemSettingsButton)
-
-                    if let systemSettingsMessage {
-                        Text(systemSettingsMessage)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-
             OnboardingSection("Primary shortcut") {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 12) {
@@ -393,261 +362,6 @@ struct OnboardingView: View {
 
         appState.themePreference = .system
         hasAppliedThemeDefault = true
-    }
-
-    private func applySystemScreenshotPresetIfNeeded() {
-        guard onboardingState.hasAppliedSystemShortcutPreset == false else {
-            return
-        }
-
-        applySystemScreenshotPreset()
-        onboardingState.hasAppliedSystemShortcutPreset = true
-    }
-
-    private func applySystemScreenshotPreset() {
-        appState.clearKeybindingValidationMessage()
-        appState.captureModeHotkeys = CaptureModeHotkeyConfiguration(
-            rectangular: HotkeyShortcut.recommended(for: .rectangular),
-            fullScreen: HotkeyShortcut(key: .three, modifiers: [.command, .shift])
-        )
-        _ = appState.updateNewCaptureShortcut(HotkeyShortcut(key: .one, modifiers: [.command, .shift]))
-        appState.editorCompletionModifiers = CaptureCompletionPolicy.defaultEditorModifier
-        appState.preferredCaptureMode = .rectangular
-    }
-
-    private func openSystemSettingsForScreenshotShortcuts() {
-        let systemSettingsApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences")
-
-        if systemSettingsApps.isEmpty == false {
-            systemSettingsApps.forEach { $0.terminate() }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                openScreenshotShortcutSettingsCandidates()
-            }
-            return
-        }
-
-        openScreenshotShortcutSettingsCandidates()
-    }
-
-    private func openScreenshotShortcutSettingsCandidates() {
-        let candidates = [
-            "x-apple.systempreferences:com.apple.Keyboard?Shortcuts",
-            "x-apple.systempreferences:com.apple.Keyboard-Settings.extension?Shortcuts",
-            "x-apple.systempreferences:com.apple.preference.keyboard?Shortcuts",
-            "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
-        ]
-
-        for candidate in candidates {
-            guard let url = URL(string: candidate) else {
-                continue
-            }
-
-            if NSWorkspace.shared.open(url) {
-                systemSettingsMessage = "Opened System Settings at Keyboard Shortcuts."
-                attemptScreenshotsSidebarSelectionIfPossible()
-                return
-            }
-        }
-
-        systemSettingsMessage = "Couldn’t deep-link System Settings on this macOS version. Open System Settings manually, then go to Keyboard → Keyboard Shortcuts → Screenshots."
-    }
-
-    private func attemptScreenshotsSidebarSelectionIfPossible() {
-        guard AXIsProcessTrusted() else {
-            systemSettingsMessage = "Opened System Settings at Keyboard Shortcuts. Grant Accessibility to let snippingTool auto-select the Screenshots section and disable the built-in screenshot shortcuts."
-            return
-        }
-
-        DispatchQueue.global(qos: .userInitiated).async {
-            let automationResult = Self.disableBuiltInScreenshotShortcutsInSystemSettings()
-
-            DispatchQueue.main.async {
-                switch automationResult {
-                case .completed:
-                    systemSettingsMessage = "Opened System Settings, selected Screenshots, disabled the built-in screenshot shortcuts, and clicked Done."
-                    NSApp.activate(ignoringOtherApps: true)
-                case .selectedScreenshotsOnly:
-                    systemSettingsMessage = "Opened System Settings at Keyboard Shortcuts → Screenshots. If the built-in screenshot shortcuts are still enabled, turn them off and click Done."
-                case .failed:
-                    systemSettingsMessage = "Opened System Settings at Keyboard Shortcuts. If macOS still misses the Screenshots section, use the left sidebar in the sheet to select Screenshots."
-                }
-            }
-        }
-    }
-
-    nonisolated private static func disableBuiltInScreenshotShortcutsInSystemSettings(
-        attempts: Int = 12,
-        delayBetweenAttempts: TimeInterval = 0.25
-    ) -> SettingsAutomationResult {
-        var didSelectScreenshots = false
-
-        for attempt in 0..<attempts {
-            guard let sheet = keyboardShortcutsSheetInSystemSettings(),
-                  let screenshotsRow = screenshotsShortcutRow(in: sheet) else {
-                if attempt < attempts - 1 {
-                    Thread.sleep(forTimeInterval: delayBetweenAttempts)
-                }
-                continue
-            }
-
-            didSelectScreenshots = true
-
-            if select(element: screenshotsRow),
-               uncheckAllCheckboxes(in: sheet),
-                    clickDoneButton(in: sheet),
-                    closeSystemSettingsApplication() {
-                return .completed
-            }
-
-            if attempt < attempts - 1 {
-                Thread.sleep(forTimeInterval: delayBetweenAttempts)
-            }
-        }
-
-        return didSelectScreenshots ? .selectedScreenshotsOnly : .failed
-    }
-
-    nonisolated private static func keyboardShortcutsSheetInSystemSettings() -> AXUIElement? {
-        guard let application = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences").first else {
-            return nil
-        }
-
-        let rootElement = AXUIElementCreateApplication(application.processIdentifier)
-        guard let windows = axAttribute(kAXWindowsAttribute, on: rootElement) as? [AXUIElement],
-              let firstWindow = windows.first,
-              let sheet = firstDescendant(withRole: "AXSheet", in: firstWindow) else {
-            return nil
-        }
-
-        return sheet
-    }
-
-    nonisolated private static func screenshotsShortcutRow(in sheet: AXUIElement) -> AXUIElement? {
-        guard let outline = firstDescendant(withRole: "AXOutline", in: sheet) else {
-            return nil
-        }
-
-        return axChildren(of: outline).first { row in
-            axCollectedTexts(from: row).contains { $0.localizedCaseInsensitiveContains("Screenshots") }
-        }
-    }
-
-    nonisolated private static func select(element: AXUIElement) -> Bool {
-        AXUIElementSetAttributeValue(element, kAXSelectedAttribute as CFString, kCFBooleanTrue) == .success
-    }
-
-    nonisolated private static func uncheckAllCheckboxes(in sheet: AXUIElement) -> Bool {
-        let checkboxes = descendants(withRole: "AXCheckBox", in: sheet)
-        guard checkboxes.isEmpty == false else {
-            return false
-        }
-
-        for checkbox in checkboxes where checkboxIsEnabled(checkbox) && checkboxValue(checkbox) {
-            guard AXUIElementPerformAction(checkbox, kAXPressAction as CFString) == .success else {
-                return false
-            }
-        }
-
-        return descendants(withRole: "AXCheckBox", in: sheet).allSatisfy { checkboxValue($0) == false }
-    }
-
-    nonisolated private static func clickDoneButton(in sheet: AXUIElement) -> Bool {
-        guard let doneButton = descendants(withRole: "AXButton", in: sheet).first(where: {
-            let title = axStringAttribute(kAXTitleAttribute, on: $0) ?? ""
-            let description = axStringAttribute(kAXDescriptionAttribute, on: $0) ?? ""
-            return title == "Done" || description == "Done"
-        }) else {
-            return false
-        }
-
-        return AXUIElementPerformAction(doneButton, kAXPressAction as CFString) == .success
-    }
-
-    nonisolated private static func closeSystemSettingsApplication() -> Bool {
-        let applications = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences")
-        guard applications.isEmpty == false else {
-            return true
-        }
-
-        applications.forEach { application in
-            if application.terminate() == false {
-                application.forceTerminate()
-            }
-        }
-
-        Thread.sleep(forTimeInterval: 0.4)
-
-        return NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.systempreferences").isEmpty
-    }
-
-    nonisolated private static func descendants(withRole role: String, in element: AXUIElement) -> [AXUIElement] {
-        var result: [AXUIElement] = []
-
-        if axStringAttribute(kAXRoleAttribute, on: element) == role {
-            result.append(element)
-        }
-
-        for child in axChildren(of: element) {
-            result.append(contentsOf: descendants(withRole: role, in: child))
-        }
-
-        return result
-    }
-
-    nonisolated private static func checkboxIsEnabled(_ element: AXUIElement) -> Bool {
-        (axAttribute(kAXEnabledAttribute, on: element) as? Bool) ?? true
-    }
-
-    nonisolated private static func checkboxValue(_ element: AXUIElement) -> Bool {
-        if let value = axAttribute(kAXValueAttribute, on: element) as? Bool {
-            return value
-        }
-
-        if let value = axAttribute(kAXValueAttribute, on: element) as? NSNumber {
-            return value.boolValue
-        }
-
-        return false
-    }
-
-    nonisolated private static func firstDescendant(withRole role: String, in element: AXUIElement) -> AXUIElement? {
-        if axStringAttribute(kAXRoleAttribute, on: element) == role {
-            return element
-        }
-
-        for child in axChildren(of: element) {
-            if let match = firstDescendant(withRole: role, in: child) {
-                return match
-            }
-        }
-
-        return nil
-    }
-
-    nonisolated private static func axCollectedTexts(from element: AXUIElement) -> [String] {
-        let directValues = [kAXTitleAttribute, kAXValueAttribute, kAXDescriptionAttribute]
-            .compactMap { axStringAttribute($0, on: element) }
-
-        return directValues + axChildren(of: element).flatMap(axCollectedTexts)
-    }
-
-    nonisolated private static func axChildren(of element: AXUIElement) -> [AXUIElement] {
-        axAttribute(kAXChildrenAttribute, on: element) as? [AXUIElement] ?? []
-    }
-
-    nonisolated private static func axStringAttribute(_ attribute: String, on element: AXUIElement) -> String? {
-        axAttribute(attribute, on: element) as? String
-    }
-
-    nonisolated private static func axAttribute(_ attribute: String, on element: AXUIElement) -> AnyObject? {
-        var value: CFTypeRef?
-        let error = AXUIElementCopyAttributeValue(element, attribute as CFString, &value)
-        guard error == .success else {
-            return nil
-        }
-
-        return value as AnyObject?
     }
 
     private func startPermissionPolling() {
