@@ -29,6 +29,7 @@ final class AppServices {
     let launchConfiguration: AppLaunchConfiguration
     let appState: AppState
     let captureCoordinator: CaptureCoordinator
+    private let launchAtLoginManager: LaunchAtLoginManager
     let recentCaptureStore = RecentCaptureStore()
     let libraryStore = LibraryStore()
     private let exportService = ExportService()
@@ -48,11 +49,14 @@ final class AppServices {
         return manager
     }()
 
-    private init(configuration: AppLaunchConfiguration = .current) {
+    private init(
+        configuration: AppLaunchConfiguration = .current,
+        launchAtLoginManager: LaunchAtLoginManager = LaunchAtLoginManager()
+    ) {
         launchConfiguration = configuration
         appState = AppState(defaults: configuration.makeUserDefaults())
+        self.launchAtLoginManager = launchAtLoginManager
         captureCoordinator = CaptureCoordinator(
-            isGlobalHotkeyMonitoringEnabled: configuration.disablesGlobalHotkeys == false,
             isPermissionPollingEnabled: configuration.isUITesting == false
         )
 
@@ -62,9 +66,6 @@ final class AppServices {
 
         captureCoordinator.editorCompletionModifiers = appState.editorCompletionModifiers
 
-        appState.onHotkeysChanged = { [weak self] configuration in
-            self?.captureCoordinator.configureHotkeys(configuration)
-        }
         appState.onNewCaptureShortcutChanged = { [weak self] shortcut in
             self?.configureNewCaptureHotkey(shortcut)
         }
@@ -78,7 +79,8 @@ final class AppServices {
         appState.onEditorCompletionModifiersChanged = { [weak self] modifiers in
             self?.captureCoordinator.editorCompletionModifiers = modifiers
         }
-        captureCoordinator.configureHotkeys(appState.captureModeHotkeys)
+
+        synchronizeLaunchAtLoginState()
         configureNewCaptureHotkey(appState.newCaptureShortcut)
 
         captureCoordinator.onCaptureCompleted = { [weak self] action in
@@ -93,6 +95,7 @@ final class AppServices {
 
     var shouldShowOnboardingOnLaunch: Bool {
         guard launchConfiguration.isUITesting == false else { return false }
+        guard launchConfiguration.wasLaunchedAsLoginItem == false else { return false }
         return shouldOfferSetupGuidance
     }
 
@@ -132,6 +135,21 @@ final class AppServices {
 
     func openLibrary() {
         libraryWindowManager.show()
+    }
+
+    func setLaunchAtLogin(_ isEnabled: Bool) {
+        do {
+            let state = try launchAtLoginManager.setEnabled(isEnabled)
+            applyLaunchAtLoginState(state)
+
+            if state == .requiresApproval {
+                captureCoordinator.lastError = nil
+                captureCoordinator.statusMessage = "Approve snippingTool in System Settings > Login Items to finish enabling Start at login."
+            }
+        } catch {
+            captureCoordinator.lastError = error.localizedDescription
+            captureCoordinator.statusMessage = error.localizedDescription
+        }
     }
 
     func openLibraryItemInEditor(_ item: LibraryItem) {
@@ -224,6 +242,21 @@ final class AppServices {
         case .quit:
             quit()
         }
+    }
+
+    private func synchronizeLaunchAtLoginState() {
+        do {
+            let state = try launchAtLoginManager.currentState()
+            applyLaunchAtLoginState(state)
+        } catch {
+            appState.launchAtLogin = false
+            captureCoordinator.lastError = error.localizedDescription
+            captureCoordinator.statusMessage = error.localizedDescription
+        }
+    }
+
+    private func applyLaunchAtLoginState(_ state: LaunchAtLoginState) {
+        appState.launchAtLogin = state.isEnabledInPreferences
     }
 
     private func configureLibraryHotkey(_ shortcut: HotkeyShortcut) {

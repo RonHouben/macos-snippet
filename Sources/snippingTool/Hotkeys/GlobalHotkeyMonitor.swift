@@ -3,37 +3,6 @@ import ApplicationServices
 import Foundation
 import snippingToolCore
 
-final class GlobalHotkeyMonitor {
-    private let monitor = RegisteredHotkeyMonitor(signature: 0x53435452) // 'SCTR'
-
-    func start(
-        bindings: [(mode: CaptureMode, shortcut: HotkeyShortcut)],
-        onShortcut: @escaping (CaptureMode) -> Void
-    ) {
-        stop()
-
-        guard bindings.isEmpty == false else {
-            return
-        }
-
-        monitor.start(shortcuts: bindings.map(\.shortcut)) { shortcut in
-            guard let mode = bindings.first(where: { $0.shortcut == shortcut })?.mode else {
-                return
-            }
-
-            onShortcut(mode)
-        }
-    }
-
-    func stop() {
-        monitor.stop()
-    }
-
-    deinit {
-        stop()
-    }
-}
-
 final class RegisteredHotkeyMonitor {
     private struct Registration {
         let ref: EventHotKeyRef
