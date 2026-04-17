@@ -54,6 +54,15 @@ final class OnboardingState {
         currentStep == .finish
     }
 
+    func canAdvance(needsAnyPermission: Bool) -> Bool {
+        switch currentStep {
+        case .permissions:
+            needsAnyPermission == false
+        default:
+            true
+        }
+    }
+
     func goToPreviousStep() {
         guard let previous = OnboardingStep(rawValue: currentStep.rawValue - 1) else {
             return

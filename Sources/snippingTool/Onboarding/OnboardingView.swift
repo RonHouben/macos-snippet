@@ -348,7 +348,7 @@ struct OnboardingView: View {
     }
 
     private var canAdvanceFromCurrentStep: Bool {
-        true
+        onboardingState.canAdvance(needsAnyPermission: captureCoordinator.needsAnyPermission)
     }
 
     private var canFinish: Bool {

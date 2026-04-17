@@ -143,6 +143,27 @@ final class RecorderTextFieldTests: XCTestCase {
         )
     }
 
+    func testOnboardingCannotAdvanceFromPermissionsStepWhilePermissionsAreMissing() {
+        let onboardingState = OnboardingState()
+        onboardingState.currentStep = .permissions
+
+        XCTAssertFalse(onboardingState.canAdvance(needsAnyPermission: true))
+    }
+
+    func testOnboardingCanAdvanceFromPermissionsStepWhenPermissionsAreGranted() {
+        let onboardingState = OnboardingState()
+        onboardingState.currentStep = .permissions
+
+        XCTAssertTrue(onboardingState.canAdvance(needsAnyPermission: false))
+    }
+
+    func testOnboardingCanAdvanceFromNonPermissionsStepEvenWhenPermissionsAreMissing() {
+        let onboardingState = OnboardingState()
+        onboardingState.currentStep = .welcome
+
+        XCTAssertTrue(onboardingState.canAdvance(needsAnyPermission: true))
+    }
+
     func testNewCaptureShortcutDefaultsToCommandShiftOne() {
         let defaults = makeDefaults(suiteName: #function)
         let appState = AppState(defaults: defaults)
