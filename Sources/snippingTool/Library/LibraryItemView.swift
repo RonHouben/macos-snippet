@@ -13,6 +13,14 @@ struct LibraryItemView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity)
+                .aspectRatio(
+                    LibraryItem.thumbnailCanvasSize.width / LibraryItem.thumbnailCanvasSize.height,
+                    contentMode: .fit
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.quaternary.opacity(0.2))
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
 
