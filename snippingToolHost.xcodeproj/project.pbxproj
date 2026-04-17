@@ -119,6 +119,7 @@
 		77A00D6AC58F02E5EC3D03C3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7DD2B78AA767B41CFEA2F735 /* ShapeAnnotationRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeAnnotationRenderer.swift; sourceTree = "<group>"; };
 		804B6FAA86DCA84687912502 /* SelectionOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayView.swift; sourceTree = "<group>"; };
+		95184DBE4C2D3E1BDA7852B6 /* agents-disable-next-button-until-permissions-granted */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "agents-disable-next-button-until-permissions-granted"; path = .; sourceTree = SOURCE_ROOT; };
 		9CE7284A29B95ED9D28F42E6 /* ExportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportServiceTests.swift; sourceTree = "<group>"; };
 		9D67D790E3CFE686BBF11EAD /* CaptureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureCoordinator.swift; sourceTree = "<group>"; };
 		A058F45AA666B9C2355748B7 /* HotkeyEventMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyEventMapping.swift; sourceTree = "<group>"; };
