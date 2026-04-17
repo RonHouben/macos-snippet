@@ -4,6 +4,8 @@ import Foundation
 import snippingToolCore
 
 struct LibraryItem: Identifiable, Equatable {
+    static let thumbnailCanvasSize = NSSize(width: 200, height: 140)
+
     let id: UUID
     let createdAt: Date
     let captureMode: CaptureMode
@@ -38,19 +40,24 @@ struct LibraryItem: Identifiable, Equatable {
         lhs.fileURL == rhs.fileURL
     }
 
-    static func makeThumbnail(from cgImage: CGImage, maxWidth: CGFloat = 200) -> NSImage {
+    static func makeThumbnail(from cgImage: CGImage, canvasSize: NSSize = thumbnailCanvasSize) -> NSImage {
         let originalWidth = CGFloat(cgImage.width)
         let originalHeight = CGFloat(cgImage.height)
-        let scale = min(maxWidth / originalWidth, 1.0)
+        let scale = min(canvasSize.width / originalWidth, canvasSize.height / originalHeight)
         let thumbnailSize = NSSize(
             width: (originalWidth * scale).rounded(),
             height: (originalHeight * scale).rounded()
         )
+        let thumbnailOrigin = NSPoint(
+            x: ((canvasSize.width - thumbnailSize.width) / 2).rounded(),
+            y: ((canvasSize.height - thumbnailSize.height) / 2).rounded()
+        )
+        let thumbnailRect = NSRect(origin: thumbnailOrigin, size: thumbnailSize)
 
-        let nsImage = NSImage(size: thumbnailSize, flipped: false) { rect in
+        let nsImage = NSImage(size: canvasSize, flipped: false) { _ in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
             context.interpolationQuality = .high
-            context.draw(cgImage, in: rect)
+            context.draw(cgImage, in: thumbnailRect)
             return true
         }
 
