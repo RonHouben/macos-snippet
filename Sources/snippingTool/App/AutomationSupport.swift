@@ -186,6 +186,7 @@ enum AppAutomationIdentifiers {
     static let editorTestPanBottomButton = "editor.test.pan-bottom"
     static let capturePreviewWindow = "window.capture-preview"
     static let capturePreviewRoot = "capture-preview.root"
+    static let capturePreviewCloseButton = "capture-preview.close"
 
     static let libraryWindow = "window.library"
     static let libraryRoot = "library.root"

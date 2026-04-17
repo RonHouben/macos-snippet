@@ -182,6 +182,9 @@ final class CapturePreviewWindowManager {
                 self?.onOpen?()
                 self?.dismiss()
             },
+            onClose: { [weak self] in
+                self?.dismiss()
+            },
             onHoverChanged: { [weak self] isHovering in
                 self?.updateHoverState(isHovering)
             }
@@ -205,6 +208,9 @@ final class CapturePreviewWindowManager {
         )
         window.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.capturePreviewWindow)
         window.contentViewController = hostingController
+        window.onHorizontalSwipe = { [weak self] in
+            self?.dismissBySwipe()
+        }
 
         window.level = .statusBar
         window.isOpaque = false
@@ -255,6 +261,42 @@ final class CapturePreviewWindowManager {
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = animationDuration
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            currentWindow.animator().alphaValue = 0
+        }, completionHandler: {
+            Task { @MainActor in
+                currentWindow.close()
+            }
+        })
+    }
+
+    func dismissBySwipe() {
+        autoDismissTask?.cancel()
+        autoDismissTask = nil
+        isPointerHoveringPreview = false
+
+        guard let currentWindow = window else { return }
+        window = nil
+
+        let currentFrame = currentWindow.frame
+        let targetX: CGFloat
+
+        if let screenFrame = currentWindow.screen?.visibleFrame {
+            targetX = screenFrame.maxX + 24
+        } else {
+            targetX = currentFrame.maxX + 24
+        }
+
+        let targetFrame = NSRect(
+            x: targetX,
+            y: currentFrame.origin.y,
+            width: currentFrame.width,
+            height: currentFrame.height
+        )
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = animationDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            currentWindow.animator().setFrame(targetFrame, display: true)
             currentWindow.animator().alphaValue = 0
         }, completionHandler: {
             Task { @MainActor in
@@ -382,6 +424,53 @@ extension NSWindow {
 }
 
 private final class CapturePreviewPanel: NSPanel {
+    var onHorizontalSwipe: (() -> Void)?
+
+    private var accumulatedHorizontalScroll: CGFloat = 0
+    private let swipeDismissThreshold: CGFloat = 80
+
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    override func swipe(with event: NSEvent) {
+        onHorizontalSwipe?()
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        guard event.hasPreciseScrollingDeltas else {
+            accumulatedHorizontalScroll = 0
+            super.scrollWheel(with: event)
+            return
+        }
+
+        let horizontal = event.scrollingDeltaX
+        let vertical = event.scrollingDeltaY
+        let isHorizontalTrackpadGesture = abs(horizontal) > abs(vertical)
+        let hasGesturePhase = event.phase.isEmpty == false || event.momentumPhase.isEmpty == false
+
+        guard isHorizontalTrackpadGesture, hasGesturePhase else {
+            if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+                accumulatedHorizontalScroll = 0
+            }
+            super.scrollWheel(with: event)
+            return
+        }
+
+        if event.phase.contains(.began) {
+            accumulatedHorizontalScroll = 0
+        }
+
+        accumulatedHorizontalScroll += abs(horizontal)
+
+        if accumulatedHorizontalScroll >= swipeDismissThreshold {
+            accumulatedHorizontalScroll = 0
+            onHorizontalSwipe?()
+            return
+        }
+
+        if event.phase.contains(.ended) || event.phase.contains(.cancelled)
+            || event.momentumPhase.contains(.ended) || event.momentumPhase.contains(.cancelled) {
+            accumulatedHorizontalScroll = 0
+        }
+    }
 }
