@@ -3,6 +3,7 @@ import SwiftUI
 struct CapturePreviewView: View {
     let image: CGImage
     let onTap: () -> Void
+    let onClose: () -> Void
     let onHoverChanged: (Bool) -> Void
 
     @State private var isHovered = false
@@ -32,111 +33,129 @@ struct CapturePreviewView: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.green)
-
-                    Text("Copied to clipboard")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.primary)
-
-                    Spacer(minLength: 0)
-
-                    Text("Preview")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(previewBadgeForegroundStyle)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(previewBadgeBackground)
-                        )
-                }
-
-                Image(decorative: image, scale: 1)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 220, height: 138)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(imageBorderColor, lineWidth: 1)
-                    }
-                    .overlay(alignment: .topLeading) {
-                        LinearGradient(
-                            colors: [.black.opacity(0.26), .clear],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    }
-
-                HStack(alignment: .center, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Open in editor")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.primary)
-
-                        Text("Annotate, crop, and export")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(callToActionForegroundStyle)
-                        .frame(width: 24, height: 24)
-                        .background(
-                            Circle()
-                                .fill(callToActionBackground)
-                        )
-                }
+        ZStack(alignment: .topTrailing) {
+            Button(action: onTap) {
+                cardContent
             }
-            .padding(12)
-            .background {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.background)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(cardBorderColor, lineWidth: isHovered ? 1.5 : 1)
-                    }
-                    .background {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                .white.opacity(isHovered ? 0.10 : 0.05),
-                                .clear,
-                                .black.opacity(isHovered ? 0.05 : 0.02)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+            .buttonStyle(CapturePreviewButtonStyle())
+            .pointingHandCursor()
+
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(previewBadgeForegroundStyle)
+                    .frame(width: 24, height: 24)
+                    .background(
+                        Circle()
+                            .fill(previewBadgeBackground)
                     )
-                    .allowsHitTesting(false)
+                    .contentShape(Circle())
             }
-            .scaleEffect(isHovered ? 1.018 : 1)
-            .offset(y: isHovered ? -2 : 0)
-            .animation(.easeOut(duration: 0.16), value: isHovered)
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .padding(.top, 10)
+            .padding(.trailing, 10)
+            .accessibilityLabel("Close preview")
+            .accessibilityIdentifier(AppAutomationIdentifiers.capturePreviewCloseButton)
+            .help("Close")
         }
-        .buttonStyle(CapturePreviewButtonStyle())
         .padding(12)
+        .scaleEffect(isHovered ? 1.018 : 1)
+        .offset(y: isHovered ? -2 : 0)
         .onHover { hovering in
             isHovered = hovering
             onHoverChanged(hovering)
         }
+        .animation(.easeOut(duration: 0.16), value: isHovered)
         .focusable(false)
         .accessibilityIdentifier(AppAutomationIdentifiers.capturePreviewRoot)
+    }
+
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.green)
+
+                Text("Copied to clipboard")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer(minLength: 0)
+                    .frame(width: 24, height: 24)
+            }
+
+            Image(decorative: image, scale: 1)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 220, height: 138)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(imageBorderColor, lineWidth: 1)
+                }
+                .overlay(alignment: .topLeading) {
+                    LinearGradient(
+                        colors: [.black.opacity(0.26), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Open in editor")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+
+                    Text("Annotate, crop, and export")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(callToActionForegroundStyle)
+                    .frame(width: 24, height: 24)
+                    .background(
+                        Circle()
+                            .fill(callToActionBackground)
+                    )
+            }
+        }
+        .padding(12)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.background)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(cardBorderColor, lineWidth: isHovered ? 1.5 : 1)
+                }
+                .background {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(isHovered ? 0.10 : 0.05),
+                            .clear,
+                            .black.opacity(isHovered ? 0.05 : 0.02)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .allowsHitTesting(false)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
