@@ -33,6 +33,85 @@ enum AppThemePreference: String, CaseIterable, Identifiable {
     }
 }
 
+enum AppInstallationChannel: Equatable {
+    case installedApplication
+    case transientDevelopmentBuild
+    case other
+
+    var displayName: String {
+        switch self {
+        case .installedApplication:
+            "Installed application"
+        case .transientDevelopmentBuild:
+            "Xcode build"
+        case .other:
+            "Custom app location"
+        }
+    }
+
+    func permissionRetentionGuidance(for bundleURL: URL) -> String {
+        switch self {
+        case .installedApplication:
+            let installDirectory = bundleURL.deletingLastPathComponent().path
+            return "This build is installed in \(installDirectory). Keep future updates signed and installed over that same app bundle to preserve Screen Recording and Accessibility permissions."
+        case .transientDevelopmentBuild:
+            return "This build is running from Xcode build products. macOS may treat rebuilt apps as a different binary, so permission retention is unreliable. Validate permission retention with a packaged app installed in /Applications."
+        case .other:
+            return "Keep updates signed and installed over the same app bundle path to preserve Screen Recording and Accessibility permissions."
+        }
+    }
+
+    var missingPermissionGuidanceSuffix: String {
+        switch self {
+        case .installedApplication:
+            " Future packaged updates should replace the existing app in place."
+        case .transientDevelopmentBuild:
+            " If this app was launched from Xcode or DerivedData, macOS may require access again after rebuilds."
+        case .other:
+            " Keep future updates on the same app path to avoid unnecessary re-approval prompts."
+        }
+    }
+}
+
+enum AppMetadata {
+    static func applicationDisplayName(bundle: Bundle = .main) -> String {
+        if let displayName = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String,
+           displayName.isEmpty == false {
+            return displayName
+        }
+
+        if let bundleName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String,
+           bundleName.isEmpty == false {
+            return bundleName
+        }
+
+        return bundle.bundleURL.deletingPathExtension().lastPathComponent
+    }
+
+    static func applicationVersionDescription(bundle: Bundle = .main) -> String {
+        applicationVersionDescription(
+            shortVersion: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+            buildVersion: bundle.object(forInfoDictionaryKey: kCFBundleVersionKey as String) as? String
+        )
+    }
+
+    static func applicationVersionDescription(shortVersion: String?, buildVersion: String?) -> String {
+        let shortVersion = shortVersion?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let buildVersion = buildVersion?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch (shortVersion?.isEmpty == false ? shortVersion : nil, buildVersion?.isEmpty == false ? buildVersion : nil) {
+        case let (.some(shortVersion), .some(buildVersion)):
+            return "Version \(shortVersion) (\(buildVersion))"
+        case let (.some(shortVersion), nil):
+            return "Version \(shortVersion)"
+        case let (nil, .some(buildVersion)):
+            return "Build \(buildVersion)"
+        case (nil, nil):
+            return "Version unavailable"
+        }
+    }
+}
+
 enum AppLaunchConfiguration {
     static let uiTestingArgument = "--ui-testing"
     static let disableGlobalHotkeysArgument = "--disable-global-hotkeys"
@@ -71,6 +150,41 @@ enum AppLaunchConfiguration {
         case let .process(_, _, launchedAsLoginItem):
             launchedAsLoginItem
         }
+    }
+
+    var appBundleURL: URL {
+        Bundle.main.bundleURL.standardizedFileURL
+    }
+
+    var installationChannel: AppInstallationChannel {
+        Self.installationChannel(for: appBundleURL)
+    }
+
+    var permissionRetentionGuidance: String {
+        installationChannel.permissionRetentionGuidance(for: appBundleURL)
+    }
+
+    static func installationChannel(for bundleURL: URL) -> AppInstallationChannel {
+        let standardizedURL = bundleURL.standardizedFileURL
+        let parentDirectory = standardizedURL.deletingLastPathComponent()
+        let path = standardizedURL.path
+
+        let applicationsDirectories = [
+            URL(fileURLWithPath: "/Applications", isDirectory: true).standardizedFileURL,
+            FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Applications", isDirectory: true)
+                .standardizedFileURL,
+        ]
+
+        if applicationsDirectories.contains(parentDirectory) {
+            return .installedApplication
+        }
+
+        if path.contains("/DerivedData/") || path.contains("/Build/Products/") {
+            return .transientDevelopmentBuild
+        }
+
+        return .other
     }
 
     func makeUserDefaults() -> UserDefaults {
@@ -143,6 +257,9 @@ enum AppAutomationIdentifiers {
     static let settingsRequestScreenRecordingButton = "settings.request-screen-recording"
     static let settingsRequestAccessibilityButton = "settings.request-accessibility"
 
+    static let aboutWindow = "window.about"
+    static let aboutRoot = "about.root"
+
     static let onboardingWindow = "window.onboarding"
     static let onboardingRoot = "onboarding.root"
     static let onboardingNextButton = "onboarding.next"
@@ -205,6 +322,8 @@ enum AppAutomationIdentifiers {
             "status-menu.open-library"
         case .continueSetup:
             "status-menu.continue-setup"
+        case .openAbout:
+            "status-menu.open-about"
         case .openSettings:
             "status-menu.open-settings"
         case .quit:
