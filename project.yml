@@ -5,6 +5,8 @@ settings:
   base:
     MACOSX_DEPLOYMENT_TARGET: '26.0'
     SWIFT_VERSION: '6.0'
+    MARKETING_VERSION: 0.1.0
+    CURRENT_PROJECT_VERSION: 1
 packages:
   snippingToolPackage:
     path: .
@@ -22,12 +24,19 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ronhouben.snippingtool.host
         PRODUCT_NAME: snippingTool
+        CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: snippingTool
         INFOPLIST_KEY_CFBundleName: snippingTool
+        INFOPLIST_KEY_CFBundleShortVersionString: $(MARKETING_VERSION)
+        INFOPLIST_KEY_CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         INFOPLIST_KEY_LSUIElement: YES
-        ENABLE_HARDENED_RUNTIME: NO
         SWIFT_EMIT_LOC_STRINGS: NO
+      configs:
+        Debug:
+          ENABLE_HARDENED_RUNTIME: NO
+        Release:
+          ENABLE_HARDENED_RUNTIME: YES
 
   snippingToolHostUITests:
     type: bundle.ui-testing

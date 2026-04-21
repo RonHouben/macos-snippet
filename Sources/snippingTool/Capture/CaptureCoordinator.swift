@@ -10,6 +10,7 @@ final class CaptureCoordinator {
     private let screenCaptureService = ScreenCaptureService()
     private let windowSelectionService = WindowSelectionService()
     private let isPermissionPollingEnabled: Bool
+    private let launchConfiguration: AppLaunchConfiguration
 
     private var overlayController: SelectionOverlayWindowController?
 
@@ -32,8 +33,10 @@ final class CaptureCoordinator {
     var onCaptureCompleted: ((CaptureCompletionAction) -> Void)?
 
     init(
+        launchConfiguration: AppLaunchConfiguration = .current,
         isPermissionPollingEnabled: Bool = true
     ) {
+        self.launchConfiguration = launchConfiguration
         permissionManager = PermissionManager(shouldRefreshOnInit: isPermissionPollingEnabled)
         self.isPermissionPollingEnabled = isPermissionPollingEnabled
 
@@ -54,6 +57,15 @@ final class CaptureCoordinator {
         }
 
         return statusMessage
+    }
+
+    var permissionEnvironmentSummary: String {
+        let location = launchConfiguration.appBundleURL.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        return "\(launchConfiguration.installationChannel.displayName) • \(location)"
+    }
+
+    var permissionRetentionGuidance: String {
+        launchConfiguration.permissionRetentionGuidance
     }
 
     private var applicationDisplayName: String {
@@ -95,14 +107,14 @@ final class CaptureCoordinator {
         let granted = permissionManager.requestScreenRecordingIfNeeded()
         statusMessage = granted
             ? "Screen Recording permission granted."
-            : "Screen Recording permission is still missing. If macOS did not show a prompt, open System Settings > Privacy & Security > Screen Recording and enable \(applicationDisplayName)."
+            : "Screen Recording permission is still missing. If macOS did not show a prompt, open System Settings > Privacy & Security > Screen Recording and enable \(applicationDisplayName).\(launchConfiguration.installationChannel.missingPermissionGuidanceSuffix)"
     }
 
     func requestAccessibility() {
         let granted = permissionManager.requestAccessibilityIfNeeded()
         statusMessage = granted
             ? "Accessibility permission granted."
-            : "Accessibility permission is still missing. Approve the macOS prompt, or open System Settings > Privacy & Security > Accessibility and enable \(applicationDisplayName)."
+            : "Accessibility permission is still missing. Approve the macOS prompt, or open System Settings > Privacy & Security > Accessibility and enable \(applicationDisplayName).\(launchConfiguration.installationChannel.missingPermissionGuidanceSuffix)"
     }
 
     func startCapture(mode: CaptureMode) {

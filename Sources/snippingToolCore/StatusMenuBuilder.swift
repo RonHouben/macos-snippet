@@ -5,6 +5,7 @@ public enum StatusMenuAction: Sendable, Equatable {
     case openEditor
     case openLibrary
     case continueSetup
+    case openAbout
     case openSettings
     case quit
 }
@@ -63,6 +64,7 @@ public enum StatusMenuBuilder {
             entries.append(.action(title: "Continue Setup", action: .continueSetup))
         }
 
+        entries.append(.action(title: "About snippingTool", action: .openAbout))
         entries.append(.action(title: "Settings", action: .openSettings))
         entries.append(.action(title: "Quit snippingTool", action: .quit))
 

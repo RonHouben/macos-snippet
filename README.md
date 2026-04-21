@@ -33,6 +33,8 @@ After installing the Metal Toolchain, build and run with a single command:
 
 This builds the project, kills any running instance, and launches the app.
 
+> Local Xcode/DerivedData launches are meant for development only. macOS TCC permission retention is not reliable across rebuilt developer binaries.
+
 ### Manual build and run
 
 1. **Install Metal Toolchain** (one-time):
@@ -46,9 +48,48 @@ This builds the project, kills any running instance, and launches the app.
    ```
 
 3. **Run**:
-   ```
-   open ~/Library/Developer/Xcode/DerivedData/snippingToolHost-*/Build/Products/Debug/snippingTool.app
-   ```
+    ```
+    open ~/Library/Developer/Xcode/DerivedData/snippingToolHost-*/Build/Products/Debug/snippingTool.app
+    ```
+
+## Keeping permissions across updates
+
+macOS retains **Screen Recording** and **Accessibility** permissions based on the app's identity, not on anything stored by `PermissionManager`.
+
+To keep permissions when updating:
+
+1. Keep the same **bundle identifier**
+2. Keep the same **signing identity / code requirement**
+3. Replace the app **in place** at the same installed path, typically `/Applications/snippingTool.app`
+
+This repository now pins the app's release version/build metadata in project settings and includes an install script for in-place release installs.
+
+**Important:** a stable app path is not enough on its own. The release must also be signed with a real team identity. Ad hoc signed builds (`TeamIdentifier=not set`) will still lose TCC permissions across updates.
+
+### Build and install a release update in place
+
+Use:
+
+```bash
+./scripts/install-release.sh
+```
+
+That builds a `Release` app into a repo-local `.derived-data` folder and copies `snippingTool.app` to `/Applications/snippingTool.app`.
+
+If your project is not already configured with a signing team in Xcode, pass one explicitly:
+
+```bash
+DEVELOPMENT_TEAM=YOURTEAMID ./scripts/install-release.sh
+```
+
+You can also install somewhere else explicitly:
+
+```bash
+./scripts/install-release.sh "$HOME/Applications/snippingTool.app"
+```
+
+For packaged releases, keep using the same destination path and the same signing identity when replacing the app.
+The install script now refuses to copy ad hoc signed builds, because those cannot reliably retain Screen Recording and Accessibility permissions after an update.
 
 ### Using Xcode
 
@@ -78,9 +119,19 @@ If you deny these the first time, you can re-enable them in:
 
 ## Installation status
 
-There is **no packaged `.app` installer yet**.
+There is **no auto-updater yet**.
 
-Right now, the project is built via `xcodebuild` or Xcode using the `snippingToolHost` scheme.
+Right now, the supported update path is an **in-place app replacement** using the same bundle identifier and signing identity. The repo includes `./scripts/install-release.sh` to make that flow repeatable.
+
+Transient developer builds launched from Xcode or `DerivedData` are still supported for local work, but they are **not** the supported path for validating permission retention.
+
+## Manual verification checklist for permission retention
+
+1. Install a signed release build to `/Applications/snippingTool.app`
+2. Launch it and grant **Screen Recording** and **Accessibility**
+3. Build the next signed release with the same bundle identifier and signing identity (not ad hoc)
+4. Replace `/Applications/snippingTool.app` in place
+5. Relaunch and confirm the permissions remain granted in Settings and the onboarding flow does not ask again
 
 ## UI automation groundwork
 

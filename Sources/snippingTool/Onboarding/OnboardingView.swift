@@ -145,6 +145,7 @@ struct OnboardingView: View {
                     }
                 }
             }
+
         }
         .onAppear { startPermissionPolling() }
         .onDisappear { stopPermissionPolling() }

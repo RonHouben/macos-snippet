@@ -126,6 +126,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             #selector(openLibrary)
         case .continueSetup:
             #selector(continueSetup)
+        case .openAbout:
+            #selector(openAbout)
         case .openSettings:
             #selector(openSettings)
         case .quit:
@@ -180,6 +182,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc
     private func openSettings() {
         services.performStatusMenuAction(.openSettings)
+    }
+
+    @objc
+    private func openAbout() {
+        services.performStatusMenuAction(.openAbout)
     }
 
     @objc

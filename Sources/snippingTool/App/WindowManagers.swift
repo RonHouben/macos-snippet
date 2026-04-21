@@ -121,6 +121,70 @@ final class SettingsWindowManager {
 }
 
 @MainActor
+final class AboutWindowManager {
+    private let services: AppServices
+    private var windowController: NSWindowController?
+
+    init(services: AppServices) {
+        self.services = services
+    }
+
+    func show() {
+        let controller = windowController ?? makeWindowController()
+        windowController = controller
+        applyThemePreference()
+        controller.showWindow(nil)
+        controller.window?.center()
+        controller.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func applyThemePreference() {
+        windowController?.window?.apply(themePreference: services.appState.themePreference)
+    }
+
+    private func makeWindowController() -> NSWindowController {
+        let rootView = AboutView(
+            appName: AppMetadata.applicationDisplayName(),
+            versionDescription: AppMetadata.applicationVersionDescription()
+        )
+
+        let hostingController = NSHostingController(rootView: rootView)
+        hostingController.view.setAccessibilityIdentifier(AppAutomationIdentifiers.aboutRoot)
+        let window = NSWindow(contentViewController: hostingController)
+        window.identifier = NSUserInterfaceItemIdentifier(AppAutomationIdentifiers.aboutWindow)
+        window.title = "About \(AppMetadata.applicationDisplayName())"
+        window.setContentSize(NSSize(width: 320, height: 160))
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.isReleasedWhenClosed = false
+        window.apply(themePreference: services.appState.themePreference)
+        return NSWindowController(window: window)
+    }
+}
+
+private struct AboutView: View {
+    let appName: String
+    let versionDescription: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "camera.viewfinder")
+                .font(.system(size: 32, weight: .regular))
+                .foregroundStyle(Color.accentColor)
+
+            Text(appName)
+                .font(.title3.weight(.semibold))
+
+            Text(versionDescription)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
+}
+
+@MainActor
 final class UITestControlWindowManager {
     private let services: AppServices
     private var windowController: NSWindowController?

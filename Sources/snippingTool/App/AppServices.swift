@@ -40,6 +40,7 @@ final class AppServices {
 
     lazy var editorWindowManager = EditorWindowManager(services: self)
     lazy var settingsWindowManager = SettingsWindowManager(services: self)
+    lazy var aboutWindowManager = AboutWindowManager(services: self)
     lazy var onboardingWindowManager = OnboardingWindowManager(services: self)
     lazy var uiTestControlWindowManager = UITestControlWindowManager(services: self)
     lazy var libraryWindowManager = LibraryWindowManager(services: self)
@@ -57,6 +58,7 @@ final class AppServices {
         appState = AppState(defaults: configuration.makeUserDefaults())
         self.launchAtLoginManager = launchAtLoginManager
         captureCoordinator = CaptureCoordinator(
+            launchConfiguration: configuration,
             isPermissionPollingEnabled: configuration.isUITesting == false
         )
 
@@ -72,6 +74,7 @@ final class AppServices {
         appState.onThemePreferenceChanged = { [weak self] _ in
             self?.editorWindowManager.applyThemePreference()
             self?.settingsWindowManager.applyThemePreference()
+            self?.aboutWindowManager.applyThemePreference()
             self?.onboardingWindowManager.applyThemePreference()
             self?.capturePreviewWindowManager.applyThemePreference()
             self?.libraryWindowManager.applyThemePreference()
@@ -131,6 +134,10 @@ final class AppServices {
 
     func openSettings() {
         settingsWindowManager.show()
+    }
+
+    func openAbout() {
+        aboutWindowManager.show()
     }
 
     func openLibrary() {
@@ -237,6 +244,8 @@ final class AppServices {
             openLibrary()
         case .continueSetup:
             reopenOnboarding()
+        case .openAbout:
+            openAbout()
         case .openSettings:
             openSettings()
         case .quit:
