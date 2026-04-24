@@ -22,9 +22,11 @@ targets:
         product: snippingToolCore
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: com.ronhouben.snippingtool.host
         PRODUCT_NAME: snippingTool
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: U9TUQFBL8D
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: snippingTool
         INFOPLIST_KEY_CFBundleName: snippingTool

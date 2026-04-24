@@ -33,6 +33,7 @@
 		79ED163940C33FF228E298ED /* LaunchAtLoginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD06C5E0E33DA1F8D5873620 /* LaunchAtLoginManager.swift */; };
 		7F42A941AFBB18BCD77FB50A /* LibraryItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54064FE90C25F7A1974EF596 /* LibraryItemView.swift */; };
 		839AFBAEFA91ED203CF34D43 /* WindowManagers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0027E39A3666E076F297294B /* WindowManagers.swift */; };
+		851D72BE363BA9CD774C86FD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 59C076ABAC644F6C7391DB97 /* Assets.xcassets */; };
 		8C4F1200267476453D6FB4C0 /* UITestControlPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA731C83A4C2E0F4811C466D /* UITestControlPanelView.swift */; };
 		8DD090BC73B39783FE16A56C /* AutomationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202E2C0A4F8E0948B9C2B0AE /* AutomationSupport.swift */; };
 		91102F0EA94DE734BB27C534 /* snippingToolCore in Frameworks */ = {isa = PBXBuildFile; productRef = C184FDE7151A4CF5EBE0A3A2 /* snippingToolCore */; };
@@ -102,6 +103,7 @@
 		323D5E90A83E721328BACB17 /* OnboardingWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindowManager.swift; sourceTree = "<group>"; };
 		34E783B8F426985FC47A828A /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		387AE152230447688959BCCF /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
+		38C1F5FD365B4DABE4479192 /* snippingTool */ = {isa = PBXFileReference; lastKnownFileType = folder; name = snippingTool; path = .; sourceTree = SOURCE_ROOT; };
 		3B1B2BF058D9172336F68ACE /* OnboardingState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingState.swift; sourceTree = "<group>"; };
 		44B6A9535DDB7194656B7883 /* AnnotationToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationToolbarView.swift; sourceTree = "<group>"; };
 		4A58C7D6E4264B6EBBD6CD58 /* AppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateTests.swift; sourceTree = "<group>"; };
@@ -111,6 +113,7 @@
 		54064FE90C25F7A1974EF596 /* LibraryItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryItemView.swift; sourceTree = "<group>"; };
 		54935EFE6D9992AA3AED0514 /* CaptureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureModels.swift; sourceTree = "<group>"; };
 		55BEB2F2B864565A972118DE /* AnnotationStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationStoreTests.swift; sourceTree = "<group>"; };
+		59C076ABAC644F6C7391DB97 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5FFDCE058715BC9570858464 /* LaunchAtLoginManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManagerTests.swift; sourceTree = "<group>"; };
 		626EE4F8768D2FE6C6643502 /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContentView.swift; sourceTree = "<group>"; };
 		68609BA7AFCD4A6F142F5D34 /* snippingToolHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = snippingToolHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -119,7 +122,6 @@
 		77A00D6AC58F02E5EC3D03C3 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7DD2B78AA767B41CFEA2F735 /* ShapeAnnotationRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeAnnotationRenderer.swift; sourceTree = "<group>"; };
 		804B6FAA86DCA84687912502 /* SelectionOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayView.swift; sourceTree = "<group>"; };
-		95184DBE4C2D3E1BDA7852B6 /* agents-disable-next-button-until-permissions-granted */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "agents-disable-next-button-until-permissions-granted"; path = .; sourceTree = SOURCE_ROOT; };
 		9CE7284A29B95ED9D28F42E6 /* ExportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportServiceTests.swift; sourceTree = "<group>"; };
 		9D67D790E3CFE686BBF11EAD /* CaptureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureCoordinator.swift; sourceTree = "<group>"; };
 		A058F45AA666B9C2355748B7 /* HotkeyEventMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyEventMapping.swift; sourceTree = "<group>"; };
@@ -134,7 +136,6 @@
 		DC359D8E3C9F535C2FF4FD68 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		DC822FBA93D0AE6F2B76FC28 /* SelectableCaptureImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableCaptureImageView.swift; sourceTree = "<group>"; };
 		FA731C83A4C2E0F4811C466D /* UITestControlPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestControlPanelView.swift; sourceTree = "<group>"; };
-		FC774A4BA319BA32DA219DA6 /* agents-uniform-thumbnail-sizes-capture-library */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "agents-uniform-thumbnail-sizes-capture-library"; path = .; sourceTree = SOURCE_ROOT; };
 		FF0BF3BA0A5532D623C5F3CA /* SelectionOverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionOverlayWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -240,6 +241,14 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		5F47507678509FFD9285262F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				59C076ABAC644F6C7391DB97 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		776B0C9828CAAA5540B474C7 /* Output */ = {
 			isa = PBXGroup;
 			children = (
@@ -288,7 +297,7 @@
 		A11F0B984B8AA5A1262624EA /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				FC774A4BA319BA32DA219DA6 /* agents-uniform-thumbnail-sizes-capture-library */,
+				38C1F5FD365B4DABE4479192 /* snippingTool */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -334,6 +343,7 @@
 				08FA2ABD1A133EBB80D9D69E /* Onboarding */,
 				776B0C9828CAAA5540B474C7 /* Output */,
 				8AEC9A2B3EB6CC7B903C47B1 /* Permissions */,
+				5F47507678509FFD9285262F /* Resources */,
 				5952BD5B04A29E1ACB391C7F /* Settings */,
 			);
 			path = snippingTool;
@@ -406,6 +416,7 @@
 			buildConfigurationList = AF7C03676C2CC0EFBD14AFEF /* Build configuration list for PBXNativeTarget "snippingToolHost" */;
 			buildPhases = (
 				0F12E220BE65E23C9299B472 /* Sources */,
+				B14107A3D4DFC03B520FA892 /* Resources */,
 				0CC1C23CEF2DF773A0C73EBF /* Frameworks */,
 			);
 			buildRules = (
@@ -449,6 +460,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					9BC22A0E7B8906F31D4C7B1E = {
+						DevelopmentTeam = U9TUQFBL8D;
+						ProvisioningStyle = Automatic;
+					};
 					9D67661C7AFA6B7489BA5505 = {
 						TestTargetID = 9BC22A0E7B8906F31D4C7B1E;
 					};
@@ -477,6 +492,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B14107A3D4DFC03B520FA892 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				851D72BE363BA9CD774C86FD /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		0BEBA5295ADF4993286D87A2 /* Sources */ = {
@@ -639,6 +665,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -651,6 +678,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -695,6 +723,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -713,6 +742,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -766,23 +796,22 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U9TUQFBL8D;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleShortVersionString = "$(MARKETING_VERSION)";
-				INFOPLIST_KEY_CFBundleVersion = "$(CURRENT_PROJECT_VERSION)";
 				INFOPLIST_KEY_CFBundleDisplayName = snippingTool;
 				INFOPLIST_KEY_CFBundleName = snippingTool;
+				INFOPLIST_KEY_CFBundleShortVersionString = "$(MARKETING_VERSION)";
+				INFOPLIST_KEY_CFBundleVersion = "$(CURRENT_PROJECT_VERSION)";
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ronhouben.snippingtool.host;
-				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = snippingTool;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -793,22 +822,21 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				COMBINE_HIDPI_IMAGES = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = U9TUQFBL8D;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleShortVersionString = "$(MARKETING_VERSION)";
-				INFOPLIST_KEY_CFBundleVersion = "$(CURRENT_PROJECT_VERSION)";
 				INFOPLIST_KEY_CFBundleDisplayName = snippingTool;
 				INFOPLIST_KEY_CFBundleName = snippingTool;
+				INFOPLIST_KEY_CFBundleShortVersionString = "$(MARKETING_VERSION)";
+				INFOPLIST_KEY_CFBundleVersion = "$(CURRENT_PROJECT_VERSION)";
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ronhouben.snippingtool.host;
 				PRODUCT_NAME = snippingTool;
 				SDKROOT = macosx;

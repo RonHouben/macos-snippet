@@ -73,7 +73,7 @@ if [[ -n "$RUNNING_PIDS" ]]; then
   echo "Stopping running app..."
   while IFS= read -r pid; do
     [[ -n "$pid" ]] || continue
-    kill "$pid"
+    kill "$pid" 2>/dev/null || true
   done <<< "$RUNNING_PIDS"
 fi
 
