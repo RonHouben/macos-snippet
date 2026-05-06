@@ -514,6 +514,19 @@ struct AnnotationCanvasView: View {
                 updateCursor()
             }
         }
+        .onTapGesture(count: 2) { location in
+            guard annotationStore.selectedTool.isTextAnnotationTool || annotationStore.selectedTool.isAnnotationSelectionTool,
+                  annotationStore.pendingTextAnchor == nil,
+                  let imagePoint = AnnotationCoordinateMapper.imagePoint(
+                    fromCanvasPoint: location,
+                    imageFrame: imageFrame,
+                    imageSize: imageSize
+                  ),
+                  let hitAnnotation = hitTextAnnotation(at: imagePoint) else {
+                return
+            }
+            annotationStore.startEditingExistingText(id: hitAnnotation.id)
+        }
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in

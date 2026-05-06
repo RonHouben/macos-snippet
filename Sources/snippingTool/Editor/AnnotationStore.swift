@@ -162,6 +162,19 @@ final class AnnotationStore {
         draftText = ""
     }
 
+    func startEditingExistingText(id: UUID) {
+        guard let index = textAnnotations.firstIndex(where: { $0.id == id }) else { return }
+        let annotation = textAnnotations[index]
+        finalizePendingTextIfNeeded()
+        beginMutation()
+        textAnnotations.remove(at: index)
+        selectedAnnotationSelections.remove(.text(id))
+        pendingTextAnchor = annotation.anchor
+        draftText = annotation.text
+        selectedColor = annotation.color
+        textFontSize = annotation.fontSize
+    }
+
     @discardableResult
     func commitText() -> UUID? {
         guard let anchor = pendingTextAnchor else { return nil }
