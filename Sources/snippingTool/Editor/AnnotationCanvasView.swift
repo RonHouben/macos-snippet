@@ -132,6 +132,26 @@ struct AnnotationCanvasView: View {
     private let maxZoomScale: CGFloat = 3.0
     private let panScrollSensitivity: CGFloat = 0.85
 
+    /// Key code for the Delete (Backspace) key.
+    static let deleteKeyCode: UInt16 = 51
+    /// Key code for the Forward Delete key (also produced by Fn+Delete).
+    static let forwardDeleteKeyCode: UInt16 = 117
+
+    /// Determines whether a key event should delete the current annotation selection.
+    ///
+    /// Only the Delete and Forward Delete keys trigger deletion. Incidental modifier
+    /// flags such as Caps Lock, Fn (which the Forward Delete key sets) and the numeric
+    /// pad bit are ignored so deletion keeps working when they happen to be active.
+    /// Genuine command-chord modifiers (Command, Control, Option, Shift) suppress it.
+    static func isDeleteSelectionKeyEvent(keyCode: UInt16, modifiers: NSEvent.ModifierFlags) -> Bool {
+        guard keyCode == deleteKeyCode || keyCode == forwardDeleteKeyCode else {
+            return false
+        }
+
+        let blockingModifiers: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+        return modifiers.intersection(.deviceIndependentFlagsMask).isDisjoint(with: blockingModifiers)
+    }
+
     private var isUITestingAutomationEnabled: Bool {
         let processInfo = ProcessInfo.processInfo
         let arguments = Set(processInfo.arguments)
@@ -249,11 +269,7 @@ struct AnnotationCanvasView: View {
                         }
                     }
 
-                    guard relevantModifiers.isEmpty else {
-                        return event
-                    }
-
-                    guard event.keyCode == 51 || event.keyCode == 117 else {
+                    guard Self.isDeleteSelectionKeyEvent(keyCode: event.keyCode, modifiers: relevantModifiers) else {
                         return event
                     }
 
@@ -1289,7 +1305,7 @@ struct AnnotationCanvasView: View {
         return annotationStore.shapeAnnotations
             .reversed()
             .first { shape in
-                shape.kind == kind && ShapeAnnotationRenderer.hitTest(imagePoint, shape: shape, tolerance: tolerance)
+                shape.kind == kind && ShapeAnnotationRenderer.hitTest(imagePoint, shape: shape, tolerance: tolerance, fillInclusive: true)
             }
     }
 
@@ -1298,7 +1314,7 @@ struct AnnotationCanvasView: View {
         return annotationStore.shapeAnnotations
             .reversed()
             .first { shape in
-                ShapeAnnotationRenderer.hitTest(imagePoint, shape: shape, tolerance: tolerance)
+                ShapeAnnotationRenderer.hitTest(imagePoint, shape: shape, tolerance: tolerance, fillInclusive: true)
             }
     }
 
