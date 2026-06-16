@@ -177,4 +177,60 @@ final class AnnotationStoreTests: XCTestCase {
         XCTAssertEqual(store.textAnnotations.first?.text, textAnnotation.text)
         XCTAssertEqual(store.textAnnotations.first?.anchor, textAnnotation.anchor)
     }
+
+    func testDeleteKeyEventTriggersDeletionForDeleteAndForwardDeleteKeys() {
+        XCTAssertTrue(
+            AnnotationCanvasView.isDeleteSelectionKeyEvent(
+                keyCode: AnnotationCanvasView.deleteKeyCode,
+                modifiers: []
+            )
+        )
+        XCTAssertTrue(
+            AnnotationCanvasView.isDeleteSelectionKeyEvent(
+                keyCode: AnnotationCanvasView.forwardDeleteKeyCode,
+                modifiers: []
+            )
+        )
+    }
+
+    func testDeleteKeyEventIgnoresIncidentalModifiers() {
+        // Caps Lock, Fn (set by the Forward Delete key) and the numeric pad bit are
+        // incidental and must not suppress annotation deletion.
+        XCTAssertTrue(
+            AnnotationCanvasView.isDeleteSelectionKeyEvent(
+                keyCode: AnnotationCanvasView.deleteKeyCode,
+                modifiers: [.capsLock]
+            )
+        )
+        XCTAssertTrue(
+            AnnotationCanvasView.isDeleteSelectionKeyEvent(
+                keyCode: AnnotationCanvasView.forwardDeleteKeyCode,
+                modifiers: [.function]
+            )
+        )
+        XCTAssertTrue(
+            AnnotationCanvasView.isDeleteSelectionKeyEvent(
+                keyCode: AnnotationCanvasView.forwardDeleteKeyCode,
+                modifiers: [.function, .numericPad]
+            )
+        )
+    }
+
+    func testDeleteKeyEventIsSuppressedByCommandChordModifiers() {
+        for modifier in [NSEvent.ModifierFlags.command, .control, .option, .shift] {
+            XCTAssertFalse(
+                AnnotationCanvasView.isDeleteSelectionKeyEvent(
+                    keyCode: AnnotationCanvasView.deleteKeyCode,
+                    modifiers: modifier
+                ),
+                "Modifier \(modifier) should suppress deletion"
+            )
+        }
+    }
+
+    func testDeleteKeyEventIgnoresNonDeleteKeys() {
+        XCTAssertFalse(
+            AnnotationCanvasView.isDeleteSelectionKeyEvent(keyCode: 0, modifiers: [])
+        )
+    }
 }

@@ -76,12 +76,12 @@ enum ShapeAnnotationRenderer {
         })
     }
 
-    static func hitTest(_ imagePoint: CGPoint, shape: ShapeAnnotation, tolerance: CGFloat) -> Bool {
+    static func hitTest(_ imagePoint: CGPoint, shape: ShapeAnnotation, tolerance: CGFloat, fillInclusive: Bool = false) -> Bool {
         switch shape.kind {
         case .rectangle:
-            return hitTestRectangle(imagePoint, shape: shape, tolerance: tolerance)
+            return hitTestRectangle(imagePoint, shape: shape, tolerance: tolerance, fillInclusive: fillInclusive)
         case .circle:
-            return hitTestEllipse(imagePoint, shape: shape, tolerance: tolerance)
+            return hitTestEllipse(imagePoint, shape: shape, tolerance: tolerance, fillInclusive: fillInclusive)
         case .arrow:
             return hitTestArrow(imagePoint, shape: shape, tolerance: tolerance)
         }
@@ -152,7 +152,7 @@ enum ShapeAnnotationRenderer {
         return path
     }
 
-    private static func hitTestRectangle(_ imagePoint: CGPoint, shape: ShapeAnnotation, tolerance: CGFloat) -> Bool {
+    private static func hitTestRectangle(_ imagePoint: CGPoint, shape: ShapeAnnotation, tolerance: CGFloat, fillInclusive: Bool = false) -> Bool {
         let localPoint = ShapeAnnotationGeometry.localPoint(
             fromWorld: imagePoint,
             center: shape.center.cgPoint,
@@ -167,7 +167,7 @@ enum ShapeAnnotationRenderer {
             return false
         }
 
-        if shape.fillMode.includesFill {
+        if fillInclusive || shape.fillMode.includesFill {
             return true
         }
 
@@ -182,7 +182,7 @@ enum ShapeAnnotationRenderer {
         return innerRect.isEmpty || innerRect.contains(localPoint) == false
     }
 
-    private static func hitTestEllipse(_ imagePoint: CGPoint, shape: ShapeAnnotation, tolerance: CGFloat) -> Bool {
+    private static func hitTestEllipse(_ imagePoint: CGPoint, shape: ShapeAnnotation, tolerance: CGFloat, fillInclusive: Bool = false) -> Bool {
         let localPoint = ShapeAnnotationGeometry.localPoint(
             fromWorld: imagePoint,
             center: shape.center.cgPoint,
@@ -195,7 +195,7 @@ enum ShapeAnnotationRenderer {
             return false
         }
 
-        if shape.fillMode.includesFill {
+        if fillInclusive || shape.fillMode.includesFill {
             return true
         }
 
