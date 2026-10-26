@@ -59,8 +59,10 @@ struct ScreenCaptureService {
         return CapturedSnippet(cgImage: image, sourceRect: normalized)
     }
 
-    func captureMainDisplay() async throws -> CapturedSnippet {
-        guard let screen = NSScreen.main,
+    func captureDisplay(containing point: CGPoint) async throws -> CapturedSnippet {
+        let screens = NSScreen.screens
+        let screenIndex = OverlayScreenGeometry.indexOfScreen(containing: point, in: screens.map(\.frame))
+        guard let screen = screenIndex.map({ screens[$0] }) ?? NSScreen.main,
               let displayID = screen.displayID else {
             throw CaptureError.screenUnavailable
         }

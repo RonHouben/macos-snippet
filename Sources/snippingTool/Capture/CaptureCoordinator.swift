@@ -16,7 +16,10 @@ final class CaptureCoordinator {
 
     var currentCapture: CapturedSnippet?
     var hoveredWindowTarget: WindowSelectionTarget?
-    var hoveredWindowOverlayRect: CGRect?
+    /// Hovered window bounds in global AppKit screen coordinates; each overlay maps them into its own space.
+    var hoveredWindowScreenRect: CGRect?
+    /// Frame of the screen whose overlay currently shows the toolbar (the one under the pointer).
+    var activeOverlayScreenFrame: CGRect?
     var lastError: String?
     var statusMessage: String?
     var isCaptureInProgress = false
@@ -167,8 +170,7 @@ final class CaptureCoordinator {
         }
     }
 
-    func captureSelection(_ rect: CGRect) {
-        let captureRect = overlayController?.screenRect(forSelectionRect: rect) ?? rect
+    func captureSelection(_ captureRect: CGRect) {
         let activeModifiers = currentActiveModifiers
         clearHoveredWindow()
 
@@ -194,24 +196,24 @@ final class CaptureCoordinator {
         }
     }
 
-    func updateHoveredWindow(using overlayPoint: CGPoint, overlayRectProvider: (CGRect) -> CGRect) {
+    func updateHoveredWindow(atScreenPoint screenPoint: CGPoint) {
         guard overlayCaptureMode == .window else {
             clearHoveredWindow()
             return
         }
 
-        guard let target = windowSelectionService.window(atScreenPoint: overlayPoint) else {
+        guard let target = windowSelectionService.window(atScreenPoint: screenPoint) else {
             clearHoveredWindow()
             return
         }
 
-        let overlayRect = overlayRectProvider(target.bounds).standardized.integral
-        guard hoveredWindowTarget != target || hoveredWindowOverlayRect != overlayRect else {
+        let screenRect = target.bounds.standardized.integral
+        guard hoveredWindowTarget != target || hoveredWindowScreenRect != screenRect else {
             return
         }
 
         hoveredWindowTarget = target
-        hoveredWindowOverlayRect = overlayRect
+        hoveredWindowScreenRect = screenRect
     }
 
     func captureHoveredWindow(activeModifiers: HotkeyModifiers? = nil) {
@@ -252,8 +254,7 @@ final class CaptureCoordinator {
         isCaptureInProgress = false
         overlayCaptureMode = .rectangular
         clearHoveredWindow()
-        overlayController?.close()
-        overlayController = nil
+        dismissOverlayIfNeeded()
         statusMessage = "Capture cancelled."
     }
 
@@ -269,9 +270,9 @@ final class CaptureCoordinator {
     private func captureFullScreen(activeModifiers: HotkeyModifiers) {
         Task { @MainActor in
             do {
-                currentCapture = try await screenCaptureService.captureMainDisplay()
+                currentCapture = try await screenCaptureService.captureDisplay(containing: NSEvent.mouseLocation)
                 completeCapture(
-                    status: "Captured the main display.",
+                    status: "Captured the display.",
                     hasOverlay: false,
                     activeModifiers: activeModifiers
                 )
@@ -319,6 +320,7 @@ final class CaptureCoordinator {
     private func dismissOverlayIfNeeded() {
         overlayController?.close()
         overlayController = nil
+        activeOverlayScreenFrame = nil
     }
 
     var rectangularCaptureHint: String {
@@ -362,6 +364,6 @@ final class CaptureCoordinator {
 
     private func clearHoveredWindow() {
         hoveredWindowTarget = nil
-        hoveredWindowOverlayRect = nil
+        hoveredWindowScreenRect = nil
     }
 }
