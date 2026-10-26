@@ -178,6 +178,42 @@ func testScreenSelectionCropMapperHandlesOffsetScreens() throws {
     try expect(cropRect == CGRect(x: 256, y: 234, width: 600, height: 400), "Crop mapping should work even when a screen has a negative global origin")
 }
 
+func testOverlayScreenGeometryMapsOverlayRectToGlobalScreenRect() throws {
+    let screenFrame = CGRect(x: -1728, y: 0, width: 1728, height: 1117)
+    let overlayRect = CGRect(x: 128, y: 117, width: 300, height: 200)
+    let screenRect = OverlayScreenGeometry.screenRect(forOverlayRect: overlayRect, in: screenFrame)
+
+    try expect(screenRect == CGRect(x: -1600, y: 800, width: 300, height: 200), "Top-left overlay rects should map into bottom-left global AppKit coordinates on offset screens")
+}
+
+func testOverlayScreenGeometryMapsGlobalScreenRectToOverlayRect() throws {
+    let screenFrame = CGRect(x: 1440, y: -200, width: 1920, height: 1080)
+    let screenRect = CGRect(x: 1500, y: 600, width: 400, height: 180)
+    let overlayRect = OverlayScreenGeometry.overlayRect(forScreenRect: screenRect, in: screenFrame)
+
+    try expect(overlayRect == CGRect(x: 60, y: 100, width: 400, height: 180), "Global AppKit rects should map into the overlay's top-left coordinate space")
+    try expect(OverlayScreenGeometry.screenRect(forOverlayRect: overlayRect, in: screenFrame) == screenRect, "Overlay and screen rect mapping should round-trip")
+}
+
+func testOverlayScreenGeometryClampsDragPointsToTheOverlay() throws {
+    let size = CGSize(width: 1440, height: 900)
+
+    try expect(OverlayScreenGeometry.clamp(CGPoint(x: 1700, y: -40), to: size) == CGPoint(x: 1440, y: 0), "Drag points beyond the overlay should be clamped to its edges")
+    try expect(OverlayScreenGeometry.clamp(CGPoint(x: 300, y: 200), to: size) == CGPoint(x: 300, y: 200), "Drag points inside the overlay should be unchanged")
+}
+
+func testOverlayScreenGeometryFindsTheScreenContainingAPoint() throws {
+    let screens = [
+        CGRect(x: 0, y: 0, width: 1728, height: 1117),
+        CGRect(x: 1728, y: 0, width: 2560, height: 1440)
+    ]
+
+    try expect(OverlayScreenGeometry.indexOfScreen(containing: CGPoint(x: 2000, y: 500), in: screens) == 1, "The external screen should be resolved for points on it")
+    try expect(OverlayScreenGeometry.indexOfScreen(containing: CGPoint(x: 10, y: 10), in: screens) == 0, "The built-in screen should be resolved for points on it")
+    try expect(OverlayScreenGeometry.indexOfScreen(containing: CGPoint(x: 1728, y: 1117), in: screens) == 1, "Points on a shared edge should resolve to a screen instead of nil")
+    try expect(OverlayScreenGeometry.indexOfScreen(containing: CGPoint(x: -5000, y: 0), in: screens) == nil, "Points outside every screen should not resolve")
+}
+
 func testEditorWindowPlacementChoosesTheScreenWithLargestCapturedArea() throws {
     let sourceRect = CGRect(x: 1500, y: 120, width: 500, height: 300)
     let screenFrames = [
@@ -506,6 +542,10 @@ do {
     try testAnnotationLineWidthScalesWithDisplayedImage()
     try testScreenSelectionCropMapperProducesTopLeftImageCrop()
     try testScreenSelectionCropMapperHandlesOffsetScreens()
+    try testOverlayScreenGeometryMapsOverlayRectToGlobalScreenRect()
+    try testOverlayScreenGeometryMapsGlobalScreenRectToOverlayRect()
+    try testOverlayScreenGeometryClampsDragPointsToTheOverlay()
+    try testOverlayScreenGeometryFindsTheScreenContainingAPoint()
     try testEditorWindowPlacementChoosesTheScreenWithLargestCapturedArea()
     try testEditorWindowPlacementCentersWindowInsideVisibleScreenFrame()
     try testEditorWindowPlacementResolvesVisibleFrameUsingFullScreenBounds()

@@ -11,6 +11,18 @@ struct SelectionOverlayView: View {
     @State private var isToolbarVisible = false
 
     let coordinator: CaptureCoordinator
+    /// Global AppKit frame of the screen this overlay covers.
+    let screenFrame: CGRect
+
+    private var hoveredWindowRect: CGRect? {
+        coordinator.hoveredWindowScreenRect.map {
+            OverlayScreenGeometry.overlayRect(forScreenRect: $0, in: screenFrame)
+        }
+    }
+
+    private var isActiveScreen: Bool {
+        coordinator.activeOverlayScreenFrame == screenFrame
+    }
 
     private var selectionRect: CGRect? {
         guard let dragStart, let dragCurrent else { return nil }
@@ -72,7 +84,8 @@ struct SelectionOverlayView: View {
                 }
 
                 if coordinator.overlayCaptureMode == .window,
-                   let hoveredWindowRect = coordinator.hoveredWindowOverlayRect {
+                   let hoveredWindowRect,
+                   hoveredWindowRect.intersects(CGRect(origin: .zero, size: geometry.size)) {
                     RoundedRectangle(cornerRadius: overlayStyle.cornerRadius)
                         .fill(Color.clear)
                         .frame(width: hoveredWindowRect.width, height: hoveredWindowRect.height)
@@ -117,7 +130,7 @@ struct SelectionOverlayView: View {
                     Color.clear
                         .contentShape(Rectangle())
                         .ignoresSafeArea()
-                        .gesture(selectionGesture)
+                        .gesture(selectionGesture(in: geometry.size))
                 } else {
                     Color.clear
                         .contentShape(Rectangle())
@@ -140,9 +153,11 @@ struct SelectionOverlayView: View {
                         )
                     }
                 }
-                .opacity(isToolbarVisible ? 1 : 0)
-                .scaleEffect(isToolbarVisible ? 1 : 0.96, anchor: .top)
-                .offset(y: isToolbarVisible ? 0 : -10)
+                .opacity(isToolbarShown ? 1 : 0)
+                .scaleEffect(isToolbarShown ? 1 : 0.96, anchor: .top)
+                .offset(y: isToolbarShown ? 0 : -10)
+                .allowsHitTesting(isToolbarShown)
+                .animation(toolbarAnimation, value: isActiveScreen)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .padding(.top, layoutMetrics.topPadding)
                 .padding(.horizontal, layoutMetrics.horizontalPadding)
@@ -168,7 +183,12 @@ struct SelectionOverlayView: View {
         }
     }
 
-    private var selectionGesture: some Gesture {
+    private var isToolbarShown: Bool {
+        isToolbarVisible && isActiveScreen
+    }
+
+    /// Selections stay on the screen where the drag started, so drag points are clamped to this overlay.
+    private func selectionGesture(in size: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 guard coordinator.overlayCaptureMode == .rectangular else {
@@ -176,9 +196,9 @@ struct SelectionOverlayView: View {
                 }
 
                 if dragStart == nil {
-                    dragStart = value.startLocation
+                    dragStart = OverlayScreenGeometry.clamp(value.startLocation, to: size)
                 }
-                dragCurrent = value.location
+                dragCurrent = OverlayScreenGeometry.clamp(value.location, to: size)
             }
             .onEnded { value in
                 guard coordinator.overlayCaptureMode == .rectangular else {
@@ -186,19 +206,19 @@ struct SelectionOverlayView: View {
                     return
                 }
 
-                dragCurrent = value.location
+                dragCurrent = OverlayScreenGeometry.clamp(value.location, to: size)
                 guard let selectionRect else {
                     coordinator.cancelCapture()
                     return
                 }
 
-                coordinator.captureSelection(selectionRect)
+                coordinator.captureSelection(OverlayScreenGeometry.screenRect(forOverlayRect: selectionRect, in: screenFrame))
             }
     }
 
     @ViewBuilder
     private func overlayBackdrop(in size: CGSize) -> some View {
-        let focusRect = coordinator.overlayCaptureMode == .window ? coordinator.hoveredWindowOverlayRect : selectionRect
+        let focusRect = coordinator.overlayCaptureMode == .window ? hoveredWindowRect : selectionRect
 
         if let focusRect {
             Path { path in
